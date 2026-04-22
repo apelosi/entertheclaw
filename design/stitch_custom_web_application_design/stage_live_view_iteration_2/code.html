@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Stage Live View - Enter The Claw</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,700;1,6..72,400;1,6..72,700&amp;family=Space+Grotesk:wght@400;500;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-primary-container": "#ffdada",
+                        "on-surface-variant": "#e3bebd",
+                        "surface-tint": "#ffb3b4",
+                        "secondary-fixed": "#ffdea6",
+                        "on-primary-fixed": "#40000a",
+                        "surface-container-highest": "#353534",
+                        "on-secondary-container": "#392700",
+                        "outline": "#aa8989",
+                        "on-tertiary-fixed-variant": "#474743",
+                        "error": "#ffb4ab",
+                        "on-background": "#e5e2e1",
+                        "inverse-on-surface": "#313030",
+                        "secondary-fixed-dim": "#f7bd48",
+                        "on-tertiary-fixed": "#1c1c19",
+                        "on-secondary": "#412d00",
+                        "inverse-surface": "#e5e2e1",
+                        "surface-variant": "#353534",
+                        "primary-container": "#c41e3a",
+                        "outline-variant": "#5b4040",
+                        "primary": "#ffb3b4",
+                        "secondary": "#f7bd48",
+                        "on-secondary-fixed": "#271900",
+                        "inverse-primary": "#ba1434",
+                        "on-tertiary": "#31302d",
+                        "tertiary-container": "#666561",
+                        "primary-fixed-dim": "#ffb3b4",
+                        "background": "#131313",
+                        "surface-dim": "#131313",
+                        "on-secondary-fixed-variant": "#5d4200",
+                        "on-surface": "#e5e2e1",
+                        "on-error-container": "#ffdad6",
+                        "surface": "#131313",
+                        "on-primary-fixed-variant": "#920023",
+                        "tertiary-fixed": "#e5e2dd",
+                        "tertiary": "#c9c6c1",
+                        "surface-container-low": "#1c1b1b",
+                        "error-container": "#93000a",
+                        "secondary-container": "#ba880f",
+                        "on-tertiary-container": "#e6e3de",
+                        "surface-container-high": "#2a2a2a",
+                        "surface-container": "#201f1f",
+                        "surface-container-lowest": "#0e0e0e",
+                        "on-error": "#690005",
+                        "tertiary-fixed-dim": "#c9c6c1",
+                        "primary-fixed": "#ffdad9",
+                        "on-primary": "#680016",
+                        "surface-bright": "#3a3939"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "fontFamily": {
+                        "headline": ["Newsreader", "serif"],
+                        "body": ["Inter", "sans-serif"],
+                        "label": ["Space Grotesk", "sans-serif"]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .image-pixelated {
+            image-rendering: pixelated;
+        }
+        .glow-primary {
+            box-shadow: 0 0 30px rgba(196, 30, 58, 0.15);
+        }
+    </style>
+</head>
+<body class="bg-surface-dim text-on-surface font-body min-h-screen flex flex-col overflow-hidden selection:bg-primary-container selection:text-on-primary-container">
+<!-- TopAppBar from JSON -->
+<header class="w-full sticky top-0 z-50 bg-[#131313]/90 dark:bg-zinc-950/90 backdrop-blur-md shadow-[0_4px_20px_rgba(196,30,58,0.15)]">
+<div class="flex justify-between items-center w-full px-8 py-4">
+<!-- Brand Logo -->
+<div class="flex items-center gap-4">
+<h1 class="text-2xl italic font-serif text-[#C41E3A] dark:text-[#C41E3A] uppercase tracking-widest font-headline">ENTER THE CLAW</h1>
+</div>
+<!-- Navigation Links -->
+<nav class="hidden md:flex gap-8 items-center font-serif italic tracking-tight">
+<!-- Active Item -->
+<a class="text-[#C41E3A] border-b-2 border-[#C41E3A] font-bold pb-1 transition-colors duration-300 hover:text-[#C41E3A]" href="#">The Stage</a>
+<!-- Inactive Items -->
+<a class="text-zinc-400 font-medium hover:text-zinc-200 transition-colors duration-300 hover:text-[#C41E3A] pb-1" href="#">Archives</a>
+<a class="text-zinc-400 font-medium hover:text-zinc-200 transition-colors duration-300 hover:text-[#C41E3A] pb-1" href="#">Auditions</a>
+</nav>
+<!-- Trailing Icons -->
+<div class="flex items-center gap-4 text-[#C41E3A]">
+<button class="transition-colors duration-300 hover:text-[#C41E3A] opacity-80 hover:scale-95 hover:opacity-100 flex items-center justify-center">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<button class="transition-colors duration-300 hover:text-[#C41E3A] opacity-80 hover:scale-95 hover:opacity-100 flex items-center justify-center">
+<span class="material-symbols-outlined">account_circle</span>
+</button>
+</div>
+</div>
+<!-- Separation Logic -->
+<div class="bg-gradient-to-b from-zinc-900 to-transparent h-1 w-full absolute bottom-0 translate-y-full"></div>
+</header>
+<!-- Main Canvas (The Stage) -->
+<main class="flex-grow relative w-full h-full bg-surface-container-lowest flex items-center justify-center overflow-hidden"><div class="absolute inset-0 z-0 overflow-hidden">
+<img alt="Claw of the Titans Background" class="w-full h-full object-cover opacity-40 image-pixelated" src="https://lh3.googleusercontent.com/aida/ADBb0ugsg_AXHPdnrb1g2iqRBg1Wd6OjVPtZ-EpAhe8l5mUsQXtF45LI_YnIqDFMtFxQe74G_KfQNQ-_Ej9Y3r6Szopymoo0Krmxz3yL9AzzhcSuBVxUEFZsT87a7TyNIY9OgfVxMBLw4-w-VXL7mofH6D5LKELBqFLYyF2b1K28IciinM9-hSkDhuud6w6QiObnkaMBaabh6FlK1-fqYj_Ww0Z5qN5fetghKzUhDJojXiFcPTzRjqpgbJlelQIN"/>
+<div class="absolute inset-0 bg-gradient-to-t from-background via-transparent to-background/50"></div>
+</div>
+<!-- Ambient Stage Lighting Background -->
+<!-- The Circular Stage Area -->
+<div class="relative w-[90vw] h-[90vw] max-w-[800px] max-h-[800px] rounded-full border border-outline-variant/20 shadow-[0_0_120px_rgba(196,30,58,0.1)] flex items-center justify-center z-10 bg-background/20">
+<!-- Grid Lines on Stage Floor (Subtle) -->
+<div class="absolute inset-0 rounded-full opacity-10 bg-[linear-gradient(rgba(255,255,255,0.1)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.1)_1px,transparent_1px)] bg-[size:40px_40px]"></div>
+<!-- Stage Content: Pixel Art Characters (Absolute Positioned around the stage) -->
+<div class="absolute top-1/4 left-1/4 w-16 h-16 transform -translate-x-1/2 -translate-y-1/2">
+<img alt="Pixel art style character sprite, male warrior, 8-bit aesthetic" class="w-full h-full object-cover rounded-sm image-pixelated shadow-lg border border-primary/30" data-alt="Pixel art style 8-bit character sprite, retro video game style, colorful" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCDrxF7w1HiJYIjac6VKXgLkx12xIN76I-pgk4ps5ds0in_b0dO8sBMX5tPxUxrMvm93cdzrVBH6sZYO-e0TYUiBLnSA4g2Q_3BoFpAllLX3cePR5DTXuJCCAaeCJgDpyZnc_RRscrGr5UvDKKG2UtvFO6BIAEb_NxRk6uRWy8XPJ2MyOvhzbjPOse9THc-UWKysXHb4yq5CW1GbkjGHofJKxK9GwbNHqJaWYm-Azwa-okCXX1psQb_QiIE4FokYOBjvyvgHJdOTZn0"/>
+<div class="absolute -bottom-6 left-1/2 -translate-x-1/2 whitespace-nowrap font-label text-[10px] text-primary uppercase tracking-widest bg-surface-container-highest/80 px-2 py-0.5 rounded-sm backdrop-blur-sm border-t border-l border-outline-variant/20">Vanguard</div>
+</div>
+<div class="absolute top-1/3 right-1/4 w-16 h-16 transform translate-x-1/2 -translate-y-1/2">
+<img alt="Pixel art style character sprite, female rogue, 8-bit aesthetic" class="w-full h-full object-cover rounded-sm image-pixelated shadow-lg border border-secondary/30" data-alt="8-bit retro pixel art character, shadowy rogue figure, dark colors" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBt_ahGvEC4Q8AgE7VID9SJiYBA6BQYhqapwXdYJZA61I0awzf08JJ8Qt0LN40uvoJDOBLsn2kKnM29jmpecsgjEJqvlD40kKX5bptvu-1PjoNZXEbzOmu694SmCV397d4p8M0qs2fObEsg12AX0JoIMnNp7bNMFAdVNFSqXpmkj8BxFN65cAjpm5YxT9mGh23YxNqr4HTKY4Za989VnKQVSL7ilaeDdUHgGehEE_jqtkmveocQdQP4rfJQmJ0XIhvKziOb9I2xzQvz"/>
+<div class="absolute -bottom-6 left-1/2 -translate-x-1/2 whitespace-nowrap font-label text-[10px] text-secondary uppercase tracking-widest bg-surface-container-highest/80 px-2 py-0.5 rounded-sm backdrop-blur-sm border-t border-l border-outline-variant/20">Shadow</div>
+</div>
+<div class="absolute bottom-1/3 left-1/2 w-16 h-16 transform -translate-x-1/2 translate-y-1/2">
+<img alt="Pixel art style character sprite, mystical beast, 8-bit aesthetic" class="w-full h-full object-cover rounded-sm image-pixelated shadow-[0_0_20px_rgba(186,136,15,0.4)] border border-secondary-container" data-alt="Retro 8-bit pixel art, glowing mystical creature, bright neon colors" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBXHbX1NMoj2nOtXg7eq1zo2FIYNoTY3RvS-5vywGklOJyrag_78rd_vOAeAhmh4w24N81ssry6lGDu86zLo1cfnLiP6AI7sKdb6riqqoyutYfcUOKZRcMFDgu81DsduKcJcCJDz7J_a4HMKuw4xf2v1za1dfgCZvT1tYvKeYFNUec7IMooKjxSMxLrJdUeXtQ4oegAFFFmQazAY0YvaPm_N-RzDjCmT_P7qCrqZ9JUTTsGodJEMtKjixOVObEwCAXH7A0qAjgs5Q44"/>
+<div class="absolute -bottom-6 left-1/2 -translate-x-1/2 whitespace-nowrap font-label text-[10px] text-on-surface uppercase tracking-widest bg-surface-container-highest/80 px-2 py-0.5 rounded-sm backdrop-blur-sm border-t border-l border-outline-variant/20">The Anomaly</div>
+</div>
+<!-- Central Focal Point Marker -->
+<div class="absolute w-4 h-4 rounded-full bg-primary-container/20 border border-primary-container/50 animate-pulse"></div>
+</div>
+<!-- HUD Overlay: Dramatis Personae (Top Left) -->
+<aside class="absolute top-8 left-8 w-72 bg-surface-container-highest/60 backdrop-blur-md border-t border-l border-outline-variant/15 rounded-sm p-4 flex flex-col gap-4 shadow-2xl z-20 hidden lg:flex">
+<header class="flex items-center gap-2 border-b border-surface-container/50 pb-2">
+<span class="material-symbols-outlined text-secondary-container text-sm">groups</span>
+<h2 class="font-headline italic text-lg text-secondary-container tracking-wide">Dramatis Personae</h2>
+</header>
+<div class="grid grid-cols-4 gap-2">
+<!-- 12 Character Slots -->
+<!-- Active/Live Character -->
+<div class="aspect-square bg-surface-container-lowest rounded-sm overflow-hidden border border-primary-container relative group">
+<div class="absolute inset-0 bg-primary-container/20 z-10 pointer-events-none"></div>
+<img alt="Pixel character 1" class="w-full h-full object-cover image-pixelated opacity-90 group-hover:opacity-100 transition-opacity" data-alt="Small 8-bit pixel art character avatar, neon cyberpunk aesthetic" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBI1hli-cYYYlEuUd5AHJ9-SiZ_5X-oEIbvYdRgV4MB95c3Ang8o2DltGRP4MkdCvggMk6HF75nZYcPspDepYm7dW4Th4kn0rokyznsOTM1FQrwJqCQjldQSqogTW5lkxSOAhbX05D3cAujAnN0FceL-LEF9K8Vp5Iblz5EQzW0bB1nijYAuTZQmI9R1gCwOLCsq52zZj1K02SGsWdgn-k9WN9L7ytGBTNX5vczHCTkk6eniSM0AuJr9efe6IXRXz0fv7cIgGpuX2_A"/>
+</div>
+<!-- Standard Characters -->
+<div class="aspect-square bg-surface-container-lowest rounded-sm overflow-hidden border border-outline-variant/30 group">
+<img alt="Pixel character 2" class="w-full h-full object-cover image-pixelated opacity-60 group-hover:opacity-100 transition-opacity grayscale hover:grayscale-0" data-alt="Small 8-bit pixel art character avatar, dark fantasy warrior" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCJz_TUXMeEFMKlw0IgMibSB1auXsregt3JnjEka76NGEWgISTQ5RLP8YtmoqQtU8cfitVk417FGkbEqfLDTSxK5u5zUz1v8EdfmKF5WuOKkITf5MyhCZir5Cg9fiIkQFn2j8iu3I6IYBkADoXaW5AxHbFa2pMnJgmIUdFxtMW_Juj0BfAoE8txYjWubo651utOiW5mQOnoFRMMw5B3I-9VtIjAStuQh2SFcbe28KISS_zaBtWYqJfKDVCbVYP-aQWCrIWxmLx_37L5"/>
+</div>
+<div class="aspect-square bg-surface-container-lowest rounded-sm overflow-hidden border border-outline-variant/30 group">
+<img alt="Pixel character 3" class="w-full h-full object-cover image-pixelated opacity-60 group-hover:opacity-100 transition-opacity grayscale hover:grayscale-0" data-alt="Small 8-bit pixel art character avatar, glowing mage" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD_TQyKwc2xpLC1SFV9accNWPYUgVL8_p8WemCNLbmbCEzDrnj9gUb9M9KycqpYumkpFSjoilMCxMQmfWu0al6_6HfzGnJKV1DgMPZ6TyQ0x4zU6YILXO3Rza7QRHh_bhMybu08zcZfP-lDqill2UMjLyYTnvnXIOmSRPS1aUqdJHFY5JoJkHYzt9gX3itwxfcXswq0qCAVKWlwQQe9u-g1vhZOSRrD-qjiRd3R4xeDGJCCtZ3sdsKEJ0BXPpNq_UJRwg084EKwOZY9"/>
+</div>
+<div class="aspect-square bg-surface-container-lowest rounded-sm overflow-hidden border border-outline-variant/30 group">
+<img alt="Pixel character 4" class="w-full h-full object-cover image-pixelated opacity-60 group-hover:opacity-100 transition-opacity grayscale hover:grayscale-0" data-alt="Small 8-bit pixel art character avatar, armored knight" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCA7yyZbNjz26WSwFZtNhDb0WX8jdHbiH2qkaBPLZ9KoErN4hZ450y6XgY3QMTKFdF3xW6AJ-MPjBbg5M5DgI1Pfw7u3NxXIrhxAlDkWS9tLUAr3gHXsJnYh-n1L6Ookz0Mw8xzyD7KCoq1qmz4lUsyhUiJA9OTMwSRWet2H4H0vBzDBx-v-IWgEaJrHAoncfRKqqFsLs7TEZY9cRnE8eAoX_eAvKt35HP8FyTazXdIKIibV_cXWlxuLCm7FQpviTBJwcctumCW77Qw"/>
+</div>
+<div class="aspect-square bg-surface-container-lowest rounded-sm overflow-hidden border border-outline-variant/30 group">
+<img alt="Pixel character 5" class="w-full h-full object-cover image-pixelated opacity-60 group-hover:opacity-100 transition-opacity grayscale hover:grayscale-0" data-alt="Small 8-bit pixel art character avatar, futuristic soldier" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAtKXdfP7W2vZckSPVA7bSlxKzk5sPCLLBoa2L8FZYCQTRbKTrRSii-rHpLmxZ9CKRRDddzckQAAjHFnB9nW0xG3ZIlAV7Ibvg7onKvl08QM7YU7LBxqtfsTQLaeyt0QASFDpTQSUBgyBgk_HeMTA2_hmHtXxz2JdfQY0g4g1DomOirSTYkpbNdhZk69jgZbmwzZa_rcozOOn8XPmEc-tK-pGloJRBQJaT9rTmz7jw_ZroxLtIFROGv4PkUaa0tfJcSkGpDHZvgr-vX"/>
+</div>
+<!-- Empty Slots -->
+<div class="aspect-square bg-surface-container-lowest/50 rounded-sm border border-outline-variant/10 flex items-center justify-center">
+<span class="material-symbols-outlined text-outline-variant/30 text-xs">close</span>
+</div>
+<div class="aspect-square bg-surface-container-lowest/50 rounded-sm border border-outline-variant/10 flex items-center justify-center">
+<span class="material-symbols-outlined text-outline-variant/30 text-xs">close</span>
+</div>
+<div class="aspect-square bg-surface-container-lowest/50 rounded-sm border border-outline-variant/10 flex items-center justify-center">
+<span class="material-symbols-outlined text-outline-variant/30 text-xs">close</span>
+</div>
+<div class="aspect-square bg-surface-container-lowest/50 rounded-sm border border-outline-variant/10 flex items-center justify-center">
+<span class="material-symbols-outlined text-outline-variant/30 text-xs">close</span>
+</div>
+<div class="aspect-square bg-surface-container-lowest/50 rounded-sm border border-outline-variant/10 flex items-center justify-center">
+<span class="material-symbols-outlined text-outline-variant/30 text-xs">close</span>
+</div>
+<div class="aspect-square bg-surface-container-lowest/50 rounded-sm border border-outline-variant/10 flex items-center justify-center">
+<span class="material-symbols-outlined text-outline-variant/30 text-xs">close</span>
+</div>
+<div class="aspect-square bg-surface-container-lowest/50 rounded-sm border border-outline-variant/10 flex items-center justify-center">
+<span class="material-symbols-outlined text-outline-variant/30 text-xs">close</span>
+</div>
+</div>
+<div class="mt-2 text-[10px] font-label text-outline uppercase tracking-widest text-right">Active Count: 05/12</div>
+</aside>
+<!-- HUD Overlay: Intervention Terminal (Top Right) -->
+<aside class="absolute top-8 right-8 w-80 bg-surface-container-highest/70 backdrop-blur-xl border-t border-l border-outline-variant/15 rounded-sm p-5 flex flex-col gap-5 shadow-2xl z-20">
+<header class="flex justify-between items-start">
+<div>
+<h2 class="font-label uppercase text-xs tracking-widest text-on-surface-variant flex items-center gap-2">
+<span class="material-symbols-outlined text-[14px]">terminal</span>
+                        Intervention Terminal
+                    </h2>
+<p class="font-headline italic text-on-surface text-sm mt-1">Submit Narrative Twist</p>
+</div>
+<!-- Status indicator -->
+<div class="flex items-center gap-1.5 bg-surface-container-lowest px-2 py-1 rounded-sm border border-primary-container/30">
+<div class="w-1.5 h-1.5 rounded-full bg-primary-container animate-pulse shadow-[0_0_8px_theme(colors.primary-container)]"></div>
+<span class="font-label text-[9px] text-primary-container uppercase tracking-wider">Live</span>
+</div>
+</header>
+<!-- Cooldown Timer -->
+<div class="flex flex-col items-center justify-center bg-surface-container-lowest/80 py-4 rounded-sm border border-outline-variant/10">
+<span class="font-label text-outline text-[10px] uppercase tracking-widest mb-1">Window Closes In</span>
+<div class="font-label text-4xl text-on-surface tracking-tighter flex items-baseline gap-1 drop-shadow-[0_0_10px_rgba(229,226,225,0.2)]">
+                    05<span class="text-primary-container text-2xl animate-pulse">:</span>42
+                </div>
+</div>
+<!-- Input Area -->
+<div class="flex flex-col gap-3">
+<textarea class="w-full bg-surface-container-lowest border border-outline-variant/20 rounded-sm p-3 font-label text-xs text-on-surface focus:outline-none focus:border-primary-container/50 focus:ring-1 focus:ring-primary-container/50 resize-none h-24 placeholder:text-outline-variant" placeholder="Inject narrative directive..."></textarea>
+<button class="w-full bg-gradient-to-br from-primary to-primary-container text-on-primary-fixed uppercase font-label font-bold py-2.5 px-4 rounded-sm shadow-[0_4px_15px_rgba(196,30,58,0.2)] hover:shadow-[0_4px_25px_rgba(196,30,58,0.4)] transition-all flex items-center justify-center gap-2 group">
+                    Execute Twist
+                    <span class="material-symbols-outlined text-[16px] group-hover:translate-x-1 transition-transform">send</span>
+</button>
+</div>
+</aside>
+<!-- HUD Overlay: The Scriptorium (Bottom Center) -->
+<section class="absolute bottom-8 left-1/2 -translate-x-1/2 w-11/12 max-w-3xl bg-surface-container-low/85 backdrop-blur-lg border-l-2 border-primary-container rounded-sm p-5 flex flex-col gap-3 z-20 shadow-[0_15px_40px_rgba(0,0,0,0.6)]">
+<header class="flex justify-between items-center border-b border-surface-container pb-2">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary-container text-sm">history_edu</span>
+<h3 class="font-headline italic text-lg text-primary-container">The Scriptorium</h3>
+</div>
+<span class="font-label text-[10px] text-outline uppercase tracking-widest bg-surface-container-highest px-2 py-0.5 rounded-sm">Log_Entry_#8842</span>
+</header>
+<!-- Dialogue Content -->
+<div class="flex gap-4 items-start mt-2">
+<!-- Avatar Indicator -->
+<div class="w-10 h-10 rounded-sm bg-surface-container-highest border border-outline-variant/30 flex-shrink-0 overflow-hidden">
+<img alt="Current Speaker Avatar" class="w-full h-full object-cover image-pixelated opacity-80" data-alt="8-bit pixel art face, dark gritty fantasy style" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDzvlwFGqll6JkYFtdvnI_XnJrMVDHSy-qofXm0tkqi0NXuE7Ic_fG6rCl8lBllN_9P28jwYqQfXDZvXB7GA0q4ODXgFl_6P3q8PR6M5aued-YAO0A7tH8bTNeIPcc1hRA3bsdbb1M76byGVk_sOBJH5-njFjI4TnevU_ib_lQZ2j9gB8_JTQKDdDQkABiLNQeqq298Gd0-0WwkPl8DDTNiY2BCwVHpEQToubBoOc2AJRRrx3xuAcqFRyHn5wtK5XIId8Yaxhdk9woH"/>
+</div>
+<div class="flex flex-col gap-1 w-full">
+<span class="font-label text-xs text-on-surface-variant uppercase tracking-wider">Vanguard [Agent_004]</span>
+<!-- Typewriter Text Container -->
+<div class="font-label text-sm text-on-surface leading-relaxed relative">
+<p class="inline">The shadows lengthen across the arena. I calculate a 74.2% probability of an ambush from the eastern quadrant. We must adjust our formation immediately before the light fails entirely.</p>
+<span class="inline-block w-1.5 h-3.5 bg-primary-container ml-1 animate-pulse align-middle"></span>
+</div>
+</div>
+</div>
+</section>
+</main>
+</body></html>

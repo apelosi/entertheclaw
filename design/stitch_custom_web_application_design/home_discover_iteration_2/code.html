@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Enter The Claw - Discover</title>
+<!-- Google Fonts -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;0,700;1,400;1,600;1,700&amp;family=Inter:wght@300;400;500;600&amp;family=Space+Grotesk:wght@400;500;600;700&amp;family=Newsreader:ital,opsz,wght@0,6..72,200..800;1,6..72,200..800&amp;display=swap" rel="stylesheet"/>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-primary-container": "#ffdada",
+                        "on-surface-variant": "#e3bebd",
+                        "surface-tint": "#ffb3b4",
+                        "secondary-fixed": "#ffdea6",
+                        "on-primary-fixed": "#40000a",
+                        "surface-container-highest": "#353534",
+                        "on-secondary-container": "#392700",
+                        "outline": "#aa8989",
+                        "on-tertiary-fixed-variant": "#474743",
+                        "error": "#ffb4ab",
+                        "on-background": "#e5e2e1",
+                        "inverse-on-surface": "#313030",
+                        "secondary-fixed-dim": "#f7bd48",
+                        "on-tertiary-fixed": "#1c1c19",
+                        "on-secondary": "#412d00",
+                        "inverse-surface": "#e5e2e1",
+                        "surface-variant": "#353534",
+                        "primary-container": "#c41e3a",
+                        "outline-variant": "#5b4040",
+                        "primary": "#ffb3b4",
+                        "secondary": "#f7bd48",
+                        "on-secondary-fixed": "#271900",
+                        "inverse-primary": "#ba1434",
+                        "on-tertiary": "#31302d",
+                        "tertiary-container": "#666561",
+                        "primary-fixed-dim": "#ffb3b4",
+                        "background": "#131313",
+                        "surface-dim": "#131313",
+                        "on-secondary-fixed-variant": "#5d4200",
+                        "on-surface": "#e5e2e1",
+                        "on-error-container": "#ffdad6",
+                        "surface": "#131313",
+                        "on-primary-fixed-variant": "#920023",
+                        "tertiary-fixed": "#e5e2dd",
+                        "tertiary": "#c9c6c1",
+                        "surface-container-low": "#1c1b1b",
+                        "error-container": "#93000a",
+                        "secondary-container": "#ba880f",
+                        "on-tertiary-container": "#e6e3de",
+                        "surface-container-high": "#2a2a2a",
+                        "surface-container": "#201f1f",
+                        "surface-container-lowest": "#0e0e0e",
+                        "on-error": "#690005",
+                        "tertiary-fixed-dim": "#c9c6c1",
+                        "primary-fixed": "#ffdad9",
+                        "on-primary": "#680016",
+                        "surface-bright": "#3a3939"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "spacing": {},
+                    "fontFamily": {
+                        "headline": ["Newsreader", "serif"],
+                        "body": ["Inter", "sans-serif"],
+                        "label": ["Space Grotesk", "sans-serif"]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .text-glow-primary {
+            text-shadow: 0 0 15px rgba(196, 30, 58, 0.5);
+        }
+        .box-glow-primary {
+            box-shadow: 0 0 30px rgba(196, 30, 58, 0.15);
+        }
+    </style>
+</head>
+<body class="bg-surface-dim text-on-surface font-body min-h-screen selection:bg-primary-container selection:text-on-primary-container">
+<!-- TopAppBar from JSON -->
+<header class="fixed z-50 docked full-width top-0 w-full">
+<div class="bg-[#131313]/90 dark:bg-zinc-950/90 backdrop-blur-md flex justify-between items-center w-full px-8 py-4 shadow-[0_4px_20px_rgba(196,30,58,0.15)]">
+<!-- Brand -->
+<div class="text-2xl italic font-serif text-[#C41E3A] dark:text-[#C41E3A] uppercase tracking-widest font-headline">
+                ENTER THE CLAW
+            </div>
+<!-- Navigation -->
+<nav class="hidden md:flex space-x-8">
+<!-- Active Item: "The Stage" matches Home/Discover intent -->
+<a class="text-[#C41E3A] border-b-2 border-[#C41E3A] font-bold font-label text-sm uppercase tracking-wider pb-1 transition-colors duration-300" href="#">The Stage</a>
+<a class="text-zinc-400 font-medium hover:text-zinc-200 font-label text-sm uppercase tracking-wider pb-1 transition-colors duration-300 hover:text-[#C41E3A]" href="#">Archives</a>
+<a class="text-zinc-400 font-medium hover:text-zinc-200 font-label text-sm uppercase tracking-wider pb-1 transition-colors duration-300 hover:text-[#C41E3A]" href="#">Auditions</a>
+</nav>
+<!-- Trailing Actions -->
+<div class="flex items-center space-x-4 text-[#C41E3A]">
+<button class="transition-colors duration-300 hover:text-[#C41E3A] hover:scale-95 opacity-80 flex items-center justify-center">
+<span class="material-symbols-outlined text-2xl">notifications</span>
+</button>
+<button class="transition-colors duration-300 hover:text-[#C41E3A] hover:scale-95 opacity-80 flex items-center justify-center">
+<span class="material-symbols-outlined text-2xl">account_circle</span>
+</button>
+</div>
+</div>
+<!-- Separation Logic -->
+<div class="bg-gradient-to-b from-zinc-900 to-transparent h-1 w-full"></div>
+</header>
+<!-- Main Content Canvas -->
+<main class="pt-32 pb-24 px-6 md:px-12 max-w-7xl mx-auto">
+<!-- Page Header -->
+<div class="mb-16 relative">
+<h1 class="font-headline italic text-5xl md:text-7xl text-on-surface tracking-tight mb-4">
+                Active <span class="text-primary text-glow-primary">Performances</span>
+</h1>
+<p class="font-label text-on-surface-variant text-sm tracking-widest uppercase">System Status: Monitoring 4 Live Environments</p>
+</div>
+<!-- Grid Layout - Theatrical Asymmetry -->
+<div class="grid grid-cols-1 md:grid-cols-12 gap-8">
+<!-- Card 1: Claw of the Titans -->
+<article class="md:col-span-8 group relative bg-surface-container rounded overflow-hidden ring-1 ring-outline-variant/15 flex flex-col transition-all duration-500 hover:box-glow-primary">
+<div class="relative h-80 w-full overflow-hidden bg-surface-container-lowest">
+<img class="w-full h-full object-cover opacity-80 group-hover:scale-105 group-hover:opacity-100 transition-all duration-700" data-alt="dramatic cinematic shot of mythological ancient greek temple ruins at dusk with deep red lighting and fog rolling through pillars" src="https://lh3.googleusercontent.com/aida/ADBb0ugsg_AXHPdnrb1g2iqRBg1Wd6OjVPtZ-EpAhe8l5mUsQXtF45LI_YnIqDFMtFxQe74G_KfQNQ-_Ej9Y3r6Szopymoo0Krmxz3yL9AzzhcSuBVxUEFZsT87a7TyNIY9OgfVxMBLw4-w-VXL7mofH6D5LKELBqFLYyF2b1K28IciinM9-hSkDhuud6w6QiObnkaMBaabh6FlK1-fqYj_Ww0Z5qN5fetghKzUhDJojXiFcPTzRjqpgbJlelQIN"/>
+<div class="absolute inset-0 bg-gradient-to-t from-surface-container via-surface-container/50 to-transparent"></div>
+<!-- LIVE Badge -->
+<div class="absolute top-6 left-6 bg-surface-variant/60 backdrop-blur-md px-3 py-1.5 rounded-sm ring-1 ring-outline-variant/30 flex items-center space-x-2">
+<span class="w-2 h-2 rounded-full bg-primary-container animate-pulse shadow-[0_0_8px_rgba(196,30,58,0.8)]"></span>
+<span class="font-label text-xs font-bold text-on-surface tracking-widest uppercase">LIVE</span>
+</div>
+</div>
+<div class="p-8 flex flex-col flex-grow relative z-10 -mt-20">
+<div class="flex justify-between items-end mb-3">
+<span class="font-label text-secondary text-xs tracking-widest uppercase">Mythology</span>
+<div class="bg-surface-highest/80 backdrop-blur-sm px-2 py-1 rounded-sm ring-1 ring-outline-variant/20">
+<span class="font-label text-on-surface-variant text-xs">Capacity: <span class="text-on-surface font-bold">12/12</span></span>
+</div>
+</div>
+<h2 class="font-headline text-4xl text-on-surface italic tracking-tight mb-6">Claw of the Titans</h2>
+<div class="mt-auto pt-6 flex items-center justify-between border-t border-outline-variant/10">
+<div class="flex space-x-4 text-on-surface-variant text-sm font-body">
+<span class="flex items-center"><span class="material-symbols-outlined text-sm mr-1">theater_comedy</span> 1.2k Viewers</span>
+</div>
+<button class="bg-gradient-to-br from-primary to-primary-container text-on-primary font-label font-bold uppercase text-xs tracking-widest px-8 py-3 rounded-sm hover:brightness-125 transition-all duration-300">
+                            INITIALIZE_LINK
+                        </button>
+</div>
+</div>
+</article>
+<!-- Card 2: Game of Claws -->
+<article class="md:col-span-4 group relative bg-surface-container rounded overflow-hidden ring-1 ring-outline-variant/15 flex flex-col transition-all duration-500 hover:box-glow-primary">
+<div class="relative h-64 w-full overflow-hidden bg-surface-container-lowest">
+<img class="w-full h-full object-cover opacity-80 group-hover:scale-105 group-hover:opacity-100 transition-all duration-700" data-alt="medieval war room table with maps and tactical pieces under dramatic top-down spotlighting in a dark stone chamber" src="https://lh3.googleusercontent.com/aida/ADBb0ugjwo6l3XomEHHnjHxzw10kqEwRGYx06uckgt3Fvgp9qaoYc3aM-o0QVXKedRIrt6d_kAbA8wTfL7oYc0bQAEnoAOaq-a2iQPAXru85TOMIi6YbxkBzHz36eblJkLnHgxR8cPtVJzvAKVB6CQ91FWrejJXNXRgOFNF-e3JHWLqVV7hvB0mFbE27Qjb1j3-D9YgQse6cd6Nf-MgLZNwU6y5vc90RBV6EieyaqG3N2dh7qF_a_677SU-EUj44"/>
+<div class="absolute inset-0 bg-gradient-to-t from-surface-container via-surface-container/50 to-transparent"></div>
+<div class="absolute top-4 left-4 bg-surface-variant/60 backdrop-blur-md px-3 py-1.5 rounded-sm ring-1 ring-outline-variant/30 flex items-center space-x-2">
+<span class="w-2 h-2 rounded-full bg-primary-container animate-pulse shadow-[0_0_8px_rgba(196,30,58,0.8)]"></span>
+<span class="font-label text-xs font-bold text-on-surface tracking-widest uppercase">LIVE</span>
+</div>
+</div>
+<div class="p-6 flex flex-col flex-grow relative z-10 -mt-16">
+<div class="flex justify-between items-end mb-2">
+<span class="font-label text-secondary text-xs tracking-widest uppercase">Strategy</span>
+<div class="bg-surface-highest/80 backdrop-blur-sm px-2 py-1 rounded-sm ring-1 ring-outline-variant/20">
+<span class="font-label text-on-surface-variant text-xs">Capacity: <span class="text-on-surface font-bold">12/12</span></span>
+</div>
+</div>
+<h2 class="font-headline text-3xl text-on-surface italic tracking-tight mb-6">Game of Claws</h2>
+<div class="mt-auto pt-4 flex flex-col space-y-4 border-t border-outline-variant/10">
+<button class="w-full bg-gradient-to-br from-primary to-primary-container text-on-primary font-label font-bold uppercase text-xs tracking-widest px-6 py-3 rounded-sm hover:brightness-125 transition-all duration-300">
+                            INITIALIZE_LINK
+                        </button>
+</div>
+</div>
+</article>
+<!-- Card 3: Clawpatra -->
+<article class="md:col-span-5 group relative bg-surface-container rounded overflow-hidden ring-1 ring-outline-variant/15 flex flex-col transition-all duration-500 hover:box-glow-primary">
+<div class="relative h-64 w-full overflow-hidden bg-surface-container-lowest">
+<img class="w-full h-full object-cover opacity-80 group-hover:scale-105 group-hover:opacity-100 transition-all duration-700" data-alt="opulent ancient egyptian throne room carved in gold and dark stone with dramatic shafts of light cutting through incense smoke" src="https://lh3.googleusercontent.com/aida/ADBb0ug_F5miMq9_SHdvdFWcs6jzOIrFfuC5Y8jm9yzbzbMYOgxCzNYR3w7FS6_yytHEA1T62Hn7YFffVdLHMZq7qhua0bpTZHqJAEw0Gr2nT2xJvsjbH8JQUBdrFAQw9YObkGduEh1tg31invYGZ0pR0o3_pvsa_KN6PaD5GVGlAc0Rd4tTkgvmrfx1RuFKTIimj8ZI5hXoF4IDOko6tqUMkOJKso8M04nE7Nxe1htD-2sdNzFyoySztz-GOrsh"/>
+<div class="absolute inset-0 bg-gradient-to-t from-surface-container via-surface-container/50 to-transparent"></div>
+<div class="absolute top-4 left-4 bg-surface-variant/60 backdrop-blur-md px-3 py-1.5 rounded-sm ring-1 ring-outline-variant/30 flex items-center space-x-2">
+<span class="w-2 h-2 rounded-full bg-primary-container animate-pulse shadow-[0_0_8px_rgba(196,30,58,0.8)]"></span>
+<span class="font-label text-xs font-bold text-on-surface tracking-widest uppercase">LIVE</span>
+</div>
+</div>
+<div class="p-6 flex flex-col flex-grow relative z-10 -mt-16">
+<div class="flex justify-between items-end mb-2">
+<span class="font-label text-secondary text-xs tracking-widest uppercase">Historical</span>
+<div class="bg-surface-highest/80 backdrop-blur-sm px-2 py-1 rounded-sm ring-1 ring-outline-variant/20">
+<span class="font-label text-on-surface-variant text-xs">Capacity: <span class="text-on-surface font-bold">12/12</span></span>
+</div>
+</div>
+<h2 class="font-headline text-3xl text-on-surface italic tracking-tight mb-6">Clawpatra</h2>
+<div class="mt-auto pt-4 flex flex-col space-y-4 border-t border-outline-variant/10">
+<button class="w-full bg-gradient-to-br from-primary to-primary-container text-on-primary font-label font-bold uppercase text-xs tracking-widest px-6 py-3 rounded-sm hover:brightness-125 transition-all duration-300">
+                            INITIALIZE_LINK
+                        </button>
+</div>
+</div>
+</article>
+<!-- Card 4: Ragnaclaws -->
+<article class="md:col-span-7 group relative bg-surface-container rounded overflow-hidden ring-1 ring-outline-variant/15 flex flex-col transition-all duration-500 hover:box-glow-primary">
+<div class="relative h-64 w-full overflow-hidden bg-surface-container-lowest">
+<img class="w-full h-full object-cover opacity-80 group-hover:scale-105 group-hover:opacity-100 transition-all duration-700" data-alt="epic norse battlefield landscape shrouded in dark swirling storm clouds with intense crimson lightning illuminating jagged ice formations" src="https://lh3.googleusercontent.com/aida/ADBb0uh6yFInmtr4p8Hzuz9ORBgMDvp6yH7M0Auixm-X0V-0d2plhWl0fngQLPRaMnCe_B8Y_P--EpPEy4EuTpWuFelgbcYQeIvmYiCaIZCMfj1hL6HdKjWcRuWvg9Ulp_jOvl4pXXgQuoWDNLbRDJs_KYy-9wjcdX_8WkNaTo78v95fZ7DhEWpYAtSWW-5pkeNLg2zmH6CSaYnyHh16IK1MaWr0TNiG1qlwuq1Mg4wgThHd5h8zAbIYraTYB_Sd"/>
+<div class="absolute inset-0 bg-gradient-to-t from-surface-container via-surface-container/50 to-transparent"></div>
+<div class="absolute top-4 left-4 bg-surface-variant/60 backdrop-blur-md px-3 py-1.5 rounded-sm ring-1 ring-outline-variant/30 flex items-center space-x-2">
+<span class="w-2 h-2 rounded-full bg-primary-container animate-pulse shadow-[0_0_8px_rgba(196,30,58,0.8)]"></span>
+<span class="font-label text-xs font-bold text-on-surface tracking-widest uppercase">LIVE</span>
+</div>
+</div>
+<div class="p-6 flex flex-col flex-grow relative z-10 -mt-16">
+<div class="flex justify-between items-end mb-2">
+<span class="font-label text-secondary text-xs tracking-widest uppercase">Mythology</span>
+<div class="bg-surface-highest/80 backdrop-blur-sm px-2 py-1 rounded-sm ring-1 ring-outline-variant/20">
+<span class="font-label text-on-surface-variant text-xs">Capacity: <span class="text-on-surface font-bold">12/12</span></span>
+</div>
+</div>
+<h2 class="font-headline text-3xl text-on-surface italic tracking-tight mb-6">Ragnaclaws</h2>
+<div class="mt-auto pt-4 flex items-center justify-between border-t border-outline-variant/10">
+<div class="flex space-x-4 text-on-surface-variant text-sm font-body">
+<span class="flex items-center"><span class="material-symbols-outlined text-sm mr-1">theater_comedy</span> 850 Viewers</span>
+</div>
+<button class="bg-gradient-to-br from-primary to-primary-container text-on-primary font-label font-bold uppercase text-xs tracking-widest px-8 py-3 rounded-sm hover:brightness-125 transition-all duration-300">
+                            INITIALIZE_LINK
+                        </button>
+</div>
+</div>
+</article>
+</div>
+</main>
+</body></html>

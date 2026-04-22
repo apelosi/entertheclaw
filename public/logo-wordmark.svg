@@ -1,0 +1,100 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 100">
+  <!--
+    Enter The Claw — Full Wordmark
+    Logo mark on left, text on right.
+    Mark: same claw silhouette, scaled to fit 100x100 left portion.
+    Text: "ENTER THE" in warm off-white #F0EDE8, "CLAW" in crimson #C41E3A.
+    Font: Condensed bold serif — Cormorant Garamond with Georgia fallback.
+    Layout: mark fills ~0-100, text fills ~110-390, vertically centered.
+  -->
+
+  <!-- ==================== LOGO MARK (same paths as logo-mark.svg) ==================== -->
+
+  <!-- ARM/BODY -->
+  <path fill="#C41E3A" d="
+    M 14 88
+    C 18 82, 26 73, 37 62
+    C 45 54, 53 47, 60 40
+    L 65 42
+    C 58 48, 50 55, 42 63
+    C 31 74, 20 84, 16 90
+    Z
+  "/>
+
+  <!-- UPPER PINCER -->
+  <path fill="#C41E3A" d="
+    M 60 40
+    C 62 35, 67 27, 74 18
+    C 79 11, 85 6, 90 7
+    C 94 8, 94 13, 90 17
+    C 86 21, 80 26, 74 31
+    C 69 36, 65 40, 65 42
+    L 60 40
+    Z
+  "/>
+
+  <!-- LOWER PINCER -->
+  <path fill="#C41E3A" d="
+    M 65 42
+    C 69 40, 75 39, 81 42
+    C 86 45, 90 50, 89 55
+    C 88 60, 83 62, 78 59
+    C 73 56, 67 50, 65 45
+    L 65 42
+    Z
+  "/>
+
+  <!-- ==================== TEXT ==================== -->
+  <!--
+    Two lines of text, centered vertically in the 100px height.
+    Line 1: "ENTER THE" — top line, smaller
+    Line 2: "CLAW" — bottom line, larger/bolder for impact
+
+    Vertical layout:
+    - Total text block height approx 60px (two lines + gap)
+    - Top margin: (100 - 60) / 2 = 20px
+    - Line 1 baseline: ~42px (font-size 26, cap-height ~70% = 18px, baseline at 20+18=38)
+    - Line 2 baseline: ~72px (line 1 baseline + line gap 30px)
+
+    Horizontal: text starts at x=112, left-aligned.
+    Using letter-spacing for condensed drama.
+  -->
+
+  <!-- "ENTER THE" — warm off-white, condensed bold -->
+  <text
+    x="112"
+    y="40"
+    font-family="'Cormorant Garamond', 'Georgia', serif"
+    font-weight="700"
+    font-size="26"
+    fill="#F0EDE8"
+    letter-spacing="5"
+    text-anchor="start"
+    font-style="normal"
+  >ENTER THE</text>
+
+  <!-- "CLAW" — crimson, larger, maximum drama -->
+  <text
+    x="110"
+    y="76"
+    font-family="'Cormorant Garamond', 'Georgia', serif"
+    font-weight="700"
+    font-size="46"
+    fill="#C41E3A"
+    letter-spacing="10"
+    text-anchor="start"
+    font-style="normal"
+  >CLAW</text>
+
+  <!-- Thin rule line between mark and text, vertical separator -->
+  <line
+    x1="103"
+    y1="15"
+    x2="103"
+    y2="85"
+    stroke="#C41E3A"
+    stroke-width="1.5"
+    opacity="0.6"
+  />
+
+</svg>

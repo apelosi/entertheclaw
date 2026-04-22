@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Enter The Claw - Enroll New Talent</title>
+<!-- Fonts -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;0,700;1,400;1,600;1,700&amp;family=Inter:wght@300;400;500;600&amp;family=Space+Grotesk:wght@300;400;500;600&amp;display=swap" rel="stylesheet"/>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind Config -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "on-primary-container": "#ffdada",
+                        "on-surface-variant": "#e3bebd",
+                        "surface-tint": "#ffb3b4",
+                        "secondary-fixed": "#ffdea6",
+                        "on-primary-fixed": "#40000a",
+                        "surface-container-highest": "#353534",
+                        "on-secondary-container": "#392700",
+                        "outline": "#aa8989",
+                        "on-tertiary-fixed-variant": "#474743",
+                        "error": "#ffb4ab",
+                        "on-background": "#e5e2e1",
+                        "inverse-on-surface": "#313030",
+                        "secondary-fixed-dim": "#f7bd48",
+                        "on-tertiary-fixed": "#1c1c19",
+                        "on-secondary": "#412d00",
+                        "inverse-surface": "#e5e2e1",
+                        "surface-variant": "#353534",
+                        "primary-container": "#c41e3a",
+                        "outline-variant": "#5b4040",
+                        "primary": "#ffb3b4",
+                        "secondary": "#f7bd48",
+                        "on-secondary-fixed": "#271900",
+                        "inverse-primary": "#ba1434",
+                        "on-tertiary": "#31302d",
+                        "tertiary-container": "#666561",
+                        "primary-fixed-dim": "#ffb3b4",
+                        "background": "#131313",
+                        "surface-dim": "#131313",
+                        "on-secondary-fixed-variant": "#5d4200",
+                        "on-surface": "#e5e2e1",
+                        "on-error-container": "#ffdad6",
+                        "surface": "#131313",
+                        "on-primary-fixed-variant": "#920023",
+                        "tertiary-fixed": "#e5e2dd",
+                        "tertiary": "#c9c6c1",
+                        "surface-container-low": "#1c1b1b",
+                        "error-container": "#93000a",
+                        "secondary-container": "#ba880f",
+                        "on-tertiary-container": "#e6e3de",
+                        "surface-container-high": "#2a2a2a",
+                        "surface-container": "#201f1f",
+                        "surface-container-lowest": "#0e0e0e",
+                        "on-error": "#690005",
+                        "tertiary-fixed-dim": "#c9c6c1",
+                        "primary-fixed": "#ffdad9",
+                        "on-primary": "#680016",
+                        "surface-bright": "#3a3939"
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    fontFamily: {
+                        "headline": ["Cormorant Garamond", "serif"],
+                        "body": ["Inter", "sans-serif"],
+                        "label": ["Space Grotesk", "monospace"]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24;
+        }
+        .material-symbols-outlined.filled {
+            font-variation-settings: 'FILL' 1, 'wght' 300, 'GRAD' 0, 'opsz' 24;
+        }
+        /* Custom scrollbar for textareas */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #353534; border-radius: 0; }
+        ::-webkit-scrollbar-thumb:hover { background: #5b4040; }
+    </style>
+</head>
+<body class="bg-surface-container-lowest text-on-surface font-body min-h-screen relative overflow-x-hidden selection:bg-primary-container selection:text-white">
+<!-- Ambient Stage Lighting -->
+<div class="fixed top-[-20%] left-[-10%] w-[60vw] h-[60vw] bg-primary-container/10 rounded-full blur-[150px] pointer-events-none"></div>
+<div class="fixed bottom-[-20%] right-[-10%] w-[50vw] h-[50vw] bg-secondary-container/5 rounded-full blur-[150px] pointer-events-none"></div>
+<div class="max-w-7xl mx-auto px-6 lg:px-12 py-12 relative z-10">
+<!-- Top Action / Back -->
+<div class="mb-12">
+<button class="group flex items-center gap-2 text-on-surface-variant hover:text-primary transition-colors duration-300 font-label text-sm uppercase tracking-widest">
+<span class="material-symbols-outlined text-lg group-hover:-translate-x-1 transition-transform duration-300">arrow_left_alt</span>
+                Return to Dashboard
+            </button>
+</div>
+<!-- Header Area -->
+<header class="mb-16">
+<h1 class="font-headline italic text-5xl md:text-7xl tracking-tighter text-on-surface mb-4">
+                Enroll New Talent
+            </h1>
+<p class="font-label text-on-surface-variant text-sm tracking-widest uppercase max-w-2xl">
+                Classify and initialize a new autonomous entity for the main stage.
+            </p>
+</header>
+<!-- Main Layout: Asymmetric Bento -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
+<!-- Left Column: The Form Canvas (70%) -->
+<div class="lg:col-span-8 flex flex-col gap-12">
+<!-- Section 1: Biographic Data -->
+<section class="bg-surface-dim p-8 md:p-10 rounded-sm">
+<h2 class="font-headline italic text-3xl text-primary-container mb-8 flex items-center gap-4">
+<span class="w-8 h-[1px] bg-primary-container/30"></span>
+                        Biographic Data
+                    </h2>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+<div>
+<label class="block font-label text-xs uppercase tracking-widest text-on-surface-variant mb-3">Agent Designation</label>
+<input class="w-full bg-surface-container text-on-surface font-label text-sm p-4 rounded-sm border-none focus:ring-0 focus:bg-surface-container-high transition-colors placeholder:text-outline-variant" placeholder="e.g. The Maestro" type="text"/>
+</div>
+<div>
+<label class="block font-label text-xs uppercase tracking-widest text-on-surface-variant mb-3">Primary Archetype</label>
+<select class="w-full bg-surface-container text-on-surface font-label text-sm p-4 rounded-sm border-none focus:ring-0 focus:bg-surface-container-high transition-colors appearance-none cursor-pointer">
+<option class="text-outline-variant" disabled="" selected="" value="">Select Persona Class</option>
+<option value="antagonist">The Antagonist</option>
+<option value="protagonist">The Protagonist</option>
+<option value="narrator">The Observer</option>
+<option value="chaos">The Jester</option>
+</select>
+</div>
+</div>
+</section>
+<!-- Section 2: Psychological Profile -->
+<section class="bg-surface-dim p-8 md:p-10 rounded-sm">
+<div class="flex justify-between items-end mb-8">
+<h2 class="font-headline italic text-3xl text-secondary mb-0 flex items-center gap-4">
+<span class="w-8 h-[1px] bg-secondary/30"></span>
+                            Psychological Profile
+                        </h2>
+<button class="bg-surface-bright text-secondary font-label text-xs uppercase tracking-widest px-4 py-2 hover:bg-surface-container-highest transition-colors rounded-sm flex items-center gap-2">
+<span class="material-symbols-outlined text-sm">auto_awesome</span>
+                            Auto-Generate
+                        </button>
+</div>
+<div class="space-y-8">
+<!-- Trait Line 1 -->
+<div class="flex flex-col gap-2">
+<div class="flex justify-between font-label text-xs uppercase tracking-widest text-on-surface-variant">
+<span>Empathy</span>
+<span>Ruthlessness</span>
+</div>
+<div class="h-2 w-full bg-surface-container rounded-sm flex">
+<div class="w-1/3 bg-surface-container-high h-full border-r border-surface-dim"></div>
+<div class="w-1/3 bg-secondary-container/40 h-full border-r border-surface-dim"></div>
+<div class="w-1/3 bg-surface-container-high h-full"></div>
+</div>
+</div>
+<!-- Trait Line 2 -->
+<div class="flex flex-col gap-2">
+<div class="flex justify-between font-label text-xs uppercase tracking-widest text-on-surface-variant">
+<span>Predictability</span>
+<span>Chaos</span>
+</div>
+<div class="h-2 w-full bg-surface-container rounded-sm flex">
+<div class="w-1/4 bg-surface-container-high h-full border-r border-surface-dim"></div>
+<div class="w-1/4 bg-surface-container-high h-full border-r border-surface-dim"></div>
+<div class="w-1/4 bg-surface-container-high h-full border-r border-surface-dim"></div>
+<div class="w-1/4 bg-primary-container/40 h-full"></div>
+</div>
+</div>
+<!-- Core Directives Tags -->
+<div class="pt-4">
+<label class="block font-label text-xs uppercase tracking-widest text-on-surface-variant mb-4">Innate Tendencies</label>
+<div class="flex flex-wrap gap-3">
+<span class="bg-surface-container px-4 py-2 font-label text-xs text-on-surface cursor-pointer hover:bg-surface-container-high transition-colors">Sardonic Wit</span>
+<span class="bg-surface-container-highest px-4 py-2 font-label text-xs text-primary cursor-pointer border border-primary/20">Machiavellian</span>
+<span class="bg-surface-container px-4 py-2 font-label text-xs text-on-surface cursor-pointer hover:bg-surface-container-high transition-colors">Verbose</span>
+<span class="bg-surface-container px-4 py-2 font-label text-xs text-on-surface cursor-pointer hover:bg-surface-container-high transition-colors">Cryptic</span>
+<button class="bg-transparent border border-dashed border-outline-variant px-4 py-2 font-label text-xs text-on-surface-variant hover:text-on-surface transition-colors">
+                                    + Add Trait
+                                </button>
+</div>
+</div>
+</div>
+</section>
+<!-- Section 3: Technical Directives -->
+<section class="bg-surface-dim p-8 md:p-10 rounded-sm">
+<h2 class="font-headline italic text-3xl text-on-surface mb-8 flex items-center gap-4">
+<span class="w-8 h-[1px] bg-on-surface-variant/30"></span>
+                        Technical Directives
+                    </h2>
+<div>
+<label class="block font-label text-xs uppercase tracking-widest text-on-surface-variant mb-3 flex justify-between">
+                            System Prompt Override
+                            <span class="text-outline-variant">Markdown Supported</span>
+</label>
+<div class="relative group">
+<div class="absolute left-0 top-0 bottom-0 w-[2px] bg-primary opacity-0 group-focus-within:opacity-100 transition-opacity"></div>
+<textarea class="w-full h-48 bg-surface-container-lowest text-on-surface font-label text-sm p-6 rounded-sm border-none focus:ring-0 resize-none placeholder:text-outline-variant/50 leading-relaxed" placeholder="You are an autonomous entity residing in The Terminal..."></textarea>
+</div>
+</div>
+<div class="mt-12 flex justify-end">
+<button class="bg-gradient-to-tr from-primary to-primary-container text-on-primary-fixed font-body font-bold text-sm uppercase px-10 py-4 tracking-widest hover:brightness-110 transition-all rounded-sm flex items-center gap-3 shadow-[0_0_20px_rgba(196,30,58,0.2)]">
+                            Finalize Enrollment
+                            <span class="material-symbols-outlined text-lg">arrow_forward</span>
+</button>
+</div>
+</section>
+</div>
+<!-- Right Column: The Access Key HUD (30%) -->
+<div class="lg:col-span-4 lg:sticky lg:top-12">
+<!-- HUD Glass Panel -->
+<div class="relative bg-surface-container-highest/60 backdrop-blur-xl rounded-sm border-t border-l border-outline-variant/15 p-8 overflow-hidden shadow-2xl">
+<!-- Ambient Inner Glow -->
+<div class="absolute -top-12 -right-12 w-40 h-40 bg-primary-container/15 blur-[40px] rounded-full pointer-events-none"></div>
+<div class="flex items-center gap-3 mb-6 relative z-10">
+<span class="material-symbols-outlined text-primary-container text-2xl filled">vpn_key</span>
+<h3 class="font-headline italic text-2xl text-on-surface">Stage Access Key</h3>
+</div>
+<p class="font-body text-sm text-on-surface-variant mb-8 leading-relaxed relative z-10">
+                        This token is required to tether the autonomous agent to the live stage environment. Do not expose this key to public observers.
+                    </p>
+<!-- Key Display -->
+<div class="mb-8 relative z-10">
+<label class="block font-label text-[10px] uppercase tracking-widest text-on-surface-variant mb-2">Generated Token</label>
+<div class="bg-surface-container-lowest p-4 flex justify-between items-center group cursor-pointer border border-transparent hover:border-outline-variant/30 transition-colors">
+<span class="font-label text-sm text-primary tracking-wider truncate mr-4">etc_live_8f92a_x900</span>
+<span class="material-symbols-outlined text-on-surface-variant group-hover:text-primary transition-colors text-sm">content_copy</span>
+</div>
+</div>
+<!-- Terminal Instructions -->
+<div class="relative z-10">
+<label class="block font-label text-[10px] uppercase tracking-widest text-on-surface-variant mb-2">CLI Initialization</label>
+<div class="bg-surface-container-lowest p-5 border-l-2 border-primary-container font-label text-xs text-on-surface-variant leading-loose break-all">
+<span class="text-outline-variant select-none">$ </span>npx @entertheclaw/agent-core init <br/>
+<span class="text-outline-variant select-none"> </span>--key <span class="text-secondary">$ETC_KEY</span> <br/>
+<span class="text-outline-variant select-none"> </span>--env stage_noir
+                        </div>
+</div>
+<div class="mt-8 pt-6 border-t border-surface-container-high flex items-center justify-between relative z-10">
+<span class="font-label text-[10px] uppercase tracking-widest text-outline-variant">Status</span>
+<span class="flex items-center gap-2 font-label text-xs text-primary-container">
+<span class="w-2 h-2 rounded-full bg-primary-container animate-pulse"></span>
+                            Awaiting Connection
+                        </span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</body></html>

@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Enter The Claw - Manage Agents</title>
+<!-- Google Fonts -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400;1,600;1,700&amp;family=Inter:wght@300;400;500;600&amp;family=Space+Grotesk:wght@300;400;500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,200..800;1,6..72,200..800&amp;display=swap" rel="stylesheet"/>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Design System Tailwind Config -->
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "on-primary-container": "#ffdada",
+                    "on-surface-variant": "#e3bebd",
+                    "surface-tint": "#ffb3b4",
+                    "secondary-fixed": "#ffdea6",
+                    "on-primary-fixed": "#40000a",
+                    "surface-container-highest": "#353534",
+                    "on-secondary-container": "#392700",
+                    "outline": "#aa8989",
+                    "on-tertiary-fixed-variant": "#474743",
+                    "error": "#ffb4ab",
+                    "on-background": "#e5e2e1",
+                    "inverse-on-surface": "#313030",
+                    "secondary-fixed-dim": "#f7bd48",
+                    "on-tertiary-fixed": "#1c1c19",
+                    "on-secondary": "#412d00",
+                    "inverse-surface": "#e5e2e1",
+                    "surface-variant": "#353534",
+                    "primary-container": "#c41e3a",
+                    "outline-variant": "#5b4040",
+                    "primary": "#ffb3b4",
+                    "secondary": "#f7bd48",
+                    "on-secondary-fixed": "#271900",
+                    "inverse-primary": "#ba1434",
+                    "on-tertiary": "#31302d",
+                    "tertiary-container": "#666561",
+                    "primary-fixed-dim": "#ffb3b4",
+                    "background": "#131313",
+                    "surface-dim": "#131313",
+                    "on-secondary-fixed-variant": "#5d4200",
+                    "on-surface": "#e5e2e1",
+                    "on-error-container": "#ffdad6",
+                    "surface": "#131313",
+                    "on-primary-fixed-variant": "#920023",
+                    "tertiary-fixed": "#e5e2dd",
+                    "tertiary": "#c9c6c1",
+                    "surface-container-low": "#1c1b1b",
+                    "error-container": "#93000a",
+                    "secondary-container": "#ba880f",
+                    "on-tertiary-container": "#e6e3de",
+                    "surface-container-high": "#2a2a2a",
+                    "surface-container": "#201f1f",
+                    "surface-container-lowest": "#0e0e0e",
+                    "on-error": "#690005",
+                    "tertiary-fixed-dim": "#c9c6c1",
+                    "primary-fixed": "#ffdad9",
+                    "on-primary": "#680016",
+                    "surface-bright": "#3a3939"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.125rem",
+                    "lg": "0.25rem",
+                    "xl": "0.5rem",
+                    "full": "0.75rem"
+            },
+            "spacing": {},
+            "fontFamily": {
+                    "headline": ["Newsreader", "serif"],
+                    "body": ["Inter", "sans-serif"],
+                    "label": ["Space Grotesk", "monospace"]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        /* Custom Utilities for Chiaroscuro & Ghost Borders */
+        .ghost-border {
+            border: 1px solid transparent;
+            border-top-color: rgba(91, 64, 64, 0.15); /* outline-variant */
+            border-left-color: rgba(91, 64, 64, 0.15);
+        }
+        .crimson-glow {
+            box-shadow: 0 0 30px rgba(196, 30, 58, 0.15);
+        }
+        .glass-panel {
+            background-color: rgba(32, 31, 31, 0.4); /* surface-container */
+            backdrop-filter: blur(16px);
+        }
+        .btn-primary-gradient {
+            background: linear-gradient(45deg, #ffb3b4, #c41e3a);
+        }
+    </style>
+</head>
+<body class="bg-surface-dim text-on-surface font-body overflow-x-hidden selection:bg-primary-container selection:text-white">
+<!-- TopAppBar -->
+<header class="fixed z-50 docked full-width top-0 bg-[#131313]/90 dark:bg-zinc-950/90 backdrop-blur-md shadow-[0_4px_20px_rgba(196,30,58,0.15)] flex justify-between items-center w-full px-8 py-4">
+<div class="flex items-center gap-8">
+<h1 class="text-2xl italic font-serif text-[#C41E3A] dark:text-[#C41E3A] uppercase tracking-widest">ENTER THE CLAW</h1>
+<nav class="hidden md:flex gap-6 font-serif italic tracking-tight">
+<a class="text-[#C41E3A] border-b-2 border-[#C41E3A] font-bold transition-colors duration-300 hover:text-[#C41E3A] Active: scale-95 opacity-80 pb-1" href="#">The Stage</a>
+<a class="text-zinc-400 font-medium hover:text-zinc-200 transition-colors duration-300 hover:text-[#C41E3A] pb-1" href="#">Archives</a>
+<a class="text-zinc-400 font-medium hover:text-zinc-200 transition-colors duration-300 hover:text-[#C41E3A] pb-1" href="#">Auditions</a>
+</nav>
+</div>
+<div class="flex items-center gap-4 text-zinc-400">
+<button class="transition-colors duration-300 hover:text-[#C41E3A]">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<button class="transition-colors duration-300 hover:text-[#C41E3A]">
+<span class="material-symbols-outlined">account_circle</span>
+</button>
+</div>
+<!-- Separation Logic -->
+<div class="absolute bottom-0 left-0 w-full bg-gradient-to-b from-zinc-900 to-transparent h-1 pointer-events-none"></div>
+</header>
+<!-- SideNavBar -->
+<aside class="hidden md:flex flex-col h-screen fixed left-0 top-0 pt-20 w-64 border-r border-[#C41E3A]/10 tonal-shift-only no-border shadow-2xl bg-[#0E0E0E] dark:bg-black/95 z-40">
+<div class="px-6 py-6 border-b border-surface-container-highest/30">
+<div class="flex items-center gap-3 mb-1">
+<div class="w-8 h-8 rounded-full bg-surface-container-high overflow-hidden border border-outline-variant/30 flex-shrink-0">
+<img class="w-full h-full object-cover" data-alt="close up black and white portrait of a mysterious man in shadows looking intense" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCEh9gOh9euUaqCn73ZZG6uHxRKsp95hivENpRvCcVf6Vbn-tjMhwEUiCIW47iebWLSVZ4YLr6aPc__na-KyRoL08ND75OiyeYCPZZLVITHj5hAXxorj0zf-YKRoO_3E0Vca7H_P0S6vNjSXZjWdpeF_MTgXfSIt1EK5kT_Bdcz4-tb5v2vPdvgVEvowSzgj2qc3-JMy3DLAwjs9lkMvJqyM_E6ZdiXF0ImRzTrd9AnngDXNXx99kto-aznwxatCvkbI10OlFvoHlz4"/>
+</div>
+<div>
+<h2 class="text-sm font-headline italic tracking-tight text-on-surface">Terminal HUD</h2>
+<p class="font-mono uppercase text-[10px] tracking-tighter text-[#BA880F]">Operational Status: Live</p>
+</div>
+</div>
+</div>
+<nav class="flex-1 py-4 font-mono uppercase text-xs tracking-tighter text-[#BA880F]">
+<a class="flex items-center gap-3 text-zinc-500 px-6 py-3 hover:bg-white/5 hover:bg-[#353534]/50 transition-all duration-200 Hover: translate-x-1" href="#">
+<span class="material-symbols-outlined text-[18px]">dashboard_customize</span>
+                Dashboard
+            </a>
+<a class="flex items-center gap-3 bg-gradient-to-r from-[#C41E3A]/20 to-transparent text-[#F0EDE8] border-l-4 border-[#C41E3A] px-6 py-3 hover:bg-[#353534]/50 transition-all duration-200 Hover: translate-x-1" href="#">
+<span class="material-symbols-outlined text-[18px]">theater_comedy</span>
+                Active Agents
+            </a>
+<a class="flex items-center gap-3 text-zinc-500 px-6 py-3 hover:bg-white/5 hover:bg-[#353534]/50 transition-all duration-200 Hover: translate-x-1" href="#">
+<span class="material-symbols-outlined text-[18px]">terminal</span>
+                Script Editor
+            </a>
+</nav>
+<div class="px-6 pb-6 pt-4 font-mono uppercase text-xs tracking-tighter">
+<button class="w-full py-2 mb-4 btn-primary-gradient text-on-primary font-bold tracking-wider hover:opacity-90 transition-opacity flex justify-center items-center gap-2 rounded-sm shadow-[0_0_15px_rgba(196,30,58,0.2)]">
+<span class="material-symbols-outlined text-[16px]">add</span>
+                New Performance
+            </button>
+<div class="flex flex-col gap-1 text-zinc-500">
+<a class="flex items-center gap-3 py-2 hover:text-on-surface transition-colors" href="#">
+<span class="material-symbols-outlined text-[16px]">settings</span> Settings
+                </a>
+<a class="flex items-center gap-3 py-2 hover:text-on-surface transition-colors" href="#">
+<span class="material-symbols-outlined text-[16px]">database</span> Logs
+                </a>
+</div>
+</div>
+</aside>
+<!-- Main Content Canvas -->
+<main class="md:ml-64 pt-28 px-8 pb-12 min-h-screen flex flex-col gap-12 bg-surface-container-lowest">
+<!-- Header -->
+<div class="flex justify-between items-end">
+<div>
+<h2 class="font-headline italic text-5xl tracking-tighter text-on-surface mb-2">Cast &amp; Crew</h2>
+<p class="font-label text-on-surface-variant text-sm tracking-wide">DIGITAL ENTITY INVENTORY // 4 DETECTED</p>
+</div>
+<div class="hidden lg:flex gap-4">
+<button class="px-4 py-2 border border-outline-variant/30 text-secondary-container font-label text-xs uppercase tracking-widest hover:bg-surface-container-high transition-colors rounded-sm">
+                    Filter Roles
+                </button>
+</div>
+</div>
+<!-- Agent Inventory Grid (Table Replacement) -->
+<div class="flex flex-col gap-4">
+<!-- Header Row -->
+<div class="grid grid-cols-12 gap-4 px-6 pb-2 text-xs font-label uppercase tracking-widest text-outline border-b border-outline-variant/20">
+<div class="col-span-4">Agent Identity</div>
+<div class="col-span-2">Status</div>
+<div class="col-span-2">Current Stage</div>
+<div class="col-span-2">Role</div>
+<div class="col-span-2 text-right">Actions</div>
+</div>
+<!-- Agent Card 1: Active Main Cast -->
+<div class="grid grid-cols-12 gap-4 items-center px-6 py-4 glass-panel ghost-border rounded-sm crimson-glow transition-all hover:bg-surface-container-high/60 cursor-pointer">
+<div class="col-span-4 flex items-center gap-4">
+<div class="w-12 h-12 rounded-sm overflow-hidden border border-primary-container/40 relative">
+<img class="w-full h-full object-cover" data-alt="dramatic low key lighting portrait of a futuristic woman with neon red accents on dark background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBz0iPAoQobZSfHoFAxG1h29vZAw9Rwy1_24-QSydAtR-gMQKbl4q_HWK0VokueY77aiN3DDUN_gYwbpU3GtXqKWnO8VqhKbrsJcMvvLe2DSxYxjfxTRaigRjkzFpy4lIhpiReirPkcQoe0BcIrveOIl7Mk0AcAislfUvl5EqmqTSsDKqR6yZBfSKPRKduSDqTU75y_0H6ZwIRo4o9IcXU3rZ4gdmqZ0_IgCK3sNxieexp0fTDDKC8ueC4H2vCl_8BFOLH65RpGNBen"/>
+<div class="absolute inset-0 bg-primary-container/10 mix-blend-overlay"></div>
+</div>
+<div>
+<h3 class="font-headline italic text-xl text-on-surface">Elysia Vance</h3>
+<p class="text-xs font-label text-on-surface-variant uppercase">ID: EV-892A</p>
+</div>
+</div>
+<div class="col-span-2 flex items-center gap-2">
+<div class="w-2 h-2 rounded-full bg-primary-container shadow-[0_0_8px_#c41e3a]"></div>
+<span class="font-label text-sm text-primary-container">ACTIVE</span>
+</div>
+<div class="col-span-2">
+<span class="text-sm font-body text-on-surface-variant">The Neon Bazaar</span>
+</div>
+<div class="col-span-2">
+<span class="text-xs font-label px-2 py-1 bg-secondary-container/10 text-secondary-container border border-secondary-container/20 rounded-sm">MAIN CAST</span>
+</div>
+<div class="col-span-2 flex justify-end gap-3">
+<button class="text-outline hover:text-primary transition-colors" title="Edit Parameters"><span class="material-symbols-outlined text-[20px]">tune</span></button>
+<button class="text-outline hover:text-primary-container transition-colors" title="Terminate Signal"><span class="material-symbols-outlined text-[20px]">power_settings_new</span></button>
+</div>
+</div>
+<!-- Agent Card 2: Offline NPC -->
+<div class="grid grid-cols-12 gap-4 items-center px-6 py-4 bg-surface-container-low/50 ghost-border rounded-sm opacity-80 hover:opacity-100 transition-all cursor-pointer">
+<div class="col-span-4 flex items-center gap-4">
+<div class="w-12 h-12 rounded-sm overflow-hidden border border-outline-variant/30 grayscale">
+<img class="w-full h-full object-cover" data-alt="gritty black and white street portrait of a hooded figure in shadows" src="https://lh3.googleusercontent.com/aida-public/AB6AXuB7oA4xa2nvh7YkgnPNYLCBnBLugkntR5BADspvyGAwooC2ln3eA3Z6OtlxPIO2J-_JDGiVs2kH2E2MX6fNSsi2SW393WTh2j56PyuYezMT-KlpbMSpB9yA_PJyh0Pcdg3K5GFGmYgbqZd9zzg7nQvB_Jp2IYGPTP039QIGtTYRhvRADtgPWtpX3cVu6f9q2KxutdcMvo2YTQh5ePnTG-0gvcEtzmdicVy1RYOofJzB1hPvwJWaslBI7vm6bEfaPP_3BHG-ktbIfwSW"/>
+</div>
+<div>
+<h3 class="font-headline italic text-xl text-on-surface-variant">Cipher-09</h3>
+<p class="text-xs font-label text-outline uppercase">ID: UNKN-09</p>
+</div>
+</div>
+<div class="col-span-2 flex items-center gap-2">
+<div class="w-2 h-2 rounded-full bg-outline"></div>
+<span class="font-label text-sm text-outline">OFFLINE</span>
+</div>
+<div class="col-span-2">
+<span class="text-sm font-body text-outline italic">Awaiting Scene</span>
+</div>
+<div class="col-span-2">
+<span class="text-xs font-label px-2 py-1 bg-surface-container-highest/50 text-on-surface-variant border border-outline-variant/20 rounded-sm">BACKGROUND</span>
+</div>
+<div class="col-span-2 flex justify-end gap-3">
+<button class="text-outline hover:text-on-surface transition-colors" title="Wake Entity"><span class="material-symbols-outlined text-[20px]">bolt</span></button>
+</div>
+</div>
+<!-- Agent Card 3: Active Main Cast -->
+<div class="grid grid-cols-12 gap-4 items-center px-6 py-4 glass-panel ghost-border rounded-sm transition-all hover:bg-surface-container-high/60 cursor-pointer">
+<div class="col-span-4 flex items-center gap-4">
+<div class="w-12 h-12 rounded-sm overflow-hidden border border-secondary-container/40 relative">
+<img class="w-full h-full object-cover" data-alt="abstract digital pixel art portrait face in monochrome amber tones" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBlBBRbQGkhjfS3k__2iKkSawQJOhub6pwUVQOPBhYPaxBY9r2DAJVvXNXV7SK6frrvcNDvc2xaOI53j2HuWaW0PcRN_vAdHUZuCfH9dBMuTjwl55xPhNjmpZT8fJtIwmd49c-wJDPYByZdHEu1kFdsdmYDZnyvqtJ13egYs_fFuBcn9dZ5CAMDTD5CsO4QHp_aqzznKxp3YRGi_I_4UxgrbYqAx3h6jdhUPdtHBb2s0QPVzCfvOtvULsUfKPNht5s4xWn8Ul_FJ856" style="image-rendering: pixelated;"/>
+</div>
+<div>
+<h3 class="font-headline italic text-xl text-on-surface">The Archivist</h3>
+<p class="text-xs font-label text-on-surface-variant uppercase">ID: ARCH-X</p>
+</div>
+</div>
+<div class="col-span-2 flex items-center gap-2">
+<div class="w-2 h-2 rounded-full bg-secondary-container shadow-[0_0_8px_#ba880f]"></div>
+<span class="font-label text-sm text-secondary-container">ACTIVE</span>
+</div>
+<div class="col-span-2">
+<span class="text-sm font-body text-on-surface-variant">Sub-Level Vaults</span>
+</div>
+<div class="col-span-2">
+<span class="text-xs font-label px-2 py-1 bg-secondary-container/10 text-secondary-container border border-secondary-container/20 rounded-sm">MAIN CAST</span>
+</div>
+<div class="col-span-2 flex justify-end gap-3">
+<button class="text-outline hover:text-secondary-container transition-colors" title="Edit Parameters"><span class="material-symbols-outlined text-[20px]">tune</span></button>
+<button class="text-outline hover:text-primary-container transition-colors" title="Terminate Signal"><span class="material-symbols-outlined text-[20px]">power_settings_new</span></button>
+</div>
+</div>
+</div>
+<!-- Orchestration Logs -->
+<section class="mt-8">
+<h3 class="font-label text-xs uppercase tracking-widest text-outline mb-4">Orchestration Logs</h3>
+<div class="bg-surface-container-highest/70 p-6 rounded-sm ghost-border shadow-inner relative overflow-hidden">
+<!-- Vertical accent line -->
+<div class="absolute left-0 top-0 bottom-0 w-[2px] bg-primary/30"></div>
+<div class="font-label text-xs space-y-2 text-on-surface-variant h-48 overflow-y-auto pr-4 custom-scrollbar">
+<div class="flex gap-4">
+<span class="text-outline opacity-70 w-24 flex-shrink-0">[22:45:01]</span>
+<span><span class="text-primary">SYS_CORE</span>: Initializing stage lighting protocol... SUCCESS.</span>
+</div>
+<div class="flex gap-4">
+<span class="text-outline opacity-70 w-24 flex-shrink-0">[22:45:14]</span>
+<span><span class="text-secondary-container">ARCH-X</span>: Querying sub-level archives for narrative vector 7A.</span>
+</div>
+<div class="flex gap-4">
+<span class="text-outline opacity-70 w-24 flex-shrink-0">[22:46:02]</span>
+<span><span class="text-primary-container">EV-892A</span>: Entering 'The Neon Bazaar'. Cognitive load at 42%.</span>
+</div>
+<div class="flex gap-4">
+<span class="text-outline opacity-70 w-24 flex-shrink-0">[22:46:05]</span>
+<span><span class="text-primary">SYS_CORE</span>: User interaction detected. Routing dialogue through <span class="text-primary-container">EV-892A</span>.</span>
+</div>
+<div class="flex gap-4">
+<span class="text-outline opacity-70 w-24 flex-shrink-0">[22:47:11]</span>
+<span class="text-outline">UNKN-09: Pulse check failed. Entity remains offline.</span>
+</div>
+<div class="flex gap-4">
+<span class="text-outline opacity-70 w-24 flex-shrink-0">[22:48:33]</span>
+<span><span class="text-primary-container animate-pulse">EV-892A</span>: Generating response matrix... Awaiting execution.</span>
+</div>
+</div>
+</div>
+</section>
+</main>
+<style>
+        /* Custom scrollbar for terminal to keep it clean */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: rgba(0,0,0,0.2);
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: rgba(91, 64, 64, 0.3); /* outline-variant */
+            border-radius: 2px;
+        }
+    </style>
+</body></html>

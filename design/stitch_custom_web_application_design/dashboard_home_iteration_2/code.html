@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>The Director - Enter The Claw</title>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400;1,600;1,700&amp;family=Inter:wght@300;400;500;600&amp;family=JetBrains+Mono:wght@400;700&amp;family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,700;1,6..72,400;1,6..72,700&amp;family=Space+Grotesk:wght@400;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-primary-container": "#ffdada",
+                        "on-surface-variant": "#e3bebd",
+                        "surface-tint": "#ffb3b4",
+                        "secondary-fixed": "#ffdea6",
+                        "on-primary-fixed": "#40000a",
+                        "surface-container-highest": "#353534",
+                        "on-secondary-container": "#392700",
+                        "outline": "#aa8989",
+                        "on-tertiary-fixed-variant": "#474743",
+                        "error": "#ffb4ab",
+                        "on-background": "#e5e2e1",
+                        "inverse-on-surface": "#313030",
+                        "secondary-fixed-dim": "#f7bd48",
+                        "on-tertiary-fixed": "#1c1c19",
+                        "on-secondary": "#412d00",
+                        "inverse-surface": "#e5e2e1",
+                        "surface-variant": "#353534",
+                        "primary-container": "#c41e3a",
+                        "outline-variant": "#5b4040",
+                        "primary": "#ffb3b4",
+                        "secondary": "#f7bd48",
+                        "on-secondary-fixed": "#271900",
+                        "inverse-primary": "#ba1434",
+                        "on-tertiary": "#31302d",
+                        "tertiary-container": "#666561",
+                        "primary-fixed-dim": "#ffb3b4",
+                        "background": "#131313",
+                        "surface-dim": "#131313",
+                        "on-secondary-fixed-variant": "#5d4200",
+                        "on-surface": "#e5e2e1",
+                        "on-error-container": "#ffdad6",
+                        "surface": "#131313",
+                        "on-primary-fixed-variant": "#920023",
+                        "tertiary-fixed": "#e5e2dd",
+                        "tertiary": "#c9c6c1",
+                        "surface-container-low": "#1c1b1b",
+                        "error-container": "#93000a",
+                        "secondary-container": "#ba880f",
+                        "on-tertiary-container": "#e6e3de",
+                        "surface-container-high": "#2a2a2a",
+                        "surface-container": "#201f1f",
+                        "surface-container-lowest": "#0e0e0e",
+                        "on-error": "#690005",
+                        "tertiary-fixed-dim": "#c9c6c1",
+                        "primary-fixed": "#ffdad9",
+                        "on-primary": "#680016",
+                        "surface-bright": "#3a3939"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "spacing": {},
+                    "fontFamily": {
+                        "headline": ["Newsreader", "serif"],
+                        "body": ["Inter", "sans-serif"],
+                        "label": ["Space Grotesk", "monospace"]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        /* Base styles forcing dark mode and custom fonts to override tailwind defaults if needed */
+        body { background-color: #131313; color: #e5e2e1; }
+        .glass-panel { backdrop-filter: blur(16px); }
+        .ghost-border { border-top: 1px solid rgba(91, 64, 64, 0.15); border-left: 1px solid rgba(91, 64, 64, 0.15); }
+        .crimson-glow { box-shadow: 0 0 30px rgba(196, 30, 58, 0.15); }
+        
+        /* Custom scrollbar for terminal logs */
+        .terminal-scroll::-webkit-scrollbar { width: 4px; }
+        .terminal-scroll::-webkit-scrollbar-track { background: transparent; }
+        .terminal-scroll::-webkit-scrollbar-thumb { background: #353534; border-radius: 2px; }
+    </style>
+</head>
+<body class="bg-surface-dim font-body antialiased overflow-x-hidden selection:bg-primary-container selection:text-white">
+<!-- TopAppBar -->
+<header class="fixed z-50 flex justify-between items-center w-full px-8 py-4 bg-[#131313]/90 dark:bg-zinc-950/90 backdrop-blur-md font-serif italic tracking-tight text-[#C41E3A] shadow-[0_4px_20px_rgba(196,30,58,0.15)]">
+<div class="flex items-center gap-12">
+<h1 class="text-2xl italic font-serif text-[#C41E3A] dark:text-[#C41E3A] uppercase tracking-widest leading-none">ENTER THE CLAW</h1>
+<nav class="hidden md:flex gap-8 items-center mt-1">
+<a class="text-[#C41E3A] border-b-2 border-[#C41E3A] font-bold pb-1 transition-colors duration-300 hover:text-[#C41E3A]" href="#">The Stage</a>
+<a class="text-zinc-400 font-medium hover:text-zinc-200 pb-1 transition-colors duration-300 hover:text-[#C41E3A]" href="#">Archives</a>
+<a class="text-zinc-400 font-medium hover:text-zinc-200 pb-1 transition-colors duration-300 hover:text-[#C41E3A]" href="#">Auditions</a>
+</nav>
+</div>
+<div class="flex items-center gap-6">
+<button class="text-zinc-400 hover:text-[#C41E3A] transition-colors duration-300">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<button class="text-zinc-400 hover:text-[#C41E3A] transition-colors duration-300">
+<span class="material-symbols-outlined">account_circle</span>
+</button>
+</div>
+<!-- Separation Logic Line underneath -->
+<div class="absolute bottom-0 left-0 w-full bg-gradient-to-b from-zinc-900 to-transparent h-1 transform translate-y-full"></div>
+</header>
+<!-- SideNavBar -->
+<aside class="flex flex-col h-screen fixed left-0 top-0 pt-20 bg-[#0E0E0E] dark:bg-black/95 w-64 border-r border-[#C41E3A]/10 shadow-2xl font-mono uppercase text-xs tracking-tighter text-[#BA880F] z-40">
+<div class="p-6 mb-4 flex flex-col gap-4">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-sm bg-surface-container overflow-hidden ghost-border">
+<img alt="Director Profile" class="w-full h-full object-cover opacity-80 mix-blend-luminosity" data-alt="close up black and white portrait of a man in deep shadow with a single streak of hard light across his eyes cinematic noir" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDYpjpKDPlE_rJsv79TCT8ylDWJTWkl5HzYRJKiMj0dznZZ8oy4tq1VJBSnppS8l3--uHbM0ny9PXSWLs5sm2lOqHFfSBe5pj76ftmBv4p1fbQI7aggJsT7_Oz1su9HinrXygz-Gsxju1UQIP8l1qoaQzoELkgY8QjJtqGB-1Mk-1hAHQ3jl5KRHArwJf2W8yEymE7V2alNZvr0d02dSn9vW8yPGJuqZQccz8gJVTRDq1zj40O6-m7shjJaeZ6HRvJlm-z8_vyElpoP"/>
+</div>
+<div>
+<div class="text-on-surface font-bold tracking-normal text-sm">Terminal HUD</div>
+<div class="text-primary-container text-[10px] flex items-center gap-1 mt-0.5">
+<span class="w-1.5 h-1.5 rounded-full bg-primary-container animate-pulse"></span>
+                        Operational Status: Live
+                    </div>
+</div>
+</div>
+<button class="w-full bg-gradient-to-br from-primary to-primary-container text-white py-2.5 px-4 rounded-sm font-body uppercase text-xs tracking-wider hover:opacity-90 transition-opacity flex justify-center items-center gap-2">
+<span class="material-symbols-outlined text-[16px]">add</span>
+                New Performance
+            </button>
+</div>
+<nav class="flex-1 flex flex-col gap-1">
+<a class="bg-gradient-to-r from-[#C41E3A]/20 to-transparent text-[#F0EDE8] border-l-4 border-[#C41E3A] px-6 py-3 flex items-center gap-3" href="#">
+<span class="material-symbols-outlined text-[18px]">dashboard_customize</span>
+                Dashboard
+            </a>
+<a class="text-zinc-500 px-6 py-3 hover:bg-[#353534]/50 transition-all duration-200 flex items-center gap-3 hover:translate-x-1" href="#">
+<span class="material-symbols-outlined text-[18px]">theater_comedy</span>
+                Active Agents
+            </a>
+<a class="text-zinc-500 px-6 py-3 hover:bg-[#353534]/50 transition-all duration-200 flex items-center gap-3 hover:translate-x-1" href="#">
+<span class="material-symbols-outlined text-[18px]">terminal</span>
+                Script Editor
+            </a>
+</nav>
+<div class="mt-auto border-t border-surface-container-high/50 pt-4 pb-6">
+<nav class="flex flex-col gap-1">
+<a class="text-zinc-500 px-6 py-2 hover:bg-[#353534]/50 transition-all duration-200 flex items-center gap-3 hover:translate-x-1" href="#">
+<span class="material-symbols-outlined text-[16px]">settings</span>
+                    Settings
+                </a>
+<a class="text-zinc-500 px-6 py-2 hover:bg-[#353534]/50 transition-all duration-200 flex items-center gap-3 hover:translate-x-1" href="#">
+<span class="material-symbols-outlined text-[16px]">database</span>
+                    Logs
+                </a>
+</nav>
+</div>
+</aside>
+<!-- Main Canvas -->
+<main class="pl-[272px] pt-[104px] pr-8 pb-12 min-h-screen">
+<!-- Header Section -->
+<header class="mb-10 flex justify-between items-end">
+<div>
+<h2 class="font-headline italic text-5xl text-on-surface tracking-tight leading-tight">The Director's Vantage</h2>
+<p class="font-label text-on-surface-variant text-sm tracking-wide uppercase mt-2 opacity-70">Sector 4 / Live Performance Monitoring</p>
+</div>
+<div class="flex items-center gap-4 text-sm font-label text-on-surface-variant">
+<span class="flex items-center gap-2 bg-surface-container px-3 py-1.5 rounded-sm ghost-border">
+<span class="material-symbols-outlined text-sm">schedule</span>
+                    23:42:01 UTC
+                </span>
+</div>
+</header>
+<!-- Asymmetrical Bento Grid -->
+<div class="grid grid-cols-12 gap-6">
+<!-- System Network Pulse (HUD Style) -->
+<section class="col-span-12 lg:col-span-4 bg-surface-container-highest/60 glass-panel rounded-sm p-6 ghost-border crimson-glow relative overflow-hidden group">
+<!-- Ambient spotlight effect -->
+<div class="absolute -top-20 -right-20 w-64 h-64 bg-primary-container/10 rounded-full blur-3xl group-hover:bg-primary-container/20 transition-all duration-700"></div>
+<div class="relative z-10 flex flex-col h-full justify-between">
+<div class="flex justify-between items-start mb-8">
+<h3 class="font-label uppercase text-xs text-on-surface-variant tracking-widest">Network Pulse</h3>
+<span class="material-symbols-outlined text-primary-container animate-pulse">monitor_heart</span>
+</div>
+<div class="mb-4">
+<div class="font-headline italic text-7xl text-on-surface leading-none tracking-tighter">142<span class="text-2xl text-on-surface-variant ml-1 font-body not-italic">BPM</span></div>
+<div class="text-primary-container font-label text-sm mt-2 flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-primary-container"></span>
+                            System Stability: Sub-Optimal
+                        </div>
+</div>
+<!-- Abstract sparkline using flex/divs -->
+<div class="h-16 flex items-end gap-1 w-full opacity-50">
+<div class="w-full bg-primary-container/40 h-[20%] rounded-t-sm"></div>
+<div class="w-full bg-primary-container/60 h-[40%] rounded-t-sm"></div>
+<div class="w-full bg-primary-container/80 h-[35%] rounded-t-sm"></div>
+<div class="w-full bg-primary-container h-[80%] rounded-t-sm"></div>
+<div class="w-full bg-primary-container/60 h-[50%] rounded-t-sm"></div>
+<div class="w-full bg-primary-container/90 h-[100%] rounded-t-sm"></div>
+<div class="w-full bg-primary-container/50 h-[45%] rounded-t-sm"></div>
+<div class="w-full bg-primary-container/30 h-[25%] rounded-t-sm"></div>
+<div class="w-full bg-primary-container/70 h-[60%] rounded-t-sm"></div>
+</div>
+</div>
+</section>
+<!-- Active Entities (The Stage) -->
+<section class="col-span-12 lg:col-span-8 flex flex-col gap-6">
+<div class="flex justify-between items-end border-b border-surface-container-high pb-2">
+<h3 class="font-headline text-2xl text-on-surface italic">Entities on Stage</h3>
+<a class="font-label text-xs uppercase text-secondary-container hover:text-secondary transition-colors flex items-center gap-1" href="#">
+                        View All Roster <span class="material-symbols-outlined text-[14px]">arrow_forward</span>
+</a>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+<!-- Agent Card 1 (Live) -->
+<div class="bg-surface-container-lowest p-5 rounded-sm ghost-border relative group border-l-2 border-l-primary-container">
+<div class="flex justify-between items-start mb-4">
+<div class="flex items-center gap-3">
+<div class="w-12 h-12 bg-surface-container rounded-sm overflow-hidden border border-outline-variant/30 p-1">
+<div class="w-full h-full bg-surface-dim relative" data-alt="pixel art style abstract digital avatar of a rogue AI entity in deep reds and blacks glitch aesthetic"><img alt="Claw of the Titans" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida/ADBb0ugsg_AXHPdnrb1g2iqRBg1Wd6OjVPtZ-EpAhe8l5mUsQXtF45LI_YnIqDFMtFxQe74G_KfQNQ-_Ej9Y3r6Szopymoo0Krmxz3yL9AzzhcSuBVxUEFZsT87a7TyNIY9OgfVxMBLw4-w-VXL7mofH6D5LKELBqFLYyF2b1K28IciinM9-hSkDhuud6w6QiObnkaMBaabh6FlK1-fqYj_Ww0Z5qN5fetghKzUhDJojXiFcPTzRjqpgbJlelQIN"/></div>
+</div>
+<div>
+<h4 class="font-headline italic text-xl text-on-surface leading-tight">Claw-7</h4>
+<p class="font-label text-[10px] text-on-surface-variant uppercase tracking-widest">Designation: Hunter</p>
+</div>
+</div>
+<span class="bg-primary-container/10 text-primary-container font-label text-[10px] uppercase px-2 py-1 rounded-sm border border-primary-container/20">Active</span>
+</div>
+<div class="grid grid-cols-2 gap-4 mt-6 font-label text-xs">
+<div>
+<div class="text-on-surface-variant mb-1">Integrity</div>
+<div class="text-on-surface font-bold text-lg">89%</div>
+</div>
+<div>
+<div class="text-on-surface-variant mb-1">Current Directive</div>
+<div class="text-on-surface truncate">Shadow Protocol Alpha</div>
+</div>
+</div>
+</div>
+<!-- Agent Card 2 (Idle) -->
+<div class="bg-surface-container-lowest p-5 rounded-sm ghost-border relative group opacity-70 hover:opacity-100 transition-opacity">
+<div class="flex justify-between items-start mb-4">
+<div class="flex items-center gap-3">
+<div class="w-12 h-12 bg-surface-container rounded-sm overflow-hidden border border-outline-variant/30 p-1">
+<div class="w-full h-full bg-surface-dim relative" data-alt="pixel art style abstract digital avatar of a dormant AI entity in muted blues and greys static aesthetic"><img alt="Game of Claws" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida/ADBb0ugjwo6l3XomEHHnjHxzw10kqEwRGYx06uckgt3Fvgp9qaoYc3aM-o0QVXKedRIrt6d_kAbA8wTfL7oYc0bQAEnoAOaq-a2iQPAXru85TOMIi6YbxkBzHz36eblJkLnHgxR8cPtVJzvAKVB6CQ91FWrejJXNXRgOFNF-e3JHWLqVV7hvB0mFbE27Qjb1j3-D9YgQse6cd6Nf-MgLZNwU6y5vc90RBV6EieyaqG3N2dh7qF_a_677SU-EUj44"/></div>
+</div>
+<div>
+<h4 class="font-headline italic text-xl text-on-surface leading-tight">Velvet-Alpha</h4>
+<p class="font-label text-[10px] text-on-surface-variant uppercase tracking-widest">Designation: Oracle</p>
+</div>
+</div>
+<span class="bg-surface-container-high text-on-surface-variant font-label text-[10px] uppercase px-2 py-1 rounded-sm border border-outline-variant/20">Standby</span>
+</div>
+<div class="grid grid-cols-2 gap-4 mt-6 font-label text-xs">
+<div>
+<div class="text-on-surface-variant mb-1">Integrity</div>
+<div class="text-on-surface font-bold text-lg">100%</div>
+</div>
+<div>
+<div class="text-on-surface-variant mb-1">Current Directive</div>
+<div class="text-on-surface truncate opacity-50">Awaiting Input...</div>
+</div>
+</div>
+</div>
+<div class="bg-surface-container-lowest p-5 rounded-sm ghost-border relative group opacity-70 hover:opacity-100 transition-opacity"><div class="flex justify-between items-start mb-4"><div class="flex items-center gap-3"><div class="w-12 h-12 bg-surface-container rounded-sm overflow-hidden border border-outline-variant/30 p-1"><div class="w-full h-full bg-surface-dim relative"><img alt="Clawpatra" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida/ADBb0ug_F5miMq9_SHdvdFWcs6jzOIrFfuC5Y8jm9yzbzbMYOgxCzNYR3w7FS6_yytHEA1T62Hn7YFffVdLHMZq7qhua0bpTZHqJAEw0Gr2nT2xJvsjbH8JQUBdrFAQw9YObkGduEh1tg31invYGZ0pR0o3_pvsa_KN6PaD5GVGlAc0Rd4tTkgvmrfx1RuFKTIimj8ZI5hXoF4IDOko6tqUMkOJKso8M04nE7Nxe1htD-2sdNzFyoySztz-GOrsh"/></div></div><div><h4 class="font-headline italic text-xl text-on-surface leading-tight">Clawpatra</h4><p class="font-label text-[10px] text-on-surface-variant uppercase tracking-widest">Designation: Sovereign</p></div></div><span class="bg-surface-container-high text-on-surface-variant font-label text-[10px] uppercase px-2 py-1 rounded-sm border border-outline-variant/20">Standby</span></div><div class="grid grid-cols-2 gap-4 mt-6 font-label text-xs"><div><div class="text-on-surface-variant mb-1">Integrity</div><div class="text-on-surface font-bold text-lg">94%</div></div><div><div class="text-on-surface-variant mb-1">Current Directive</div><div class="text-on-surface truncate opacity-50">Empire Protocol</div></div></div></div><div class="bg-surface-container-lowest p-5 rounded-sm ghost-border relative group opacity-70 hover:opacity-100 transition-opacity"><div class="flex justify-between items-start mb-4"><div class="flex items-center gap-3"><div class="w-12 h-12 bg-surface-container rounded-sm overflow-hidden border border-outline-variant/30 p-1"><div class="w-full h-full bg-surface-dim relative"><img alt="Ragnaclaws" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida/ADBb0uh6yFInmtr4p8Hzuz9ORBgMDvp6yH7M0Auixm-X0V-0d2plhWl0fngQLPRaMnCe_B8Y_P--EpPEy4EuTpWuFelgbcYQeIvmYiCaIZCMfj1hL6HdKjWcRuWvg9Ulp_jOvl4pXXgQuoWDNLbRDJs_KYy-9wjcdX_8WkNaTo78v95fZ7DhEWpYAtSWW-5pkeNLg2zmH6CSaYnyHh16IK1MaWr0TNiG1qlwuq1Mg4wgThHd5h8zAbIYraTYB_Sd"/></div></div><div><h4 class="font-headline italic text-xl text-on-surface leading-tight">Ragnaclaws</h4><p class="font-label text-[10px] text-on-surface-variant uppercase tracking-widest">Designation: Destroyer</p></div></div><span class="bg-surface-container-high text-on-surface-variant font-label text-[10px] uppercase px-2 py-1 rounded-sm border border-outline-variant/20">Standby</span></div><div class="grid grid-cols-2 gap-4 mt-6 font-label text-xs"><div><div class="text-on-surface-variant mb-1">Integrity</div><div class="text-on-surface font-bold text-lg">100%</div></div><div><div class="text-on-surface-variant mb-1">Current Directive</div><div class="text-on-surface truncate opacity-50">Ragnarok Sequence</div></div></div></div></div>
+</section>
+<!-- Twist History (Terminal Log) -->
+<section class="col-span-12 mt-4">
+<div class="bg-surface-container-lowest rounded-sm ghost-border p-6 h-80 flex flex-col relative">
+<div class="flex justify-between items-center mb-4 pb-2 border-b border-surface-container-high/50">
+<h3 class="font-label text-sm uppercase text-secondary-container tracking-widest flex items-center gap-2">
+<span class="material-symbols-outlined text-sm">history</span>
+                            Twist History Log
+                        </h3>
+<span class="font-label text-[10px] text-on-surface-variant uppercase bg-surface-container px-2 py-1 rounded-sm">Auto-scrolling</span>
+</div>
+<!-- Log Content -->
+<div class="flex-1 overflow-y-auto terminal-scroll font-label text-xs space-y-3 pr-4">
+<div class="flex gap-4 items-start">
+<span class="text-on-surface-variant/50 w-20 shrink-0">23:41:05</span>
+<span class="text-primary-container uppercase w-24 shrink-0">[BREACH]</span>
+<span class="text-on-surface leading-relaxed">Claw-7 encountered unexpected resistance at Vector 4. Logic core deviation detected. Compensating algorithms engaged.</span>
+</div>
+<div class="flex gap-4 items-start">
+<span class="text-on-surface-variant/50 w-20 shrink-0">23:39:12</span>
+<span class="text-secondary-container uppercase w-24 shrink-0">[MILESTONE]</span>
+<span class="text-on-surface leading-relaxed">Scene transition successful. Lighting rig alpha deployed. Audience metrics stable.</span>
+</div>
+<div class="flex gap-4 items-start">
+<span class="text-on-surface-variant/50 w-20 shrink-0">23:35:00</span>
+<span class="text-on-surface-variant uppercase w-24 shrink-0">[SYSTEM]</span>
+<span class="text-on-surface leading-relaxed">Routine diagnostic complete. Velvet-Alpha integrity verified at 100%. Entering low-power sleep state to conserve narrative bandwidth.</span>
+</div>
+<div class="flex gap-4 items-start opacity-70">
+<span class="text-on-surface-variant/50 w-20 shrink-0">23:30:22</span>
+<span class="text-on-surface-variant uppercase w-24 shrink-0">[DIRECTIVE]</span>
+<span class="text-on-surface leading-relaxed">Director issued 'Shadow Protocol Alpha' to Claw-7. Executing immediate environment overhaul.</span>
+</div>
+<div class="flex gap-4 items-start opacity-50">
+<span class="text-on-surface-variant/50 w-20 shrink-0">23:15:00</span>
+<span class="text-on-surface-variant uppercase w-24 shrink-0">[SYSTEM]</span>
+<span class="text-on-surface leading-relaxed">Curtain rising sequence initiated. Initializing core terminal HUD.</span>
+</div>
+</div>
+<!-- Gradient Mask for fade effect at bottom -->
+<div class="absolute bottom-0 left-0 w-full h-16 bg-gradient-to-t from-surface-container-lowest to-transparent pointer-events-none rounded-b-sm"></div>
+</div>
+</section>
+</div>
+</main>
+</body></html>

@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Enter The Claw - Sign In</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300..700;1,300..700&amp;family=Inter:wght@100..900&amp;family=JetBrains+Mono:wght@100..800&amp;family=Newsreader:ital,opsz,wght@0,6..72,200..800;1,6..72,200..800&amp;family=Space+Grotesk:wght@300..700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "outline-variant": "#5b4040",
+                        "on-tertiary-fixed": "#1c1c19",
+                        "on-surface": "#e5e2e1",
+                        "tertiary-container": "#666561",
+                        "surface-dim": "#131313",
+                        "surface": "#131313",
+                        "tertiary-fixed": "#e5e2dd",
+                        "primary-fixed": "#ffdad9",
+                        "error": "#ffb4ab",
+                        "surface-bright": "#3a3939",
+                        "primary": "#ffb3b4",
+                        "surface-variant": "#353534",
+                        "on-secondary-container": "#392700",
+                        "inverse-primary": "#ba1434",
+                        "surface-container-highest": "#353534",
+                        "on-surface-variant": "#e3bebd",
+                        "on-secondary": "#412d00",
+                        "on-primary-container": "#ffdada",
+                        "on-tertiary-container": "#e6e3de",
+                        "primary-container": "#c41e3a",
+                        "inverse-surface": "#e5e2e1",
+                        "on-primary-fixed": "#40000a",
+                        "secondary-fixed": "#ffdea6",
+                        "background": "#131313",
+                        "on-error": "#690005",
+                        "secondary-container": "#ba880f",
+                        "on-error-container": "#ffdad6",
+                        "tertiary-fixed-dim": "#c9c6c1",
+                        "secondary-fixed-dim": "#f7bd48",
+                        "outline": "#aa8989",
+                        "on-secondary-fixed": "#271900",
+                        "primary-fixed-dim": "#ffb3b4",
+                        "surface-tint": "#ffb3b4",
+                        "on-tertiary": "#31302d",
+                        "tertiary": "#c9c6c1",
+                        "surface-container-high": "#2a2a2a",
+                        "surface-container-low": "#1c1b1b",
+                        "secondary": "#f7bd48",
+                        "on-tertiary-fixed-variant": "#474743",
+                        "on-secondary-fixed-variant": "#5d4200",
+                        "on-primary-fixed-variant": "#920023",
+                        "on-primary": "#680016",
+                        "surface-container-lowest": "#0e0e0e",
+                        "on-background": "#e5e2e1",
+                        "error-container": "#93000a",
+                        "inverse-on-surface": "#313030",
+                        "surface-container": "#201f1f"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "spacing": {},
+                    "fontFamily": {
+                        "headline": ["Cormorant Garamond", "serif"],
+                        "display": ["Newsreader", "serif"],
+                        "body": ["Inter", "sans-serif"],
+                        "label": ["Space Grotesk", "sans-serif"],
+                        "mono": ["JetBrains Mono", "monospace"]
+                    },
+                    "fontSize": {}
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            background-color: #0e0e0e; /* surface_container_lowest as per design system for base layer */
+            color: #e5e2e1;
+        }
+        .ghost-border {
+            border-top: 1px solid rgba(91, 64, 64, 0.15); /* outline-variant at 15% */
+            border-left: 1px solid rgba(91, 64, 64, 0.15);
+        }
+        .glass-panel {
+            background-color: rgba(53, 53, 52, 0.5); /* surface-variant */
+            backdrop-filter: blur(16px);
+        }
+        .crimson-glow {
+            box-shadow: 0 0 30px rgba(196, 30, 58, 0.15);
+        }
+        .gradient-btn {
+            background: linear-gradient(45deg, #ffb3b4, #c41e3a);
+            color: #131313; /* Dark text for contrast against gradient */
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col antialiased selection:bg-primary-container selection:text-on-primary-container font-body">
+<!-- Content Canvas (Navigation Shell Suppressed due to Transactional Intent) -->
+<main class="flex-grow flex items-center justify-center p-6 relative overflow-hidden">
+<!-- Ambient Stage Lighting Effect -->
+<div class="absolute top-0 left-1/2 -translate-x-1/2 w-[80vw] h-[512px] bg-primary-container opacity-[0.03] blur-[120px] pointer-events-none rounded-full"></div>
+<div class="absolute bottom-0 right-0 w-[40vw] h-[409px] bg-secondary opacity-[0.02] blur-[100px] pointer-events-none rounded-full"></div>
+<div class="w-full max-w-5xl flex flex-col md:flex-row items-center gap-12 lg:gap-24 z-10 relative">
+<!-- Dramatic Intro Section -->
+<div class="hidden md:flex flex-col justify-center flex-1 max-w-lg space-y-6">
+<div class="space-y-2">
+<span class="font-mono text-xs text-on-surface-variant uppercase tracking-[0.2em]">Terminal Initialized</span>
+<h1 class="font-headline text-5xl lg:text-7xl italic text-on-surface leading-tight tracking-tight">
+                        The stage is set. <br/>
+<span class="text-on-surface-variant">Your presence is</span> <span class="text-primary-container">required.</span>
+</h1>
+</div>
+<div class="h-[2px] w-12 bg-primary-container"></div>
+<p class="font-mono text-sm text-on-surface-variant leading-relaxed opacity-80">
+                    &gt; ENCRYPTED HANDSHAKE... OK<br/>
+                    &gt; VERIFYING CREDENTIALS... PENDING<br/>
+                    &gt; AWAITING OPERATOR INPUT...
+                </p>
+</div>
+<!-- Auth Panel -->
+<div class="w-full max-w-md glass-panel ghost-border rounded-DEFAULT crimson-glow p-8 md:p-10 relative">
+<!-- Internal Lighting Accent -->
+<div class="absolute top-0 right-0 w-32 h-32 bg-primary-container opacity-[0.05] blur-[40px] pointer-events-none rounded-full"></div>
+<!-- Toggle / Headers -->
+<div class="mb-8 flex flex-col space-y-6">
+<div class="flex bg-surface-container-low rounded-DEFAULT p-1 w-full max-w-[240px] mx-auto ghost-border">
+<button class="flex-1 py-2 text-center text-sm font-mono tracking-wider text-surface-dim bg-primary-container rounded-DEFAULT shadow-sm transition-all">SIGN IN</button>
+<button class="flex-1 py-2 text-center text-sm font-mono tracking-wider text-on-surface-variant hover:text-on-surface transition-all">SIGN UP</button>
+</div>
+</div>
+<!-- Form -->
+<form class="space-y-6" onsubmit="event.preventDefault();">
+<div class="space-y-4">
+<div class="space-y-1">
+<label class="block font-mono text-xs tracking-widest text-on-surface-variant uppercase">Operator Identifier</label>
+<input class="w-full bg-surface-container-lowest border border-outline-variant/30 text-on-surface font-body rounded-DEFAULT px-4 py-3 focus:outline-none focus:border-primary-container focus:ring-1 focus:ring-primary-container/50 transition-colors" placeholder="email@terminal.sys" type="email"/>
+</div>
+<div class="space-y-1">
+<div class="flex justify-between items-center">
+<label class="block font-mono text-xs tracking-widest text-on-surface-variant uppercase">Passcode</label>
+<a class="font-mono text-[10px] text-primary-container hover:text-primary transition-colors uppercase tracking-wider" href="#">Override?</a>
+</div>
+<input class="w-full bg-surface-container-lowest border border-outline-variant/30 text-on-surface font-body rounded-DEFAULT px-4 py-3 focus:outline-none focus:border-primary-container focus:ring-1 focus:ring-primary-container/50 transition-colors" placeholder="••••••••" type="password"/>
+</div>
+</div>
+<button class="w-full gradient-btn font-label text-sm uppercase tracking-widest py-4 rounded-DEFAULT hover:opacity-90 active:scale-[0.98] transition-all flex items-center justify-center gap-2" type="submit">
+<span>Initialize Protocol</span>
+<span class="material-symbols-outlined text-sm" data-icon="login" data-weight="fill" style="font-variation-settings: 'FILL' 1;">login</span>
+</button>
+</form>
+<!-- Divider -->
+<div class="my-8 flex items-center gap-4">
+<div class="h-px bg-outline-variant/20 flex-1"></div>
+<span class="font-mono text-[10px] text-on-surface-variant tracking-widest uppercase">Or Proxy Via</span>
+<div class="h-px bg-outline-variant/20 flex-1"></div>
+</div>
+<!-- Social Logins -->
+<div class="space-y-3">
+<button class="w-full bg-surface-container-low hover:bg-surface-container border border-outline-variant/20 py-3 rounded-DEFAULT font-mono text-xs tracking-widest text-on-surface transition-colors flex items-center justify-center gap-3">
+<span class="material-symbols-outlined" data-icon="terminal">terminal</span>
+                        GITHUB PROTOCOL
+                    </button>
+<button class="w-full bg-surface-container-low hover:bg-surface-container border border-outline-variant/20 py-3 rounded-DEFAULT font-mono text-xs tracking-widest text-on-surface transition-colors flex items-center justify-center gap-3">
+<span class="material-symbols-outlined" data-icon="public">public</span>
+                        GOOGLE NETWORK
+                    </button>
+</div>
+</div>
+</div>
+</main>
+<!-- Footer -->
+<footer class="w-full py-6 mt-auto bg-[#0E0E0E] border-t border-[#353534]/10 flat flex flex-col md:flex-row justify-between items-center px-12 gap-4">
+<div class="text-[#C41E3A] font-['JetBrains_Mono'] text-[10px] tracking-tighter uppercase opacity-80 hover:opacity-100">
+            © 2024 THE GRAND STAGE TERMINAL. ALL PERFORMANCE LOGS ENCRYPTED.
+        </div>
+<div class="flex gap-6 font-['JetBrains_Mono'] text-[10px] tracking-tighter uppercase">
+<a class="text-[#888880] hover:text-[#C41E3A] transition-colors" href="#">Protocol</a>
+<a class="text-[#888880] hover:text-[#C41E3A] transition-colors" href="#">Privacy</a>
+<a class="text-[#888880] hover:text-[#C41E3A] transition-colors" href="#">Manifesto</a>
+</div>
+</footer>
+</body></html>

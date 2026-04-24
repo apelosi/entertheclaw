@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "Netlify Dev (Next.js + Edge Functions)",
+      "runtimeExecutable": "netlify",
+      "runtimeArgs": ["dev"],
+      "port": 8888
+    },
+    {
+      "name": "Next.js Dev",
+      "runtimeExecutable": "bun",
+      "runtimeArgs": ["run", "dev"],
+      "port": 3000
+    }
+  ]
+}

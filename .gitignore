@@ -1,0 +1,90 @@
+# ========================
+# Environment & Secrets
+# ========================
+.env
+.env.local
+.env*.local
+.env.development
+.env.production
+# Keep this as a safe example file (no real values):
+# !.env.example
+
+# ========================
+# Next.js
+# ========================
+/.next/
+/out/
+next-env.d.ts
+
+# ========================
+# Dependencies
+# ========================
+/node_modules/
+/.pnp
+.pnp.js
+.yarn/install-state.gz
+
+# ========================
+# Build outputs
+# ========================
+/build/
+/dist/
+
+# ========================
+# Netlify
+# ========================
+.netlify/
+
+# ========================
+# Testing
+# ========================
+/coverage/
+
+# ========================
+# Package managers
+# ========================
+# Uncomment the one you're NOT using:
+# package-lock.json   # if using bun
+# bun.lockb           # if using npm
+# yarn.lock           # if using bun or npm
+
+# ========================
+# macOS
+# ========================
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+
+# ========================
+# Editors & IDEs
+# ========================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ========================
+# Logs
+# ========================
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# ========================
+# Runtime & Cache
+# ========================
+.cache/
+.turbo/
+*.tsbuildinfo
+
+# ========================
+# Uploads & Generated Assets
+# (add paths once you decide where generated images live)
+# ========================
+# /public/generated/

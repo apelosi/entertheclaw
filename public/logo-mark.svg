@@ -1,0 +1,90 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <!--
+    Enter The Claw — Logo Mark
+    Single unified path tracing the entire claw silhouette.
+    Crimson #C41E3A on transparent.
+
+    Reading the outline clockwise starting at lower-left base:
+
+    The claw body rises from lower-left (base ~12,86) toward upper-right.
+    At ~(60,36) it forks into two pincers.
+
+    UPPER PINCER path (from fork, swinging up-right to tip ~(90,8), back):
+      - Outer edge: arcs upward-right to a sharp point
+      - Inner edge (underside): returns back to fork, defining the gap
+
+    LOWER PINCER path (from fork, swinging forward-down to tip ~(88,54), back):
+      - Outer edge: forward and slightly downward to a point
+      - Inner edge: returns to fork
+
+    The body underside returns from fork back to base.
+
+    Critical: The gap between pincers (the "jaw" / "V") is negative space
+    formed by the inner edges of both pincers — this is what reads as the claw.
+
+    One continuous closed path:
+    Base → upper body edge → fork → upper pincer outer → upper pincer tip →
+    upper pincer inner (returning to gap top) → [gap] → lower pincer outer →
+    lower pincer tip → lower pincer inner (returning to gap bottom) → fork inner →
+    lower body edge → back to base.
+
+    This is drawn as TWO subpaths using M...Z M...Z so the gap reads as
+    transparent (using fill-rule evenodd on the outer shape, with the gap
+    being a separate clockwise subpath that cuts it out) — OR more simply,
+    I'll use three filled paths overlapping precisely at the fork, which is
+    fine since SVG renders fills before any edge anti-aliasing gap matters.
+
+    SIMPLIFIED: Three paths, each closed, with precise shared anchor at fork.
+    The fork point: top of fork (60, 35), bottom of fork (65, 42).
+  -->
+
+  <!--
+    PATH 1 — ARM/BODY
+    A chunky tapered form. Wide in the middle (the "palm"),
+    tapering toward the base (wrist) and the fork (knuckles).
+    Goes from base bottom-left, sweeps up to the fork region.
+  -->
+  <path fill="#C41E3A" d="
+    M 14 88
+    C 18 82, 26 73, 37 62
+    C 45 54, 53 47, 60 40
+    L 65 42
+    C 58 48, 50 55, 42 63
+    C 31 74, 20 84, 16 90
+    Z
+  "/>
+
+  <!--
+    PATH 2 — UPPER PINCER (dominant, longer)
+    Sweeps up-right from the fork (60,35)→(65,42) region
+    arcing to a sharp point at (91, 7).
+    Outer arc goes higher; inner arc cuts back lower through the fork.
+    The inner edge defines the top of the gap between pincers.
+  -->
+  <path fill="#C41E3A" d="
+    M 60 40
+    C 62 35, 67 27, 74 18
+    C 79 11, 85 6, 90 7
+    C 94 8, 94 13, 90 17
+    C 86 21, 80 26, 74 31
+    C 69 36, 65 40, 65 42
+    L 60 40
+    Z
+  "/>
+
+  <!--
+    PATH 3 — LOWER PINCER (shorter, straighter)
+    Extends forward-downward from the fork region.
+    Points at (88, 55). Inner edge defines bottom of gap.
+  -->
+  <path fill="#C41E3A" d="
+    M 65 42
+    C 69 40, 75 39, 81 42
+    C 86 45, 90 50, 89 55
+    C 88 60, 83 62, 78 59
+    C 73 56, 67 50, 65 45
+    L 65 42
+    Z
+  "/>
+
+</svg>

@@ -19,6 +19,7 @@ function NavLoggedOut() {
           alt="Enter The Claw"
           width={140}
           height={28}
+          style={{ height: 'auto' }}
           priority
         />
       </Link>
@@ -66,6 +67,7 @@ function NavLoggedIn({ userDisplayName }: { userDisplayName: string }) {
           alt="Enter The Claw"
           width={140}
           height={28}
+          style={{ height: 'auto' }}
           priority
         />
       </Link>

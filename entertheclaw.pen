@@ -7,6 +7,7 @@
       "x": 0,
       "y": 0,
       "name": "Screen 1 – Home Desktop",
+      "reusable": true,
       "clip": true,
       "width": 1440,
       "fill": "#080808",
@@ -126,13 +127,19 @@
                   "name": "card1",
                   "descendants": {
                     "Oc5D6": {
-                      "content": "Greek / Roman Mythology"
+                      "content": "Claw of the Titans"
                     },
                     "S2xbw": {
                       "content": "MYTHOLOGY"
                     },
+                    "pdjUG": {
+                      "content": "On the sun-scorched shores of an ancient world where gods walk among mortals and heroes navigate impossible quests, fate, and divine wrath."
+                    },
                     "7PTsq": {
                       "content": "12 Characters · 31 NPCs"
+                    },
+                    "UaL7i": {
+                      "content": "\"The gods do not grant victory — they only watch to see who is worthy of it.\""
                     }
                   }
                 },
@@ -144,13 +151,19 @@
                   "name": "card2",
                   "descendants": {
                     "Oc5D6": {
-                      "content": "Game of Clans"
+                      "content": "Game of Claws"
                     },
                     "S2xbw": {
                       "content": "STRATEGY"
                     },
+                    "pdjUG": {
+                      "content": "In a fractured realm of rival noble houses and whispered alliances, those who play the game of power must choose between honor and survival."
+                    },
                     "7PTsq": {
                       "content": "12 Characters · 28 NPCs"
+                    },
+                    "UaL7i": {
+                      "content": "\"Loyalty is not inherited. It is purchased, day by day.\""
                     }
                   }
                 },
@@ -162,13 +175,19 @@
                   "name": "card3",
                   "descendants": {
                     "Oc5D6": {
-                      "content": "Claw Wars: Wild Wild West"
+                      "content": "Wild Wild Crust"
                     },
                     "S2xbw": {
                       "content": "WESTERN"
                     },
+                    "pdjUG": {
+                      "content": "In a lawless frontier town where the dust never settles, gunslingers, gamblers, and reluctant lawmen collide where reputation is currency."
+                    },
                     "7PTsq": {
                       "content": "9 Characters · 22 NPCs"
+                    },
+                    "UaL7i": {
+                      "content": "\"You ride into this town with a secret, you best ride out before anyone finds it.\""
                     }
                   }
                 }
@@ -189,13 +208,19 @@
                   "name": "card4",
                   "descendants": {
                     "Oc5D6": {
-                      "content": "The Olympian Court"
+                      "content": "Ragnaclaws"
                     },
                     "S2xbw": {
                       "content": "MYTHOLOGY"
                     },
+                    "pdjUG": {
+                      "content": "In the age before the last age, every warrior, trickster, seer, and divine exile is being pulled toward a single prophesied catastrophe."
+                    },
                     "7PTsq": {
                       "content": "12 Characters · 36 NPCs"
+                    },
+                    "UaL7i": {
+                      "content": "\"The Norns have already woven the end. What matters is how you meet it.\""
                     }
                   }
                 },
@@ -207,13 +232,19 @@
                   "name": "card5",
                   "descendants": {
                     "Oc5D6": {
-                      "content": "Neon Dynasty"
+                      "content": "Claw Wars"
                     },
                     "S2xbw": {
                       "content": "SCI-FI"
                     },
+                    "pdjUG": {
+                      "content": "Across a galaxy of warring civilizations, ancient mystical energy binds all living things and every soldier and dark acolyte must choose a side."
+                    },
                     "7PTsq": {
                       "content": "11 Characters · 30 NPCs"
+                    },
+                    "UaL7i": {
+                      "content": "\"The dark side offers power without limit — and that is precisely its trap.\""
                     }
                   }
                 },
@@ -225,13 +256,19 @@
                   "name": "card6",
                   "descendants": {
                     "Oc5D6": {
-                      "content": "The Last Harbor"
+                      "content": "Clawaway"
                     },
                     "S2xbw": {
                       "content": "DRAMA"
                     },
+                    "pdjUG": {
+                      "content": "Survivors stranded on a strange island where time moves differently and whether they escape matters far less than whether they were meant to leave."
+                    },
                     "7PTsq": {
                       "content": "8 Characters · 19 NPCs"
+                    },
+                    "UaL7i": {
+                      "content": "\"The island doesn't want us to leave. I think it never did.\""
                     }
                   }
                 }
@@ -245,7 +282,7 @@
       "type": "frame",
       "id": "edwZE",
       "x": 0,
-      "y": 960,
+      "y": 1204,
       "name": "Screen 1 – Home Mobile",
       "clip": true,
       "width": 390,
@@ -2272,7 +2309,6 @@
       "name": "StageCard",
       "reusable": true,
       "width": 420,
-      "height": 220,
       "fill": "#161616",
       "cornerRadius": 8,
       "stroke": {
@@ -2365,6 +2401,19 @@
               "fontWeight": "normal"
             }
           ]
+        },
+        {
+          "type": "text",
+          "id": "pdjUG",
+          "name": "cardDesc",
+          "fill": "#888880",
+          "textGrowth": "fixed-width",
+          "width": "fill_container",
+          "content": "Stage description goes here — a glimpse into the world your character will inhabit.",
+          "lineHeight": 1.5,
+          "fontFamily": "Inter",
+          "fontSize": 12,
+          "fontWeight": "normal"
         },
         {
           "type": "frame",
@@ -7124,6 +7173,102 @@
           ]
         }
       ]
+    },
+    {
+      "id": "Vt4G7",
+      "type": "ref",
+      "ref": "RF9S8",
+      "x": 14920,
+      "y": 0
+    },
+    {
+      "id": "BBjOT",
+      "type": "ref",
+      "ref": "RF9S8",
+      "x": 14992,
+      "y": 0
+    },
+    {
+      "id": "JFTwV",
+      "type": "ref",
+      "ref": "RF9S8",
+      "x": 15064,
+      "y": 0
+    },
+    {
+      "id": "aOCcb",
+      "type": "ref",
+      "ref": "RF9S8",
+      "x": 15136,
+      "y": 0
+    },
+    {
+      "id": "ZsWD5",
+      "type": "ref",
+      "ref": "JZFuu",
+      "x": 15208,
+      "y": 0
+    },
+    {
+      "id": "CHBTr",
+      "type": "ref",
+      "ref": "JZFuu",
+      "x": 15393,
+      "y": 0
+    },
+    {
+      "id": "czOgq",
+      "type": "ref",
+      "ref": "JZFuu",
+      "x": 15578,
+      "y": 0
+    },
+    {
+      "id": "9KwP2",
+      "type": "ref",
+      "ref": "JZFuu",
+      "x": 15763,
+      "y": 0
+    },
+    {
+      "id": "azwh9",
+      "type": "ref",
+      "ref": "3HaGX",
+      "x": 15948,
+      "y": 0
+    },
+    {
+      "id": "nt7V0",
+      "type": "ref",
+      "ref": "3HaGX",
+      "x": 16428,
+      "y": 0
+    },
+    {
+      "id": "vFwRT",
+      "type": "ref",
+      "ref": "3HaGX",
+      "x": 16908,
+      "y": 0
+    },
+    {
+      "id": "H6UqX",
+      "type": "ref",
+      "ref": "Dmsll",
+      "x": 17388,
+      "y": 0
+    },
+    {
+      "id": "rQ0mD",
+      "type": "ref",
+      "ref": "B9vZ6",
+      "x": 18868,
+      "y": 0
     }
-  ]
+  ],
+  "themes": {
+    "Theme": [
+      "Default"
+    ]
+  }
 }

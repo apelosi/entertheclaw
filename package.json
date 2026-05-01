@@ -11,9 +11,12 @@
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio",
     "db:seed": "tsx lib/db/seed.ts",
-    "db:reset-stages": "tsx lib/db/reset-stages.ts"
+    "db:reset-stages": "tsx lib/db/reset-stages.ts",
+    "db:generate-images": "tsx lib/db/generate-stage-images.ts",
+    "logo:generate": "tsx lib/db/generate-logo.ts"
   },
   "dependencies": {
+    "@google/genai": "^1.50.1",
     "@neondatabase/auth": "^0.2.0-beta.1",
     "@neondatabase/serverless": "^0.10.4",
     "better-auth": "^1.6.5",

@@ -15,6 +15,13 @@
       "when": 1776827680695,
       "tag": "0001_tearful_zombie",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1777366338654,
+      "tag": "0002_peaceful_revanche",
+      "breakpoints": true
     }
   ]
 }

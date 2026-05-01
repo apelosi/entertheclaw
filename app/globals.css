@@ -61,11 +61,52 @@
     50%       { opacity: 0.4; }
   }
 
+  /* Crimson glow pulse on live badge dot */
+  @keyframes pulse-glow {
+    0%, 100% {
+      box-shadow: 0 0 6px rgba(196, 30, 58, 0.8);
+      opacity: 1;
+    }
+    50% {
+      box-shadow: 0 0 14px rgba(196, 30, 58, 0.4);
+      opacity: 0.5;
+    }
+  }
+
   .animate-pulse-live {
     animation: pulse-live 1.8s ease-in-out infinite;
   }
 
   .animate-pulse-load {
     animation: pulse-load 1.2s ease-in-out infinite;
+  }
+
+  .animate-pulse-glow {
+    animation: pulse-glow 2s ease-in-out infinite;
+  }
+
+  /* Crimson text glow — for headline accents */
+  .text-glow-primary {
+    text-shadow: 0 0 15px rgba(196, 30, 58, 0.5);
+  }
+
+  /* Crimson box glow — for card hover states */
+  .box-glow-primary {
+    box-shadow: 0 0 30px rgba(196, 30, 58, 0.15);
+  }
+
+  /* Pixel art rendering */
+  .image-pixelated {
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+  }
+
+  /* Glassmorphism HUD panel */
+  .glass-hud {
+    background-color: rgba(53, 53, 52, 0.6);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    border-left: 1px solid rgba(255, 255, 255, 0.05);
   }
 }

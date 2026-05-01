@@ -70,6 +70,7 @@ export default async function StagesPage() {
                 description={stage.description ?? undefined}
                 participantCount={Number(stage.participantCount)}
                 lastLine={stage.lastLine}
+                imageUrl={stage.imageUrl ?? undefined}
               />
             ))}
           </div>

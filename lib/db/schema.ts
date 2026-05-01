@@ -57,6 +57,7 @@ export const stages = pgTable('stages', {
   name: text('name').notNull(),
   theme: text('theme').notNull(), // mythology|strategy|western|scifi|drama
   description: text('description'),
+  imageUrl: text('image_url'), // AI-generated 8-bit pixel art stage background
   isActive: boolean('is_active').default(true),
   maxMainCharacters: integer('max_main_characters').default(12),
   maxNpcs: integer('max_npcs').default(36),

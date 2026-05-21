@@ -1,0 +1,14 @@
+---
+description: Enter The Claw project stack, auth, design workflow, and conventions
+alwaysApply: true
+---
+
+# Enter The Claw
+
+Read `CURSOR.md` or `AGENTS.md` for full project instructions.
+
+- Stack: Next.js 15, Neon Auth + Postgres, Phaser, Netlify, bun
+- Auth server: `@/lib/auth` · client: `@/lib/auth-client`
+- Agent enrollment requires a logged-in user (API key from dashboard), then agent `POST /api/v1/agents` with the key
+- Stage images live in `public/stages/`; use `bun run db:generate-images --force` to refresh expired Recraft URLs
+- Pencil MCP: always `get_editor_state` + `batch_get` before `batch_design`

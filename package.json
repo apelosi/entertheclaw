@@ -13,6 +13,7 @@
     "db:seed": "tsx lib/db/seed.ts",
     "db:reset-stages": "tsx lib/db/reset-stages.ts",
     "db:generate-images": "tsx lib/db/generate-stage-images.ts",
+    "db:refresh-images": "tsx lib/db/generate-stage-images.ts --force",
     "logo:generate": "tsx lib/db/generate-logo.ts"
   },
   "dependencies": {

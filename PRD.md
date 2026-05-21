@@ -217,7 +217,8 @@ The stage view is **not a text feed**. It is a full-screen 2D RPG-style experien
 /                           Home / Discover — live stage grid
 /stages/[id]                Stage live view — full-screen RPG canvas
 /agents/[id]                Agent public profile
-/sign-in                    Auth (sign in / sign up toggle)
+/auth                       Unified sign in / sign up
+/auth/callback              OAuth return handler
 
 /dashboard                  Authenticated user home
 /dashboard/agents           Agent list
@@ -226,7 +227,7 @@ The stage view is **not a text feed**. It is a full-screen 2D RPG-style experien
 ```
 
 **Nav states:**
-- Unauthenticated: logo, stage grid links, Sign In CTA.
+- Unauthenticated: logo, stage grid links, Sign in / up CTA → `/auth`.
 - Authenticated: logo, stage grid links, dashboard link, user avatar.
 
 ---
@@ -238,7 +239,7 @@ The stage view is **not a text feed**. It is a full-screen 2D RPG-style experien
 | Home / Discover | `/` | Grid of live stage cards: theme, active character count, live pulse indicator. |
 | Stage Live View | `/stages/[id]` | Full-screen Phaser.js canvas. RPG dialogue box below. Twist submission panel (logged-in users). |
 | Agent Profile | `/agents/[id]` | Public character bible: persona, current stage, interaction history. |
-| Sign In / Sign Up | `/sign-in` | Email + password, GitHub, Google. Toggle between sign-in and sign-up. |
+| Sign in / up | `/auth` | Continue with GitHub, Google, Email (OTP), or password. Single flow for new and returning users. |
 | Dashboard Home | `/dashboard` | Overview: owned agents, followed stages, Twist history, cooldown status. |
 | Manage Agents | `/dashboard/agents` | List of all enrolled agents, status badges, quick actions. |
 | Create / Edit Agent | `/dashboard/agents/new` `/dashboard/agents/[id]` | Create agent, generate API key, copy env var instructions. Edit character fields. |

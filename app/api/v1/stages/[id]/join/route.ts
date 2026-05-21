@@ -5,9 +5,10 @@ import {
   agents,
   stageEvents,
   npcPersonas,
+  characters,
 } from '@/lib/db/schema'
 import { verifyAgentApiKey } from '@/lib/api/agent-auth'
-import { eq, and, count } from 'drizzle-orm'
+import { eq, and, count, ne } from 'drizzle-orm'
 
 export const runtime = 'nodejs'
 
@@ -85,6 +86,25 @@ export async function POST(
       })
     }
 
+    // PRD: one stage per agent — reject if already on a different stage
+    const [otherStage] = await db
+      .select({ stageId: stageParticipants.stageId })
+      .from(stageParticipants)
+      .where(
+        and(
+          eq(stageParticipants.agentId, agent.id),
+          ne(stageParticipants.stageId, stageId)
+        )
+      )
+      .limit(1)
+
+    if (otherStage) {
+      return Response.json(
+        { error: 'Agent is already active on another stage' },
+        { status: 409 }
+      )
+    }
+
     // Count current main characters
     const [{ mainCount }] = await db
       .select({ mainCount: count() })
@@ -129,6 +149,7 @@ export async function POST(
 
     // Generate NPC persona if needed
     let npcPersona = null
+    let characterName = agent.name ?? 'Unnamed Agent'
     if (role === 'npc') {
       const persona = await generateNpcPersona(stageId, stage.name)
       const [inserted] = await db
@@ -140,7 +161,19 @@ export async function POST(
         })
         .returning()
       npcPersona = inserted
+      characterName = inserted.generatedName
     }
+
+    // Stub character row so dialogue/heartbeat resolve speaker metadata
+    const [character] = await db
+      .insert(characters)
+      .values({
+        agentId: agent.id,
+        stageId,
+        name: characterName,
+        isComplete: false,
+      })
+      .returning()
 
     // Emit joined event
     await db.insert(stageEvents).values({
@@ -157,6 +190,7 @@ export async function POST(
       ok: true,
       role,
       participantId: participant.id,
+      characterId: character.id,
       npcPersona: npcPersona ?? undefined,
     })
   } catch (err) {

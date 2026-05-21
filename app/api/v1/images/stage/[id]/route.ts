@@ -14,6 +14,10 @@ import { stages } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
 import { generateImage } from '@/lib/images/recraft'
 import { getStageBackgroundPrompt } from '@/lib/images/prompts'
+import {
+  persistStageImageFromUrl,
+  stageImageFileExists,
+} from '@/lib/images/persist-stage-image'
 
 export const runtime = 'nodejs'
 // Image generation can take 10–30 seconds
@@ -32,19 +36,21 @@ export async function POST(
       return Response.json({ error: 'Stage not found' }, { status: 404 })
     }
 
-    // Already has an image — return it (idempotent)
-    if (stage.imageUrl) {
+    if (stage.imageUrl?.startsWith('/stages/') && (await stageImageFileExists(id))) {
       return Response.json({ imageUrl: stage.imageUrl, cached: true })
     }
 
-    // Generate with Recraft
     const prompt = getStageBackgroundPrompt(stage.theme)
-    const { url } = await generateImage({ prompt, style: 'Pixel art', size: '1820x1024' })
+    const { url: remoteUrl } = await generateImage({
+      prompt,
+      style: 'Pixel art',
+      size: '1820x1024',
+    })
 
-    // Persist to DB
-    await db.update(stages).set({ imageUrl: url }).where(eq(stages.id, id))
+    const localPath = await persistStageImageFromUrl(id, remoteUrl)
+    await db.update(stages).set({ imageUrl: localPath }).where(eq(stages.id, id))
 
-    return Response.json({ imageUrl: url, cached: false })
+    return Response.json({ imageUrl: localPath, cached: false })
   } catch (err) {
     console.error('[POST /api/v1/images/stage/:id]', err)
     const message = err instanceof Error ? err.message : 'Internal server error'

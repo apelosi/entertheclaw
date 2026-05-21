@@ -1,12 +1,14 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { auth } from '@/lib/auth'
+import { AUTH_PATH } from '@/lib/auth/paths'
+import { AccountMenu } from './account-menu'
 
 function Logo() {
   return (
     <div className="flex items-center gap-2">
       <Image
-        src="/logo-mark.png"
+        src="/logo-mark.svg"
         alt=""
         width={28}
         height={28}
@@ -59,17 +61,12 @@ function NavLoggedOut() {
       </ul>
 
       {/* Auth */}
-      <div className="flex items-center gap-3">
-        <Link href="/sign-in" className={linkClass}>
-          Sign In
-        </Link>
-        <Link
-          href="/sign-up"
-          className="inline-flex h-8 items-center justify-center rounded bg-[#C41E3A] px-3 font-ui text-[13px] font-medium text-[#F0EDE8] transition-colors hover:bg-[#9B1B30]"
-        >
-          Join
-        </Link>
-      </div>
+      <Link
+        href={AUTH_PATH}
+        className="inline-flex h-8 items-center justify-center rounded bg-[#C41E3A] px-3 font-ui text-[13px] font-medium text-[#F0EDE8] transition-colors hover:bg-[#9B1B30]"
+      >
+        Sign in / up
+      </Link>
     </nav>
   )
 }
@@ -93,18 +90,7 @@ function NavLoggedIn({ userDisplayName }: { userDisplayName: string }) {
         ))}
       </ul>
 
-      {/* Account */}
-      <div className="flex items-center gap-3">
-        <Link
-          href="/dashboard"
-          className="flex h-8 items-center gap-2 rounded border border-[#3A3A3A] px-3 font-ui text-[13px] font-medium text-[#F0EDE8] transition-colors hover:bg-[#161616] hover:border-[#C41E3A]/30"
-        >
-          <span className="inline-block h-5 w-5 overflow-hidden rounded-full bg-[#C41E3A] text-center font-mono text-[10px] leading-5 text-white">
-            {userDisplayName[0]?.toUpperCase() ?? '?'}
-          </span>
-          <span className="hidden sm:inline">{userDisplayName}</span>
-        </Link>
-      </div>
+      <AccountMenu userDisplayName={userDisplayName} />
     </nav>
   )
 }

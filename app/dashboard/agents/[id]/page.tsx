@@ -21,7 +21,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function AgentDetailPage({ params }: Props) {
   const { id } = await params
   const { data: session } = await auth.getSession()
-  if (!session?.user) redirect('/sign-in')
+  if (!session?.user) redirect('/auth')
   const user = session.user
 
   const [agent] = await db

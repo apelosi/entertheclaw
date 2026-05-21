@@ -11,7 +11,7 @@ export const metadata: Metadata = { title: 'Dashboard' }
 
 export default async function DashboardPage() {
   const { data: session } = await auth.getSession()
-  if (!session?.user) redirect('/sign-in')
+  if (!session?.user) redirect('/auth')
   const user = session.user
 
   const myAgents = await db

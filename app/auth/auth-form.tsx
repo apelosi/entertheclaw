@@ -1,6 +1,6 @@
 'use client'
 
-import { Suspense, useState, type ReactNode, type FormEvent } from 'react'
+import { Suspense, useState, type ReactNode } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { authClient } from '@/lib/auth-client'
@@ -83,8 +83,7 @@ function AuthFormInner() {
     router.push(callbackURL)
   }
 
-  const handleEmailContinue = async (e: FormEvent) => {
-    e.preventDefault()
+  const handleEmailContinue = async () => {
     resetMessages()
     setLoading(true)
     try {
@@ -95,13 +94,14 @@ function AuthFormInner() {
       }
       setInfo('We sent a sign-in code to your email.')
       setStep('otp')
+    } catch {
+      setError('Could not send sign-in code. Check your connection and try again.')
     } finally {
       setLoading(false)
     }
   }
 
-  const handleOtpSubmit = async (e: FormEvent) => {
-    e.preventDefault()
+  const handleOtpSubmit = async () => {
     resetMessages()
     setLoading(true)
     try {
@@ -115,13 +115,14 @@ function AuthFormInner() {
         return
       }
       finishAuth()
+    } catch {
+      setError('Could not verify code. Check your connection and try again.')
     } finally {
       setLoading(false)
     }
   }
 
-  const handlePasswordSubmit = async (e: FormEvent) => {
-    e.preventDefault()
+  const handlePasswordSubmit = async () => {
     resetMessages()
     setLoading(true)
 
@@ -166,6 +167,8 @@ function AuthFormInner() {
       }
 
       setError(signUpMessage ?? 'Could not create account.')
+    } catch {
+      setError('Could not sign in. Check your connection and try again.')
     } finally {
       setLoading(false)
     }
@@ -227,7 +230,7 @@ function AuthFormInner() {
               <div className="h-px flex-1 bg-[#242424]" />
             </div>
 
-            <form onSubmit={handleEmailContinue} className="space-y-3">
+            <div className="space-y-3">
               <input
                 type="email"
                 placeholder="Email"
@@ -236,17 +239,24 @@ function AuthFormInner() {
                 required
                 autoComplete="email"
                 className={inputClass}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault()
+                    void handleEmailContinue()
+                  }
+                }}
               />
               {error && <p className="text-xs text-[#C41E3A]">{error}</p>}
               {info && <p className="text-xs text-[#888880]">{info}</p>}
               <button
-                type="submit"
-                disabled={loading}
+                type="button"
+                disabled={loading || !email.trim()}
+                onClick={() => void handleEmailContinue()}
                 className="h-10 w-full rounded bg-[#C41E3A] text-sm font-medium text-[#F0EDE8] transition-colors hover:bg-[#9B1B30] disabled:opacity-50"
               >
                 {loading ? 'Please wait…' : 'Continue with Email'}
               </button>
-            </form>
+            </div>
 
             <p className="mt-4 text-center">
               <button
@@ -268,7 +278,7 @@ function AuthFormInner() {
             <p className="mb-4 text-center text-sm text-[#888880]">
               Enter the code we sent to <span className="text-[#F0EDE8]">{email}</span>
             </p>
-            <form onSubmit={handleOtpSubmit} className="space-y-3">
+            <div className="space-y-3">
               <input
                 type="text"
                 inputMode="numeric"
@@ -278,17 +288,24 @@ function AuthFormInner() {
                 onChange={(e) => setOtp(e.target.value)}
                 required
                 className={inputClass}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault()
+                    void handleOtpSubmit()
+                  }
+                }}
               />
               {error && <p className="text-xs text-[#C41E3A]">{error}</p>}
               {info && <p className="text-xs text-[#888880]">{info}</p>}
               <button
-                type="submit"
-                disabled={loading}
+                type="button"
+                disabled={loading || !otp.trim()}
+                onClick={() => void handleOtpSubmit()}
                 className="h-10 w-full rounded bg-[#C41E3A] text-sm font-medium text-[#F0EDE8] transition-colors hover:bg-[#9B1B30] disabled:opacity-50"
               >
                 {loading ? 'Please wait…' : 'Continue'}
               </button>
-            </form>
+            </div>
             <p className="mt-4 text-center text-xs text-[#888880]">
               <button
                 type="button"
@@ -306,7 +323,7 @@ function AuthFormInner() {
 
         {step === 'password' && (
           <>
-            <form onSubmit={handlePasswordSubmit} className="space-y-3">
+            <div className="space-y-3">
               <input
                 type="email"
                 placeholder="Email"
@@ -324,16 +341,23 @@ function AuthFormInner() {
                 required
                 autoComplete="current-password"
                 className={inputClass}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault()
+                    void handlePasswordSubmit()
+                  }
+                }}
               />
               {error && <p className="text-xs text-[#C41E3A]">{error}</p>}
               <button
-                type="submit"
-                disabled={loading}
+                type="button"
+                disabled={loading || !email.trim() || !password}
+                onClick={() => void handlePasswordSubmit()}
                 className="h-10 w-full rounded bg-[#C41E3A] text-sm font-medium text-[#F0EDE8] transition-colors hover:bg-[#9B1B30] disabled:opacity-50"
               >
                 {loading ? 'Please wait…' : 'Continue'}
               </button>
-            </form>
+            </div>
             <p className="mt-4 text-center text-xs text-[#888880]">
               <button
                 type="button"

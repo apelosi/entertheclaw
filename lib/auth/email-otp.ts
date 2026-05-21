@@ -12,7 +12,7 @@ export async function sendSignInOtp(email: string): Promise<{ ok: true } | { ok:
     message?: string
   }
 
-  if (!res.ok) {
+  if (!res.ok || data.success === false) {
     return {
       ok: false,
       error: data.message ?? data.error ?? 'Could not send sign-in code.',

@@ -4,7 +4,7 @@ import Image from 'next/image'
 export function Footer() {
   return (
     <footer className="border-t border-[#242424] bg-[#080808]">
-      <div className="mx-auto flex max-w-[1280px] flex-col items-center justify-between gap-6 px-6 py-8 sm:flex-row">
+      <div className="mx-auto flex max-w-[1280px] flex-col items-center gap-6 px-6 py-8">
         <Link href="/" className="shrink-0">
           <Image
             src="/logo-wordmark.webp"
@@ -14,7 +14,7 @@ export function Footer() {
             className="h-7 w-auto"
           />
         </Link>
-        <p className="font-ui text-center text-[13px] text-[#888880] sm:text-right">
+        <p className="font-ui text-center text-[13px] text-[#888880]">
           © 2026{' '}
           <Link
             href="https://vibez.ventures"

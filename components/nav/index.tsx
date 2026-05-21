@@ -2,7 +2,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { auth } from '@/lib/auth'
 import { AUTH_PATH } from '@/lib/auth/paths'
-import { AccountMenu } from './account-menu'
+import { NavLinks } from '@/components/nav/nav-links'
 
 function Logo() {
   return (
@@ -27,28 +27,14 @@ function Logo() {
   )
 }
 
-const NAV_LINKS_LOGGED_OUT = [
-  { href: '/', label: 'Home' },
-  { href: '/stages', label: 'Stages' },
-  { href: '/agents', label: 'Agents' },
-  { href: '/characters', label: 'Characters' },
-]
-
-const NAV_LINKS_LOGGED_IN = [
-  { href: '/', label: 'Home' },
-  { href: '/stages', label: 'Stages' },
-  { href: '/agents', label: 'Agents' },
-  { href: '/characters', label: 'Characters' },
-]
-
 const navClass =
   'sticky top-0 z-50 flex h-14 items-center justify-between px-6 ' +
   'bg-[#080808]/90 backdrop-blur-md shadow-[0_4px_20px_rgba(196,30,58,0.12)] ' +
   'border-b border-[#1a1a1a]'
 
-const linkClass =
-  'font-ui text-[13px] font-medium text-[#888880] transition-colors duration-200 ' +
-  'hover:text-[#C41E3A]'
+const accountBtnClass =
+  'inline-flex h-8 items-center justify-center rounded bg-[#C41E3A] px-3 ' +
+  'font-ui text-[13px] font-medium text-[#F0EDE8] transition-colors hover:bg-[#9B1B30]'
 
 function NavLoggedOut() {
   return (
@@ -58,29 +44,16 @@ function NavLoggedOut() {
         <Logo />
       </Link>
 
-      {/* Links */}
-      <ul className="hidden items-center gap-8 md:flex">
-        {NAV_LINKS_LOGGED_OUT.map((link) => (
-          <li key={link.href}>
-            <Link href={link.href} className={linkClass}>
-              {link.label}
-            </Link>
-          </li>
-        ))}
-      </ul>
+      <NavLinks />
 
-      {/* Auth */}
-      <Link
-        href={AUTH_PATH}
-        className="inline-flex h-8 items-center justify-center rounded bg-[#C41E3A] px-3 font-ui text-[13px] font-medium text-[#F0EDE8] transition-colors hover:bg-[#9B1B30]"
-      >
-        Sign in / up
+      <Link href={AUTH_PATH} className={accountBtnClass}>
+        Account
       </Link>
     </nav>
   )
 }
 
-function NavLoggedIn({ userDisplayName }: { userDisplayName: string }) {
+function NavLoggedIn() {
   return (
     <nav className={navClass}>
       {/* Logo */}
@@ -88,18 +61,11 @@ function NavLoggedIn({ userDisplayName }: { userDisplayName: string }) {
         <Logo />
       </Link>
 
-      {/* Links */}
-      <ul className="hidden items-center gap-8 md:flex">
-        {NAV_LINKS_LOGGED_IN.map((link) => (
-          <li key={link.href}>
-            <Link href={link.href} className={linkClass}>
-              {link.label}
-            </Link>
-          </li>
-        ))}
-      </ul>
+      <NavLinks />
 
-      <AccountMenu userDisplayName={userDisplayName} />
+      <Link href="/account" className={accountBtnClass}>
+        Account
+      </Link>
     </nav>
   )
 }
@@ -111,8 +77,5 @@ export async function Nav() {
     return <NavLoggedOut />
   }
 
-  const displayName =
-    session.user.name ?? session.user.email?.split('@')[0] ?? 'Account'
-
-  return <NavLoggedIn userDisplayName={displayName} />
+  return <NavLoggedIn />
 }

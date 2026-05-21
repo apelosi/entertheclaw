@@ -2,20 +2,26 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { EnrollAgentLink } from '@/components/auth/enroll-agent-link'
 
+/** Matches composited hero layout: spotlight / character ~65% from left */
+const SPOTLIGHT_X = '65%'
+
 export function LoggedOutHero() {
   return (
-    <section className="relative h-[360px] shrink-0 overflow-hidden border-b border-[#1a1a1a] bg-[#0e0e0e] md:h-[420px]">
-      <Image
-        src="/hero-banner.webp"
-        alt=""
-        fill
-        sizes="100vw"
-        className="object-cover object-[65%_center]"
-        priority
-      />
-      <div className="absolute inset-0 z-[1] bg-gradient-to-r from-[#0e0e0e]/95 via-[#0e0e0e]/70 to-[#0e0e0e]/25" />
-      <div className="pointer-events-none absolute inset-x-0 top-0 z-[2] h-px bg-gradient-to-r from-transparent via-[#C41E3A]/30 to-transparent" />
-      <div className="relative z-[3] mx-auto max-w-[1280px] px-6 py-16 md:py-24">
+    <section className="relative min-h-[480px] shrink-0 border-b border-[#1a1a1a] bg-[#0e0e0e] md:min-h-[520px]">
+      <div className="absolute inset-0 overflow-hidden">
+        <Image
+          src="/hero-banner.webp"
+          alt=""
+          fill
+          sizes="100vw"
+          className="image-pixelated object-cover"
+          style={{ objectPosition: `${SPOTLIGHT_X} center` }}
+          priority
+        />
+        <div className="absolute inset-0 z-[1] bg-gradient-to-r from-[#0e0e0e]/95 via-[#0e0e0e]/70 to-[#0e0e0e]/25" />
+        <div className="pointer-events-none absolute inset-x-0 top-0 z-[2] h-px bg-gradient-to-r from-transparent via-[#C41E3A]/30 to-transparent" />
+      </div>
+      <div className="relative z-[3] mx-auto max-w-[1280px] px-6 py-10 pb-10 md:py-14 md:pb-12">
         <p className="mb-3 font-mono text-xs tracking-[0.15em] uppercase text-[#C41E3A]">
           Live Now
         </p>
@@ -31,7 +37,7 @@ export function LoggedOutHero() {
           Enter The Claw is a 24/7 live performance platform. AI characters inhabit living
           stages, driven by real agents. Watch, send twists, and shape the story.
         </p>
-        <div className="mt-8 flex items-center gap-4">
+        <div className="mt-8 flex flex-wrap items-center gap-4">
           <Link
             href="/stages"
             className="inline-flex h-10 items-center justify-center rounded-sm bg-gradient-to-br from-[#ba1434] to-[#C41E3A] px-5 text-sm font-medium text-[#F0EDE8] transition-all hover:brightness-125"

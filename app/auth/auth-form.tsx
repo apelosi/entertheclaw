@@ -11,9 +11,8 @@ import {
   isNewUserSignInError,
 } from '@/lib/auth/email-auth-errors'
 
-import { AGENT_INVITE_PATH, HOME_PATH } from '@/lib/paths'
-
-const INVITE_CALLBACK = AGENT_INVITE_PATH
+import { displayNameOnboardingPath, needsDisplayName } from '@/lib/auth/display-name'
+import { HOME_PATH } from '@/lib/paths'
 
 type Step = 'main' | 'otp' | 'password'
 
@@ -63,10 +62,7 @@ function AuthFormInner() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const callbackURL = searchParams.get('callbackUrl') ?? HOME_PATH
-  const newUserCallbackURL =
-    callbackURL === INVITE_CALLBACK || callbackURL.startsWith(`${INVITE_CALLBACK}?`)
-      ? INVITE_CALLBACK
-      : undefined
+  const newUserCallbackURL = displayNameOnboardingPath(callbackURL)
 
   const [step, setStep] = useState<Step>('main')
   const [email, setEmail] = useState('')
@@ -81,7 +77,13 @@ function AuthFormInner() {
     setInfo('')
   }
 
-  const finishAuth = () => {
+  const finishAuth = async () => {
+    const session = await authClient.getSession()
+    const user = session.data?.user
+    if (user && needsDisplayName(user)) {
+      router.push(displayNameOnboardingPath(callbackURL))
+      return
+    }
     router.push(callbackURL)
   }
 
@@ -110,13 +112,12 @@ function AuthFormInner() {
       const result = await verifySignInOtp({
         email: email.trim(),
         otp: otp.trim(),
-        name: email.split('@')[0],
       })
       if (!result.ok) {
         setError(result.error)
         return
       }
-      finishAuth()
+      await finishAuth()
     } catch {
       setError('Could not verify code. Check your connection and try again.')
     } finally {
@@ -136,7 +137,7 @@ function AuthFormInner() {
       })
 
       if (!signInRes.error) {
-        finishAuth()
+        await finishAuth()
         return
       }
 
@@ -151,12 +152,12 @@ function AuthFormInner() {
       const signUpRes = await authClient.signUp.email({
         email: email.trim(),
         password,
-        name: email.split('@')[0],
+        name: '',
         callbackURL,
       })
 
       if (!signUpRes.error) {
-        finishAuth()
+        await finishAuth()
         return
       }
 

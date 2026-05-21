@@ -2,6 +2,7 @@ import { auth } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import { Nav } from '@/components/nav'
 import { ConnectedProviders } from '@/components/account/connected-providers'
+import { DisplayNameForm } from '@/components/account/display-name-form'
 import { SignOutButton } from '@/components/auth/sign-out-button'
 import { InfoTooltip } from '@/components/ui/info-tooltip'
 import type { Metadata } from 'next'
@@ -33,8 +34,10 @@ export default async function AccountPage() {
           </h2>
           <dl className="space-y-4">
             <div>
-              <dt className="text-xs text-[#444440]">Display name</dt>
-              <dd className="mt-1 text-sm text-[#F0EDE8]">{user.name ?? '—'}</dd>
+              <DisplayNameForm
+                initialName={user.name?.trim() ?? ''}
+                mode="account"
+              />
             </div>
             <div>
               <dt className="flex items-center gap-1.5 text-xs text-[#444440]">

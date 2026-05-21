@@ -22,9 +22,9 @@ async function main() {
 
   const res = await fetch(url)
   if (!res.ok) throw new Error(`Failed to download Recraft image: ${res.status}`)
-  let buf = Buffer.from(await res.arrayBuffer())
-  buf = await whiteToAlpha(buf)
-  buf = await sharp(buf).trim({ threshold: 10 }).png().toBuffer()
+  let buf: Buffer = Buffer.from(await res.arrayBuffer())
+  buf = (await whiteToAlpha(buf)) as Buffer
+  buf = await sharp(buf).trim({ threshold: 24 }).png().toBuffer()
 
   await saveBufferAsPng('hero-agent', buf)
   console.log('  ✓ Saved: public/hero-agent.png')

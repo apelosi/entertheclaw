@@ -2,26 +2,15 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-
-const NAV_LINKS = [
-  { href: '/', label: 'Home' },
-  { href: '/stages', label: 'Stages' },
-  { href: '/agents', label: 'Agents' },
-  { href: '/characters', label: 'Characters' },
-] as const
-
-function isActive(href: string, pathname: string) {
-  if (href === '/') return pathname === '/'
-  return pathname === href || pathname.startsWith(`${href}/`)
-}
+import { isNavActive, NAV_ITEMS } from '@/components/nav/nav-items'
 
 export function NavLinks() {
   const pathname = usePathname()
 
   return (
     <ul className="hidden items-center gap-1 md:flex">
-      {NAV_LINKS.map((link) => {
-        const active = isActive(link.href, pathname)
+      {NAV_ITEMS.map((link) => {
+        const active = isNavActive(link.href, pathname)
         return (
           <li key={link.href}>
             <Link

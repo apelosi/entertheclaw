@@ -4,17 +4,17 @@ import Image from 'next/image'
 export function Footer() {
   return (
     <footer className="border-t border-[#242424] bg-[#080808]">
-      <div className="mx-auto flex max-w-[1280px] flex-col items-center gap-6 px-6 py-8">
-        <Link href="/" className="shrink-0">
+      <div className="mx-auto flex max-w-[1280px] flex-col items-center gap-6 px-6 py-8 md:grid md:grid-cols-[1fr_auto_1fr] md:items-center md:gap-0">
+        <Link href="/" className="shrink-0 justify-self-center md:justify-self-start">
           <Image
-            src="/logo-wordmark.webp"
+            src="/logo-wordmark.webp?v=6"
             alt="Enter The Claw"
             width={929}
             height={140}
             className="h-7 w-auto"
           />
         </Link>
-        <p className="font-ui text-center text-[13px] text-[#888880]">
+        <p className="font-ui text-center text-[13px] text-[#888880] md:col-start-2 md:row-start-1">
           © 2026{' '}
           <Link
             href="https://vibez.ventures"

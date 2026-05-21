@@ -1,4 +1,5 @@
 import { auth } from '@/lib/auth'
+import { displayNameOnboardingPath, needsDisplayName } from '@/lib/auth/display-name'
 import { redirect } from 'next/navigation'
 import { authUrl } from '@/lib/auth/paths'
 import { AGENT_INVITE_PATH } from '@/lib/paths'
@@ -10,6 +11,10 @@ export default async function InviteAgentPage() {
   const { data: session } = await auth.getSession()
   if (!session?.user) {
     redirect(authUrl(INVITE_PATH))
+  }
+
+  if (needsDisplayName(session.user)) {
+    redirect(displayNameOnboardingPath(INVITE_PATH))
   }
 
   return <InviteAgentForm />

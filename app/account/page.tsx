@@ -3,7 +3,6 @@ import { redirect } from 'next/navigation'
 import { Nav } from '@/components/nav'
 import { ConnectedProviders } from '@/components/account/connected-providers'
 import { SignOutButton } from '@/components/auth/sign-out-button'
-import Link from 'next/link'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = { title: 'Account' }
@@ -17,16 +16,7 @@ export default async function AccountPage() {
     <>
       <Nav />
       <main className="mx-auto max-w-[640px] px-6 py-10">
-        <div className="mb-2">
-          <Link
-            href="/dashboard"
-            className="text-sm text-[#888880] transition-colors hover:text-[#F0EDE8]"
-          >
-            ← Dashboard
-          </Link>
-        </div>
-
-        <div className="mb-8 mt-4">
+        <div className="mb-8">
           <h1
             className="font-display text-[32px] font-semibold tracking-[-0.02em] text-[#F0EDE8]"
             style={{ fontFamily: 'var(--font-display)' }}

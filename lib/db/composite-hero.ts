@@ -42,14 +42,15 @@ async function main() {
   const width = meta.width ?? 2048
   const height = meta.height ?? 1024
 
-  const agentSize = Math.round(height * 0.58)
+  const agentSize = Math.round(height * 0.52)
   const agent = await sharp(agentPath)
     .resize(agentSize, agentSize, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
     .png()
     .toBuffer()
 
-  const left = Math.round(width * 0.5 - agentSize / 2)
-  const top = Math.round(height * 0.18)
+  // Center in spotlight pool (stage right of text overlay)
+  const left = Math.round(width * 0.54 - agentSize / 2)
+  const top = Math.round(height * 0.28)
 
   const outPath = join(publicDir, 'hero-banner.webp')
   const tmpPath = join(publicDir, 'hero-banner.tmp.webp')

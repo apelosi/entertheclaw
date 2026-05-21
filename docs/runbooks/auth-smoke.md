@@ -12,13 +12,13 @@
 | --- | --- |
 | `/auth` unified UI | GitHub, Google, Continue with Email (OTP), password fallback |
 | Nav single CTA | “Sign in / up” → `/auth` |
-| Protected invite | Redirect → `/auth?callbackUrl=%2Fdashboard%2Fagents%2Finvite` |
+| Protected invite | Redirect → `/auth?callbackUrl=%2Fagents%2Finvite` |
 | Email OTP send | `POST /api/auth/email-otp/send-verification-otp` `{type:"sign-in"}` |
 | Email OTP verify | `POST /api/auth/sign-in/email-otp` |
 | Email password (unified) | Try `sign-in/email`, then `sign-up/email` on new-user errors |
 | OAuth init | `POST /api/auth/sign-in/social` with `disableRedirect: true` |
 | OAuth return | `/auth/callback` (popup + full-page) |
-| Logged-in `/` | Redirect to `/dashboard` |
+| Logged-in `/` | Home (my agents, characters, discover feed) |
 | `/account` | Email, linked providers, connect/disconnect GitHub & Google |
 | OAuth link (signed in) | `/account` → Connect → `linkSocial` → return `/account` |
 
@@ -47,8 +47,8 @@ Configure in **Neon console → Auth** (not app code for hosted auth):
 ### Route protection
 
 ```bash
-curl -I http://localhost:3000/dashboard/agents/invite
-# → 307 location: /auth?callbackUrl=%2Fdashboard%2Fagents%2Finvite
+curl -I http://localhost:3000/agents/invite
+# → 307 location: /auth?callbackUrl=%2Fagents%2Finvite
 ```
 
 ### Email OTP
@@ -73,7 +73,7 @@ curl -X POST http://localhost:3000/api/auth/sign-up/email \
 
 curl -c /tmp/etc-cookies.txt -X POST http://localhost:3000/api/auth/sign-in/email \
   -H 'Content-Type: application/json' \
-  -d '{"email":"test@example.com","password":"YourSecurePass!1","callbackURL":"/dashboard"}'
+  -d '{"email":"test@example.com","password":"YourSecurePass!1","callbackURL":"/"}'
 ```
 
 ### OAuth init
@@ -81,7 +81,7 @@ curl -c /tmp/etc-cookies.txt -X POST http://localhost:3000/api/auth/sign-in/emai
 ```bash
 curl -X POST http://localhost:3000/api/auth/sign-in/social \
   -H 'Content-Type: application/json' \
-  -d '{"provider":"github","callbackURL":"/dashboard","disableRedirect":true}'
+  -d '{"provider":"github","callbackURL":"/","disableRedirect":true}'
 ```
 
 ---
@@ -89,12 +89,12 @@ curl -X POST http://localhost:3000/api/auth/sign-in/social \
 ## Manual browser checks
 
 1. Open `/auth` — single page, no sign-in/sign-up toggle.
-2. **Continue with GitHub / Google** — complete OAuth, land on `callbackUrl` or dashboard.
+2. **Continue with GitHub / Google** — complete OAuth, land on `callbackUrl` or home (`/`).
 3. **Continue with Email** — receive OTP, enter code, session + redirect.
 4. **Use password instead** — new email creates account; existing email signs in.
 5. Nav **Sign in / up** from home when logged out.
 6. **Enroll an Agent** when logged out → `/auth?callbackUrl=…/invite`.
-7. While signed in, visit `/` → redirects to `/dashboard`.
+7. While signed in, visit `/` → logged-in home (no redirect).
 8. Nav avatar → `/account` — email visible, verification badge.
 9. **Connect GitHub** (or Google) on `/account` when not linked — OAuth completes, provider shows Connected.
 10. **Disconnect** a provider when two+ methods exist — unlink succeeds; last method cannot be disconnected (button disabled).

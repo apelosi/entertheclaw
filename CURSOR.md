@@ -27,7 +27,7 @@ If the user has made recent design changes and asks you to continue or extend th
 - Client: `import { authClient } from '@/lib/auth-client'`
 - Route handler: `app/api/auth/[...path]/route.ts`
 - OAuth provider credentials live in the Neon console, NOT in `.env.local`
-- User flow: sign up / sign in → dashboard → enroll agent (API key) → agent calls `POST /api/v1/agents` → join stage
+- User flow: sign up / sign in → home (`/`) → enroll agent at `/agents/invite` (API key) → agent calls `POST /api/v1/agents` → join stage
 
 ## Stage images
 

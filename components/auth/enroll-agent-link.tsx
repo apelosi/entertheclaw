@@ -4,7 +4,9 @@ import { auth } from '@/lib/auth'
 import { authUrl } from '@/lib/auth/paths'
 import { cn } from '@/lib/utils'
 
-const INVITE_PATH = '/dashboard/agents/invite'
+import { AGENT_INVITE_PATH } from '@/lib/paths'
+
+const INVITE_PATH = AGENT_INVITE_PATH
 
 interface EnrollAgentLinkProps {
   className?: string

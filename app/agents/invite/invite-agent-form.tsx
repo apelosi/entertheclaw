@@ -16,7 +16,7 @@ export function InviteAgentForm() {
     try {
       const res = await fetch('/api/v1/agents/keys', { method: 'POST' })
       if (res.status === 401) {
-        window.location.href = `/auth?callbackUrl=${encodeURIComponent('/dashboard/agents/invite')}`
+        window.location.href = `/auth?callbackUrl=${encodeURIComponent('/agents/invite')}`
         return
       }
       if (!res.ok) {
@@ -43,10 +43,10 @@ export function InviteAgentForm() {
     <div className="flex min-h-screen flex-col bg-[#080808]">
       <div className="border-b border-[#242424] bg-[#080808] px-6 py-4">
         <Link
-          href="/dashboard"
+          href="/"
           className="text-sm text-[#888880] transition-colors hover:text-[#F0EDE8]"
         >
-          ← Dashboard
+          ← Home
         </Link>
       </div>
 

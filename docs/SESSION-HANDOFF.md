@@ -60,7 +60,7 @@ Protected routes redirect via `authUrl()` (e.g. invite → `/auth?callbackUrl=..
 
 - Runbooks: `docs/runbooks/auth-smoke.md`, `docs/runbooks/agent-api-smoke.md`
 - Stage images: `public/stages/*.webp`, `bun run db:refresh-images`
-- `EnrollAgentLink`, invite page protected, dashboard uses `/auth` redirect
+- `EnrollAgentLink`, invite page protected, uses `/auth` redirect
 
 **User should verify:** full GitHub/Google OAuth in Chrome/Safari after hard refresh.
 

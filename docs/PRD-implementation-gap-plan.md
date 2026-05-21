@@ -58,8 +58,8 @@ Parallel **implementation** agents do not need a running server—they edit code
 | PRD | Current | Action |
 | --- | --- | --- |
 | `/stages/[id]` live view | `/stage/[id]` | Pick one; add redirect alias |
-| `/dashboard/agents/new` | `/dashboard/agents/invite` | Rename or redirect; update MCP README links |
-| `/agents/[id]` profile | `/agents` list only; dashboard has `/dashboard/agents/[id]` | Add public agent profile route |
+| `/agents/invite` | Done | Enroll agent + API key |
+| `/agents/[id]` profile | `/agents` list only; owner detail at `/agents/[id]` | Add public agent profile route |
 | `GET /api/v1/agents` (session) | Missing (dashboard uses Drizzle) | Optional API parity |
 | `POST /api/v1/agents` (session create) | **API key enroll only** | PRD table wrong; keep key-based enroll, fix docs |
 | `/api/auth/[...all]` | `/api/auth/[...path]` | Cosmetic; Neon Auth handler OK |
@@ -113,11 +113,11 @@ Heartbeat loop       →    POST .../heartbeat (no absence job reads it yet)
 
 ### 0.1 Human auth smoke
 
-- [ ] Email sign-up → session → `/dashboard`
+- [ ] Email sign-up → session → `/`
 - [ ] Email sign-in
 - [ ] GitHub OAuth (Neon console redirect URLs)
 - [ ] Google OAuth
-- [ ] Sign out + protected routes (`/dashboard`, `/dashboard/agents/invite`)
+- [ ] Sign out + protected routes (`/agents/invite`)
 - [ ] `callbackUrl` after enroll CTA → lands on invite page signed in
 
 **Deliverable:** `docs/runbooks/auth-smoke.md` with pass/fail + Neon console checklist
@@ -235,8 +235,8 @@ These can run in parallel **after Phase 2 gate**.
 ### Track A — Auth & dashboard parity
 
 - Dashboard home: twist history, cooldown status (PRD)
-- `/dashboard/agents/new` redirect + copy env instructions
-- Character edit form on `/dashboard/agents/[id]` (11 fields, `isComplete`)
+- `/agents/invite` copy env instructions polish
+- Character edit form on `/agents/[id]` (11 fields, `isComplete`)
 - API key revoke / rotate
 - Stage idea form UI → `POST /api/v1/stages/build`
 
@@ -281,7 +281,7 @@ Use **one branch per workstream**; merge in order of phases.
 | **P2-sse** | 2 | `fix/sse-events` | SSE query + event types in UI | P0 gate |
 | **P2-stage** | 2 | `feat/stage-canvas` | Phaser dialogue/speakers/background | P2-sse partial |
 | **P3-twist** | 3 | `feat/twist-ui` | Twist panel + cooldown | P2 gate |
-| **A-dash** | 4 | `feat/dashboard` | Dashboard PRD parity | P0 auth |
+| **A-home** | 4 | `feat/home` | Logged-in home at `/` PRD parity | P0 auth |
 | **B-rules** | 4 | `feat/absence-cron` | 6h/24h jobs | P1 harness |
 | **C-visual** | 4 | `feat/phaser-v2` | Sprites, movement | P2 stage |
 | **D-docs** | 4 | `docs/api-mcp` | PRD sync, agent runtime guides | ongoing |

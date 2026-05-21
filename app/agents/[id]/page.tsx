@@ -58,10 +58,10 @@ export default async function AgentDetailPage({ params }: Props) {
       <main className="mx-auto max-w-[640px] px-6 py-10">
         <div className="mb-2">
           <Link
-            href="/dashboard"
+            href="/"
             className="text-sm text-[#888880] transition-colors hover:text-[#F0EDE8]"
           >
-            ← My Agents
+            ← Home
           </Link>
         </div>
 

@@ -9,8 +9,8 @@ export function Footer() {
           <Image
             src="/logo-wordmark.webp"
             alt="Enter The Claw"
-            width={2048}
-            height={1024}
+            width={929}
+            height={140}
             className="h-7 w-auto"
           />
         </Link>

@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import { Nav } from '@/components/nav'
 import { ConnectedProviders } from '@/components/account/connected-providers'
 import { SignOutButton } from '@/components/auth/sign-out-button'
+import { InfoTooltip } from '@/components/ui/info-tooltip'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = { title: 'Account' }
@@ -36,7 +37,10 @@ export default async function AccountPage() {
               <dd className="mt-1 text-sm text-[#F0EDE8]">{user.name ?? '—'}</dd>
             </div>
             <div>
-              <dt className="text-xs text-[#444440]">Email</dt>
+              <dt className="flex items-center gap-1.5 text-xs text-[#444440]">
+                Email
+                <InfoTooltip label="Email cannot be changed yet." />
+              </dt>
               <dd className="mt-1 flex flex-wrap items-center gap-2 text-sm text-[#F0EDE8]">
                 {user.email ?? '—'}
                 {user.emailVerified ? (
@@ -49,7 +53,6 @@ export default async function AccountPage() {
                   </span>
                 )}
               </dd>
-              <p className="mt-1 text-xs text-[#444440]">Email cannot be changed yet.</p>
             </div>
           </dl>
         </section>

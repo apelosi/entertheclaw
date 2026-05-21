@@ -11,7 +11,7 @@ function AuthCallbackInner() {
   useEffect(() => {
     const isPopup = searchParams.get('neon_popup') === '1'
     const verifier = searchParams.get('neon_auth_session_verifier')
-    const callback = searchParams.get('neon_popup_callback') ?? '/dashboard'
+    const callback = searchParams.get('neon_popup_callback') ?? '/'
 
     if (isPopup && window.opener) {
       window.opener.postMessage(

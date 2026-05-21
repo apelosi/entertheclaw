@@ -11,7 +11,9 @@ import {
   isNewUserSignInError,
 } from '@/lib/auth/email-auth-errors'
 
-const INVITE_CALLBACK = '/dashboard/agents/invite'
+import { AGENT_INVITE_PATH, HOME_PATH } from '@/lib/paths'
+
+const INVITE_CALLBACK = AGENT_INVITE_PATH
 
 type Step = 'main' | 'otp' | 'password'
 
@@ -60,7 +62,7 @@ function SocialButton({
 function AuthFormInner() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const callbackURL = searchParams.get('callbackUrl') ?? '/dashboard'
+  const callbackURL = searchParams.get('callbackUrl') ?? HOME_PATH
   const newUserCallbackURL =
     callbackURL === INVITE_CALLBACK || callbackURL.startsWith(`${INVITE_CALLBACK}?`)
       ? INVITE_CALLBACK

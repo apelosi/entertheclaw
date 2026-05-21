@@ -28,9 +28,9 @@ export function NavLinks() {
               href={link.href}
               aria-current={active ? 'page' : undefined}
               className={[
-                'relative inline-flex h-9 items-center px-3',
+                'relative inline-flex h-9 w-28 items-center justify-center px-3',
                 'font-ui text-[13px] font-medium uppercase tracking-[0.06em]',
-                'transition-[color,box-shadow] duration-100',
+                'transition-colors duration-100',
                 'after:absolute after:inset-x-3 after:bottom-1 after:h-px',
                 'after:origin-center after:scale-x-0 after:bg-[#C41E3A]',
                 'after:transition-transform after:duration-150',

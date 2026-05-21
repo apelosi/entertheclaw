@@ -21,9 +21,11 @@
     "hero:generate": "tsx lib/db/generate-hero.ts",
     "hero:generate:stage": "tsx lib/db/generate-hero.ts",
     "hero:generate:agent": "tsx lib/db/generate-hero-agent.ts",
+    "hero:generate:agent:pixel": "tsx lib/db/generate-hero-agent-pixel.ts",
     "hero:composite": "tsx lib/db/composite-hero.ts",
     "favicon:generate": "tsx lib/db/generate-favicon.ts",
-    "brand:generate:openai": "tsx lib/db/generate-brand-openai.ts"
+    "brand:generate:openai": "tsx lib/db/generate-brand-openai.ts",
+    "wordmark:build": "tsx lib/db/build-wordmark.ts"
   },
   "dependencies": {
     "@google/genai": "^1.50.1",

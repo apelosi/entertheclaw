@@ -31,6 +31,7 @@
   html {
     background-color: #080808;
     color: #F0EDE8;
+    scrollbar-gutter: stable;
   }
 
   body {

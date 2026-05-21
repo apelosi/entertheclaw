@@ -1,59 +1,29 @@
 /**
- * Horizontal all-red "Enter the Claw" — mascot claw-C + chunky type.
+ * One-line all-red "Enter the Claw" — claw replaces C only (no separate logo icon).
  *
  * Usage: bun run wordmark:build
- * With AI claw-C: USE_AI_CLAW_C=1 bun run wordmark:build
  */
 import { writeFile } from 'fs/promises'
 import { join } from 'path'
-import { access, constants } from 'fs/promises'
 import sharp from 'sharp'
+import { OPENCLAW_LOGO_REFERENCE_PATH } from '../images/brand-references'
 import { saveBufferAsPng, savePngAsWebp } from '../images/save-public-png'
 
-const HERO_AGENT = join(process.cwd(), 'public', 'hero-agent.png')
-const CLAW_C_AI = join(process.cwd(), 'public', 'brand', 'claw-letter-c.png')
-const OUT_H = 168
-const GAP_PX = 4
+const OUT_H = 140
+const GAP_PX = 3
 const BRAND_RED = '#C41E3A'
-const FONT_SIZE = 78
-const CLAW_CAP_HEIGHT = 84
+const FONT_SIZE = 54
+/** Slightly below cap height of Enter the / law */
+const CLAW_CAP_HEIGHT = 62
 
-async function fileExists(path: string): Promise<boolean> {
-  try {
-    await access(path, constants.F_OK)
-    return true
-  } catch {
-    return false
-  }
-}
-
-/** Raised soliloquy claw from hero-agent — same character as homepage */
-async function clawFromHeroAgent(): Promise<Buffer> {
-  let buf = await sharp(HERO_AGENT)
-    .extract({ left: 524, top: 12, width: 428, height: 388 })
-    .rotate(-38, { background: { r: 0, g: 0, b: 0, alpha: 0 } })
-    .resize({ height: CLAW_CAP_HEIGHT + 8, fit: 'contain' })
+/** Open claw from logo ref — already opens right, C-shaped */
+async function clawFromLogoReference(): Promise<Buffer> {
+  return sharp(OPENCLAW_LOGO_REFERENCE_PATH)
+    .extract({ left: 140, top: 42, width: 72, height: 98 })
+    .resize({ height: CLAW_CAP_HEIGHT, fit: 'contain' })
     .ensureAlpha()
     .png()
     .toBuffer()
-
-  buf = await sharp(buf).median(1).png().toBuffer()
-  return sharp(buf).trim().resize({ height: CLAW_CAP_HEIGHT, fit: 'contain' }).png().toBuffer()
-}
-
-async function prepareClawC(): Promise<Buffer> {
-  if (process.env.USE_AI_CLAW_C === '1' && (await fileExists(CLAW_C_AI))) {
-    return sharp(CLAW_C_AI)
-      .resize({ height: CLAW_CAP_HEIGHT, fit: 'contain' })
-      .ensureAlpha()
-      .trim()
-      .png()
-      .toBuffer()
-  }
-  if (await fileExists(HERO_AGENT)) {
-    return clawFromHeroAgent()
-  }
-  throw new Error('Missing public/hero-agent.png — run: bun run hero:generate:agent')
 }
 
 function textSvg(text: string): string {
@@ -67,9 +37,9 @@ function textSvg(text: string): string {
     font-weight="900"
     fill="${BRAND_RED}"
     stroke="#9B1B30"
-    stroke-width="3"
+    stroke-width="2.5"
     paint-order="stroke fill"
-    letter-spacing="-0.04em"
+    letter-spacing="-0.03em"
   >${text}</text>
 </svg>`
 }
@@ -92,9 +62,9 @@ async function writeWordmarkSvg(png: Buffer, width: number, height: number): Pro
 }
 
 async function main() {
-  console.log('Building wordmark (mascot claw-C + all-red type)...\n')
+  console.log('Building one-line wordmark (claw-as-C + red type, no logo icon)...\n')
 
-  const clawBuf = await prepareClawC()
+  const clawBuf = await clawFromLogoReference()
   const [enter, law] = await Promise.all([
     rasterizeSvg(textSvg('Enter the ')),
     rasterizeSvg(textSvg('law')),
@@ -106,9 +76,6 @@ async function main() {
 
   const totalW = enter.width + GAP_PX + clawW + GAP_PX + law.width
   const baseline = Math.round(OUT_H * 0.82)
-  const enterTop = baseline - enter.height
-  const lawTop = baseline - law.height
-  const clawTop = baseline - clawH + Math.round(clawH * 0.05)
   const clawLeft = enter.width + GAP_PX
   const lawLeft = clawLeft + clawW + GAP_PX
 
@@ -121,16 +88,20 @@ async function main() {
     },
   })
     .composite([
-      { input: enter.buffer, left: 0, top: Math.max(0, enterTop) },
-      { input: clawBuf, left: clawLeft, top: Math.max(0, clawTop) },
-      { input: law.buffer, left: lawLeft, top: Math.max(0, lawTop) },
+      { input: enter.buffer, left: 0, top: baseline - enter.height },
+      {
+        input: clawBuf,
+        left: clawLeft,
+        top: baseline - clawH + Math.round(clawH * 0.04),
+      },
+      { input: law.buffer, left: lawLeft, top: baseline - law.height },
     ])
     .png()
     .toBuffer()
 
   const trimmed = await sharp(png).trim().png().toBuffer()
   const scaled = await sharp(trimmed)
-    .resize({ width: 920, withoutEnlargement: false })
+    .resize({ height: OUT_H, kernel: sharp.kernel.lanczos3 })
     .png()
     .toBuffer()
   const meta = await sharp(scaled).metadata()
@@ -139,7 +110,7 @@ async function main() {
   await savePngAsWebp('logo-wordmark', scaled)
   await writeWordmarkSvg(scaled, meta.width ?? totalW, meta.height ?? OUT_H)
 
-  console.log(`  ✓ ${meta.width}×${meta.height}px (type ${FONT_SIZE}px, claw ${CLAW_CAP_HEIGHT}px)`)
+  console.log(`  ✓ ${meta.width}×${meta.height}px — one line, no icon`)
   console.log('  ✓ public/logo-wordmark.png, .webp, .svg')
 }
 

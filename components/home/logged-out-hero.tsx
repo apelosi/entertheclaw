@@ -3,14 +3,15 @@ import Image from 'next/image'
 import { EnrollAgentLink } from '@/components/auth/enroll-agent-link'
 
 /** Matches composited hero layout: spotlight / character ~65% from left */
-const SPOTLIGHT_X = '65%'
+/** Stage art spotlight pool is center-right; keep curtains visible */
+const SPOTLIGHT_X = '58%'
 
 export function LoggedOutHero() {
   return (
     <section className="relative min-h-[480px] shrink-0 border-b border-[#1a1a1a] bg-[#0e0e0e] md:min-h-[520px]">
       <div className="absolute inset-0 overflow-hidden">
         <Image
-          src="/hero-banner.webp"
+          src="/hero-banner.webp?v=8"
           alt=""
           fill
           sizes="100vw"

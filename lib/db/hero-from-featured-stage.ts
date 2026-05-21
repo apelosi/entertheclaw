@@ -1,9 +1,9 @@
 /**
  * Copy a seeded stage image → hero-stage.webp (2048×1024) for compositing.
- * Default: The Clawshank Redemption (theater interior, matches Featured Stages).
+ * Default: The Clawshank Redemption (theater curtains + spotlights — matches Featured card).
  *
  * Usage: bun run hero:from-stage
- *        STAGE_NAME="Claw Wars" bun run hero:from-stage
+ *        STAGE_NAME="Clawaway" bun run hero:from-stage
  */
 import { access } from 'fs/promises'
 import { constants } from 'fs'
@@ -14,8 +14,7 @@ import sharp from 'sharp'
 
 dotenv.config({ path: '.env.local' })
 
-/** Red velvet curtains, warm theater light — matches drama stage prompt */
-const DEFAULT_STAGE = 'Enter the Claw'
+const DEFAULT_STAGE = 'The Clawshank Redemption'
 
 async function main() {
   const name = process.env.STAGE_NAME?.trim() || DEFAULT_STAGE

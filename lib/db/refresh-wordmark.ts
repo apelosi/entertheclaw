@@ -1,5 +1,5 @@
 /**
- * Regenerate wordmark from OpenClaw wordmark reference (single image).
+ * Build one-line wordmark (no OpenAI full image — avoids extra logo icon).
  * Usage: bun run wordmark:refresh
  */
 import { spawn } from 'child_process'
@@ -20,8 +20,7 @@ function run(script: string): Promise<void> {
 }
 
 async function main() {
-  console.log('Refreshing wordmark (OpenClaw reference)...\n')
-  await run('logo:generate:wordmark')
+  await run('wordmark:build')
   console.log('\nDone.')
 }
 

@@ -26,7 +26,7 @@ function run(script: string): Promise<void> {
 }
 
 async function main() {
-  console.log('Refreshing hero (Enter the Claw stage → composite)...\n')
+  console.log('Refreshing hero (Clawshank theater stage → composite)...\n')
   await run('hero:from-stage')
   await run('hero:composite')
   console.log('\nDone. Homepage uses public/hero-banner.webp')

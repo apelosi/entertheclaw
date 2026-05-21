@@ -7,7 +7,7 @@ export function Footer() {
       <div className="mx-auto flex max-w-[1280px] flex-col items-center gap-6 px-6 py-8 md:grid md:grid-cols-[1fr_auto_1fr] md:items-center md:gap-0">
         <Link href="/" className="shrink-0 justify-self-center md:justify-self-start">
           <Image
-            src="/logo-wordmark.webp"
+            src="/logo-wordmark.webp?v=8"
             alt="Enter The Claw"
             width={929}
             height={140}

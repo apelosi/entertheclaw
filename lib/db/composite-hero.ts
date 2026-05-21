@@ -9,8 +9,8 @@ import { constants } from 'fs'
 import { join } from 'path'
 import sharp from 'sharp'
 
-const SPOTLIGHT_X = 0.65
-const SPOTLIGHT_Y = 0.72
+const SPOTLIGHT_X = 0.58
+const SPOTLIGHT_Y = 0.68
 
 async function fileExists(path: string): Promise<boolean> {
   try {
@@ -29,8 +29,8 @@ function spotlightOverlay(width: number, height: number): Buffer {
 <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">
   <defs>
     <radialGradient id="pool" cx="${cx}" cy="${cy}" r="${r}" gradientUnits="userSpaceOnUse">
-      <stop offset="0%" stop-color="#FFF9F0" stop-opacity="0.72"/>
-      <stop offset="45%" stop-color="#FFF4E8" stop-opacity="0.28"/>
+      <stop offset="0%" stop-color="#FFF9F0" stop-opacity="0.45"/>
+      <stop offset="45%" stop-color="#FFF4E8" stop-opacity="0.15"/>
       <stop offset="100%" stop-color="#FFF4E8" stop-opacity="0"/>
     </radialGradient>
   </defs>

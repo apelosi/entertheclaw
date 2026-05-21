@@ -24,8 +24,8 @@ export function AccountMenu({ userDisplayName }: AccountMenuProps) {
   return (
     <div className="flex items-center gap-2">
       <Link
-        href="/dashboard"
-        title="Dashboard"
+        href="/account"
+        title="Account"
         className="flex h-8 items-center gap-2 rounded border border-[#3A3A3A] px-3 font-ui text-[13px] font-medium text-[#F0EDE8] transition-colors hover:bg-[#161616] hover:border-[#C41E3A]/30"
       >
         <span className="inline-block h-5 w-5 overflow-hidden rounded-full bg-[#C41E3A] text-center font-mono text-[10px] leading-5 text-white">

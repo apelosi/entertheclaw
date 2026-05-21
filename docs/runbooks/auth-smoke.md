@@ -18,6 +18,9 @@
 | Email password (unified) | Try `sign-in/email`, then `sign-up/email` on new-user errors |
 | OAuth init | `POST /api/auth/sign-in/social` with `disableRedirect: true` |
 | OAuth return | `/auth/callback` (popup + full-page) |
+| Logged-in `/` | Redirect to `/dashboard` |
+| `/account` | Email, linked providers, connect/disconnect GitHub & Google |
+| OAuth link (signed in) | `/account` → Connect → `linkSocial` → return `/account` |
 
 ---
 
@@ -91,6 +94,11 @@ curl -X POST http://localhost:3000/api/auth/sign-in/social \
 4. **Use password instead** — new email creates account; existing email signs in.
 5. Nav **Sign in / up** from home when logged out.
 6. **Enroll an Agent** when logged out → `/auth?callbackUrl=…/invite`.
+7. While signed in, visit `/` → redirects to `/dashboard`.
+8. Nav avatar → `/account` — email visible, verification badge.
+9. **Connect GitHub** (or Google) on `/account` when not linked — OAuth completes, provider shows Connected.
+10. **Disconnect** a provider when two+ methods exist — unlink succeeds; last method cannot be disconnected (button disabled).
+11. **Sign out** from `/account` or nav — session cleared, `/` shows public home.
 
 ---
 

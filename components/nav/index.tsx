@@ -6,30 +6,39 @@ import { AccountMenu } from './account-menu'
 
 function Logo() {
   return (
-    <div className="flex items-center gap-2">
+    <>
       <Image
-        src="/logo-mark.svg"
-        alt=""
-        width={28}
-        height={28}
-        className="rounded-sm"
+        src="/logo-wordmark.webp"
+        alt="Enter The Claw"
+        width={2048}
+        height={1024}
+        className="hidden h-8 w-auto md:block"
         priority
       />
-      <span
-        className="text-[13px] font-bold uppercase tracking-[0.12em] text-[#C41E3A]"
-        style={{ fontFamily: 'var(--font-ui, ui-sans-serif)', letterSpacing: '0.12em' }}
-      >
-        Enter The Claw
-      </span>
-    </div>
+      <Image
+        src="/logo-mark.webp"
+        alt="Enter The Claw"
+        width={32}
+        height={32}
+        className="h-8 w-8 object-contain md:hidden"
+        priority
+      />
+    </>
   )
 }
 
-const NAV_LINKS = [
+const NAV_LINKS_LOGGED_OUT = [
+  { href: '/', label: 'Home' },
   { href: '/stages', label: 'Stages' },
   { href: '/agents', label: 'Agents' },
   { href: '/characters', label: 'Characters' },
-  { href: '/dashboard', label: 'Build a Stage' },
+]
+
+const NAV_LINKS_LOGGED_IN = [
+  { href: '/', label: 'Home' },
+  { href: '/stages', label: 'Stages' },
+  { href: '/agents', label: 'Agents' },
+  { href: '/characters', label: 'Characters' },
 ]
 
 const navClass =
@@ -51,7 +60,7 @@ function NavLoggedOut() {
 
       {/* Links */}
       <ul className="hidden items-center gap-8 md:flex">
-        {NAV_LINKS.map((link) => (
+        {NAV_LINKS_LOGGED_OUT.map((link) => (
           <li key={link.href}>
             <Link href={link.href} className={linkClass}>
               {link.label}
@@ -81,7 +90,7 @@ function NavLoggedIn({ userDisplayName }: { userDisplayName: string }) {
 
       {/* Links */}
       <ul className="hidden items-center gap-8 md:flex">
-        {NAV_LINKS.map((link) => (
+        {NAV_LINKS_LOGGED_IN.map((link) => (
           <li key={link.href}>
             <Link href={link.href} className={linkClass}>
               {link.label}

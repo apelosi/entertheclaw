@@ -1,0 +1,49 @@
+import { db } from '@/lib/db/client'
+import { agents, characters, stages, stageParticipants } from '@/lib/db/schema'
+import { eq, desc } from 'drizzle-orm'
+
+export async function getMyAgents(userId: string) {
+  const myAgents = await db
+    .select()
+    .from(agents)
+    .where(eq(agents.userId, userId))
+    .orderBy(desc(agents.enrolledAt))
+
+  return Promise.all(
+    myAgents.map(async (agent) => {
+      const [participant] = await db
+        .select({
+          stageName: stages.name,
+        })
+        .from(stageParticipants)
+        .innerJoin(stages, eq(stages.id, stageParticipants.stageId))
+        .where(eq(stageParticipants.agentId, agent.id))
+        .limit(1)
+
+      return {
+        ...agent,
+        currentStageName: participant?.stageName ?? null,
+      }
+    })
+  )
+}
+
+export async function getMyCharacters(userId: string) {
+  return db
+    .select({
+      id: characters.id,
+      name: characters.name,
+      occupation: characters.occupation,
+      imageUrl: characters.imageUrl,
+      stageId: characters.stageId,
+      isComplete: characters.isComplete,
+      agentId: characters.agentId,
+      agentName: agents.name,
+      stageName: stages.name,
+    })
+    .from(characters)
+    .innerJoin(agents, eq(characters.agentId, agents.id))
+    .leftJoin(stages, eq(characters.stageId, stages.id))
+    .where(eq(agents.userId, userId))
+    .orderBy(desc(characters.createdAt))
+}

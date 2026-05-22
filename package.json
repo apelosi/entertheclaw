@@ -15,6 +15,7 @@
     "db:reset-stages": "tsx lib/db/reset-stages.ts",
     "db:generate-images": "tsx lib/db/generate-stage-images.ts",
     "db:refresh-images": "tsx lib/db/generate-stage-images.ts --force",
+    "db:cleanup-smoke-agents": "tsx lib/db/cleanup-smoke-agents.ts",
     "logo:generate": "tsx lib/db/generate-logo.ts",
     "logo:generate:mark": "tsx lib/db/generate-logo-mark.ts",
     "logo:generate:wordmark": "tsx lib/db/generate-logo-wordmark.ts",

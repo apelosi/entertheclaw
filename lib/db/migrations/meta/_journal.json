@@ -22,6 +22,20 @@
       "when": 1777366338654,
       "tag": "0002_peaceful_revanche",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1779455615579,
+      "tag": "0003_charming_lilith",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1779455876468,
+      "tag": "0004_mysterious_moira_mactaggert",
+      "breakpoints": true
     }
   ]
 }

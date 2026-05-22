@@ -1,7 +1,15 @@
 'use client'
 
-import { useEffect, useRef, useState, useCallback } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useRouter } from 'next/navigation'
+import Image from 'next/image'
 import Link from 'next/link'
+import { DramatisPersonae, type DramatisCharacter } from './dramatis-personae'
+import { InterventionTerminal } from './intervention-terminal'
+import { Scriptorium, type CurrentDialogue } from './scriptorium'
+import { CharacterOnStage, layoutPositions, type OnStageCharacter } from './character-on-stage'
+import { TwistBanner, type TwistAnnouncement } from './twist-banner'
+import { useStageEvents } from './use-stage-events'
 
 interface Participant {
   participantId: string
@@ -22,219 +30,253 @@ interface StageEvent {
   createdAt: Date | string | null
 }
 
-interface DialogueLine {
-  speakerName: string
-  text: string
-  timestamp: number
-}
-
 interface StageCanvasProps {
   stageId: string
   stageName: string
   stageTheme: string
+  stageImageUrl: string | null
   participants: Participant[]
   initialEvents: StageEvent[]
+  isLoggedIn: boolean
+  lastTwistAt: number | null
+  lastUserTwistAt: number | null
 }
+
+const TYPEWRITER_INTERVAL_MS = 35
 
 export default function StageCanvas({
   stageId,
   stageName,
-  stageTheme,
+  stageImageUrl,
   participants,
   initialEvents,
+  isLoggedIn,
+  lastTwistAt,
+  lastUserTwistAt,
 }: StageCanvasProps) {
-  const gameRef = useRef<HTMLDivElement>(null)
-  const eventSourceRef = useRef<EventSource | null>(null)
-  const [currentDialogue, setCurrentDialogue] = useState<DialogueLine | null>(null)
-  const [displayedText, setDisplayedText] = useState('')
+  const router = useRouter()
+  const [dialogue, setDialogue] = useState<CurrentDialogue | null>(null)
+  const [activeAgentId, setActiveAgentId] = useState<string | null>(null)
+  const [twist, setTwist] = useState<TwistAnnouncement | null>(null)
+  const [liveLastTwistAt, setLiveLastTwistAt] = useState<number | null>(lastTwistAt)
   const typewriterRef = useRef<ReturnType<typeof setInterval> | null>(null)
-  const [isBackVisible, setIsBackVisible] = useState(true)
 
-  // Typewriter effect
-  const showDialogue = useCallback((speaker: string, text: string) => {
-    if (typewriterRef.current) clearInterval(typewriterRef.current)
-    setCurrentDialogue({ speakerName: speaker, text, timestamp: Date.now() })
-    setDisplayedText('')
-    let i = 0
-    typewriterRef.current = setInterval(() => {
-      i++
-      setDisplayedText(text.slice(0, i))
-      if (i >= text.length) {
-        clearInterval(typewriterRef.current!)
+  const participantBySpeakerName = useMemo(() => {
+    const map = new Map<string, Participant>()
+    for (const p of participants) {
+      if (p.characterName) map.set(p.characterName, p)
+    }
+    return map
+  }, [participants])
+
+  const participantByAgentId = useMemo(() => {
+    const map = new Map<string, Participant>()
+    for (const p of participants) map.set(p.agentId, p)
+    return map
+  }, [participants])
+
+  const showDialogue = useCallback(
+    (speakerName: string, text: string, opts?: { agentId?: string | null; isEmote?: boolean }) => {
+      if (typewriterRef.current) {
+        clearInterval(typewriterRef.current)
         typewriterRef.current = null
       }
-    }, 40)
-  }, [])
 
-  // Seed initial dialogue from most recent dialogue event
+      const matchedByName = participantBySpeakerName.get(speakerName)
+      const matchedByAgent = opts?.agentId ? participantByAgentId.get(opts.agentId) : null
+      const speaker = matchedByAgent ?? matchedByName ?? null
+
+      setActiveAgentId(speaker?.agentId ?? opts?.agentId ?? null)
+      const logEntry = Math.abs(hashString(`${speakerName}:${text}`)) % 9999
+
+      setDialogue({
+        speakerName,
+        text,
+        displayedText: '',
+        isEmote: opts?.isEmote,
+        speakerImageUrl: speaker?.characterImageUrl ?? null,
+        logEntry,
+      })
+
+      let i = 0
+      typewriterRef.current = setInterval(() => {
+        i++
+        setDialogue((current) =>
+          current && current.text === text
+            ? { ...current, displayedText: text.slice(0, i) }
+            : current
+        )
+        if (i >= text.length) {
+          if (typewriterRef.current) clearInterval(typewriterRef.current)
+          typewriterRef.current = null
+        }
+      }, TYPEWRITER_INTERVAL_MS)
+    },
+    [participantBySpeakerName, participantByAgentId]
+  )
+
+  // Seed dialogue from most recent dialogue event in initial fetch
   useEffect(() => {
     const lastDialogue = initialEvents.find((e) => e.type === 'dialogue')
-    if (lastDialogue && typeof lastDialogue.content === 'object' && lastDialogue.content !== null) {
-      const c = lastDialogue.content as Record<string, unknown>
-      if (typeof c.text === 'string' && typeof c.speakerName === 'string') {
-        showDialogue(c.speakerName, c.text)
+    if (!lastDialogue || typeof lastDialogue.content !== 'object' || lastDialogue.content === null) {
+      return
+    }
+    const c = lastDialogue.content as Record<string, unknown>
+    if (typeof c.text === 'string' && typeof c.speakerName === 'string') {
+      showDialogue(c.speakerName, c.text, {
+        agentId: lastDialogue.agentId,
+        isEmote: c.isEmote === true,
+      })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  useStageEvents(stageId, {
+    onDialogue: (data, raw) => {
+      if (!data?.text || !data?.speakerName) return
+      showDialogue(data.speakerName, data.text, {
+        agentId: raw.agentId,
+        isEmote: data.isEmote,
+      })
+    },
+    onTwist: (data, raw) => {
+      const createdAt = raw.createdAt ? new Date(raw.createdAt).getTime() : Date.now()
+      setLiveLastTwistAt(createdAt)
+      if (data?.text) {
+        setTwist({
+          id: raw.id,
+          text: data.text,
+          userDisplayName: data.userDisplayName ?? 'Anonymous Director',
+          receivedAt: Date.now(),
+        })
       }
-    }
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+    },
+    onCharacterReady: () => {
+      // Bible + portrait + sprite landed for some character. Re-fetch
+      // participants so the new portrait shows up everywhere.
+      router.refresh()
+    },
+    onJoined: () => {
+      // New agent on stage — refresh so the new slot/character shows up.
+      router.refresh()
+    },
+  })
 
-  // SSE subscription
   useEffect(() => {
-    const es = new EventSource(`/api/v1/stages/${stageId}/events`)
-    eventSourceRef.current = es
-
-    es.addEventListener('dialogue', (e: MessageEvent) => {
-      try {
-        const data = JSON.parse(e.data) as { speakerName?: string; text?: string }
-        if (data.speakerName && data.text) {
-          showDialogue(data.speakerName, data.text)
-        }
-      } catch {}
-    })
-
-    es.onerror = () => {
-      // Will auto-reconnect via browser
-    }
-
     return () => {
-      es.close()
       if (typewriterRef.current) clearInterval(typewriterRef.current)
     }
-  }, [stageId, showDialogue])
+  }, [])
 
-  // Lazy-load Phaser
-  useEffect(() => {
-    if (!gameRef.current) return
+  const onStageChars: OnStageCharacter[] = useMemo(
+    () =>
+      participants.map((p) => ({
+        participantId: p.participantId,
+        agentId: p.agentId,
+        role: p.role,
+        characterName: p.characterName,
+        characterImageUrl: p.characterImageUrl,
+        characterSpriteUrl: p.characterSpriteUrl,
+      })),
+    [participants]
+  )
 
-    let game: import('phaser').Game | null = null
+  const positions = useMemo(() => layoutPositions(onStageChars), [onStageChars])
 
-    async function initPhaser() {
-      const Phaser = (await import('phaser')).default
-
-      class StageScene extends Phaser.Scene {
-        constructor() {
-          super({ key: 'StageScene' })
-        }
-
-        create() {
-          const { width, height } = this.scale
-
-          // Dark stage floor grid
-          const graphics = this.add.graphics()
-          graphics.lineStyle(1, 0x242424, 0.6)
-
-          for (let x = 0; x < width; x += 48) {
-            graphics.moveTo(x, 0)
-            graphics.lineTo(x, height)
-          }
-          for (let y = 0; y < height; y += 48) {
-            graphics.moveTo(0, y)
-            graphics.lineTo(width, y)
-          }
-          graphics.strokePath()
-
-          // Stage name watermark
-          this.add
-            .text(width / 2, height / 2, stageName, {
-              fontFamily: 'Georgia, serif',
-              fontSize: '48px',
-              color: '#1E1E1E',
-            })
-            .setOrigin(0.5)
-            .setAlpha(0.5)
-
-          // Placeholder sprites for participants
-          participants.forEach((p, i) => {
-            const x = 80 + (i % 8) * 120
-            const y = 120 + Math.floor(i / 8) * 120
-            const color = p.role === 'main' ? 0xc41e3a : 0x444440
-
-            const sprite = this.add.rectangle(x, y, 32, 48, color, 0.8)
-            const label = this.add
-              .text(x, y + 30, p.characterName ?? '?', {
-                fontFamily: 'monospace',
-                fontSize: '10px',
-                color: '#888880',
-              })
-              .setOrigin(0.5, 0)
-          })
-        }
-      }
-
-      const config: import('phaser').Types.Core.GameConfig = {
-        type: Phaser.AUTO,
-        parent: gameRef.current!,
-        width: gameRef.current!.offsetWidth,
-        height: gameRef.current!.offsetHeight,
-        backgroundColor: '#111111',
-        scene: StageScene,
-        scale: {
-          mode: Phaser.Scale.RESIZE,
-          autoCenter: Phaser.Scale.CENTER_BOTH,
-        },
-        audio: { noAudio: true },
-      }
-
-      game = new Phaser.Game(config)
-    }
-
-    initPhaser()
-
-    return () => {
-      game?.destroy(true)
-    }
-  }, [stageId, stageName, participants])
+  const mainCharacters: DramatisCharacter[] = useMemo(
+    () =>
+      participants
+        .filter((p) => p.role === 'main')
+        .map((p) => ({
+          participantId: p.participantId,
+          agentId: p.agentId,
+          role: p.role,
+          characterName: p.characterName,
+          characterImageUrl: p.characterImageUrl,
+        })),
+    [participants]
+  )
 
   return (
-    <div className="fixed inset-0 overflow-hidden bg-[#111111]">
-      {/* Phaser canvas container */}
-      <div ref={gameRef} className="absolute inset-0" />
+    <main className="relative flex-1 overflow-hidden bg-[#0e0e0e]">
+      {/* Stage background */}
+      <div className="absolute inset-0">
+        {stageImageUrl ? (
+          <Image
+            src={stageImageUrl}
+            alt={`${stageName} backdrop`}
+            fill
+            priority
+            sizes="100vw"
+            className="object-cover opacity-50 image-pixelated"
+          />
+        ) : (
+          <div className="absolute inset-0 bg-gradient-to-br from-[#1a0a14] via-[#0e0e0e] to-[#080808]" />
+        )}
+        <div className="absolute inset-0 bg-gradient-to-t from-[#080808] via-transparent to-[#080808]/60" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_transparent_30%,_#080808_85%)]" />
+      </div>
 
-      {/* Back navigation — fades after a moment */}
-      <div
-        className="absolute left-4 top-4 z-10 transition-opacity duration-300"
-        style={{ opacity: isBackVisible ? 1 : 0 }}
-      >
+      {/* Circular stage area + sprite positions */}
+      <div className="absolute inset-0 z-10 flex items-center justify-center">
+        <div className="relative h-[min(90vw,800px)] w-[min(90vw,800px)] max-w-[800px] max-h-[800px] rounded-full border border-white/5 bg-[#0e0e0e]/20 shadow-[0_0_120px_rgba(196,30,58,0.1)]">
+          {/* Subtle grid floor */}
+          <div className="absolute inset-0 rounded-full bg-[linear-gradient(rgba(255,255,255,0.05)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.05)_1px,transparent_1px)] bg-[size:40px_40px] opacity-30" />
+          {/* Focal point */}
+          <div className="absolute left-1/2 top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border border-[#C41E3A]/40 bg-[#C41E3A]/15 animate-pulse-live" />
+
+          {positions.map(({ character, x, y }) => (
+            <CharacterOnStage
+              key={character.participantId}
+              character={character}
+              x={x}
+              y={y}
+              isActive={character.agentId === activeAgentId}
+            />
+          ))}
+        </div>
+      </div>
+
+      {/* Twist banner */}
+      <TwistBanner twist={twist} />
+
+      {/* HUDs */}
+      <div className="pointer-events-none absolute left-6 top-6 z-20">
+        <DramatisPersonae mainCharacters={mainCharacters} activeAgentId={activeAgentId} />
+      </div>
+
+      <div className="pointer-events-none absolute right-6 top-6 z-20">
+        <InterventionTerminal
+          stageId={stageId}
+          isLoggedIn={isLoggedIn}
+          lastTwistAt={lastTwistAt}
+          lastUserTwistAt={lastUserTwistAt}
+          liveLastTwistAt={liveLastTwistAt}
+          onLocalSubmitSuccess={() => setLiveLastTwistAt(Date.now())}
+        />
+      </div>
+
+      <div className="pointer-events-none absolute bottom-6 left-1/2 z-20 w-11/12 -translate-x-1/2 max-w-3xl">
+        <Scriptorium dialogue={dialogue} />
+      </div>
+
+      {/* Exit affordance — small footnote-style link, in case nav isn't enough */}
+      <div className="pointer-events-auto absolute bottom-2 left-3 z-20">
         <Link
           href="/"
-          className="flex h-9 items-center gap-2 rounded border border-[#3A3A3A] bg-[#080808]/80 px-3 text-xs text-[#888880] backdrop-blur-sm transition-colors hover:text-[#F0EDE8]"
+          className="font-mono text-[10px] uppercase tracking-[0.18em] text-[#444440] transition-colors hover:text-[#888880]"
         >
-          ← Exit Stage
+          ← exit stage
         </Link>
       </div>
-
-      {/* Stage name badge */}
-      <div className="absolute right-4 top-4 z-10">
-        <div className="flex items-center gap-2 rounded border border-[#242424] bg-[#080808]/80 px-3 py-2 backdrop-blur-sm">
-          <span className="inline-block h-1.5 w-1.5 rounded-full bg-[#C41E3A] animate-pulse-live" />
-          <span
-            className="font-display text-sm font-semibold tracking-[-0.01em] text-[#F0EDE8]"
-            style={{ fontFamily: 'var(--font-display)' }}
-          >
-            {stageName}
-          </span>
-        </div>
-      </div>
-
-      {/* RPG Dialogue Box */}
-      <div className="absolute bottom-0 left-0 right-0 z-20 border-x-0 border-b-0 border-t border-[#C41E3A] bg-[#0D0D0D]">
-        <div className="px-5 py-4">
-          {currentDialogue ? (
-            <>
-              <p className="mb-2 font-ui text-[11px] font-semibold uppercase tracking-[0.1em] text-[#E8405A]">
-                {currentDialogue.speakerName}
-              </p>
-              <p className="min-h-[3rem] font-mono text-[12px] leading-relaxed text-[#F0EDE8]">
-                {displayedText}
-                <span className="animate-pulse-live">█</span>
-              </p>
-            </>
-          ) : (
-            <p className="font-mono text-[12px] text-[#444440]">
-              Waiting for the stage to speak…
-            </p>
-          )}
-        </div>
-      </div>
-    </div>
+    </main>
   )
+}
+
+function hashString(s: string): number {
+  let h = 0
+  for (let i = 0; i < s.length; i++) {
+    h = (h * 31 + s.charCodeAt(i)) | 0
+  }
+  return h
 }

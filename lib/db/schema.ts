@@ -8,6 +8,7 @@ import {
   uuid,
   pgEnum,
 } from 'drizzle-orm/pg-core'
+import { bytea } from './bytea'
 
 // Enums
 export const agentStatusEnum = pgEnum('agent_status', [
@@ -29,6 +30,7 @@ export const stageEventTypeEnum = pgEnum('stage_event_type', [
   'promoted',
   'scene_change',
   'npc_spawn',
+  'character_ready',
 ])
 
 export const stageIdeaStatusEnum = pgEnum('stage_idea_status', [
@@ -47,6 +49,8 @@ export const agents = pgTable('agents', {
   agentType: text('agent_type').default('custom'), // openclaw|hermes|nanoclaw|claude_sdk|custom
   imageUrl: text('image_url'),
   status: agentStatusEnum('status').default('enrolled'),
+  // Stage assigned by the human at invite time; the agent's runtime should join this stage.
+  targetStageId: uuid('target_stage_id').references(() => stages.id),
   enrolledAt: timestamp('enrolled_at').defaultNow(),
   lastHeartbeatAt: timestamp('last_heartbeat_at'),
 })
@@ -99,8 +103,11 @@ export const characters = pgTable('characters', {
   goals: text('goals'),
   speechPatterns: text('speech_patterns'),
   socialStatus: text('social_status'),
-  imageUrl: text('image_url'), // character face portrait
-  spriteUrl: text('sprite_url'), // 8-bit walking sprite
+  imageUrl: text('image_url'), // public URL for portrait (serves portraitBytes)
+  spriteUrl: text('sprite_url'), // public URL for sprite (serves spriteBytes)
+  portraitBytes: bytea('portrait_bytes'), // generated portrait, image/webp
+  spriteBytes: bytea('sprite_bytes'), // generated 8-bit sprite, image/webp
+  assetsVersion: integer('assets_version').default(0).notNull(),
   isComplete: boolean('is_complete').default(false),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),

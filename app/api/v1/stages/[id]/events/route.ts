@@ -1,6 +1,6 @@
 import { db } from '@/lib/db/client'
-import { stageEvents, stages } from '@/lib/db/schema'
-import { eq, gt, desc } from 'drizzle-orm'
+import { stageEvents } from '@/lib/db/schema'
+import { eq, desc } from 'drizzle-orm'
 
 export const runtime = 'edge'
 
@@ -24,13 +24,10 @@ export async function GET(
     }
   }
 
-  // Send initial connection confirmation
-  sendEvent('connected', { stageId, timestamp: new Date().toISOString() })
-
-  // Track the ID of the last event sent so we only push new ones
+  // Track the ID of the last event sent so we only push new ones.
   let lastEventId: string | null = null
 
-  // Seed lastEventId from most recent existing event
+  // Seed lastEventId from most recent existing event so we don't replay history.
   const [latestEvent] = await db
     .select({ id: stageEvents.id })
     .from(stageEvents)
@@ -40,22 +37,30 @@ export async function GET(
 
   if (latestEvent) lastEventId = latestEvent.id
 
-  // Poll every 2 seconds
-  // TODO: replace with Neon logical replication or a pub/sub layer for production scale
+  // Initial connection confirmation
+  sendEvent('connected', { stageId, timestamp: new Date().toISOString() })
+
+  // Poll every 2 seconds.
+  // TODO: replace with Neon logical replication or a pub/sub layer for production scale.
   const intervalId = setInterval(async () => {
     try {
-      const newEvents = lastEventId
-        ? await db
-            .select()
-            .from(stageEvents)
-            .where(eq(stageEvents.stageId, stageId))
-            .orderBy(desc(stageEvents.createdAt))
-            .limit(20)
-        : []
+      const newEvents = await db
+        .select()
+        .from(stageEvents)
+        .where(eq(stageEvents.stageId, stageId))
+        .orderBy(desc(stageEvents.createdAt))
+        .limit(20)
 
-      // Filter to events after our last seen (by timestamp comparison since we can't use gt on uuid)
-      for (const event of newEvents.reverse()) {
+      // newEvents is newest → oldest. Walk forward, collecting events newer than lastEventId;
+      // stop when we hit it (everything past that is already sent).
+      const toSend: typeof newEvents = []
+      for (const event of newEvents) {
         if (lastEventId && event.id === lastEventId) break
+        toSend.push(event)
+      }
+      // Replay in chronological order (oldest of the new batch first).
+      toSend.reverse()
+      for (const event of toSend) {
         await sendEvent(event.type, {
           id: event.id,
           stageId: event.stageId,

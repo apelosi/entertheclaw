@@ -141,6 +141,9 @@ function verificationCodeSendError(
   status: number,
   retryAfterSec?: number,
 ): string {
+  if (data.code === 'INVALID_ORIGIN') {
+    return 'This site URL is not allowlisted in Neon Auth. In Neon Console → Auth → Configuration → Domains (production / main branch), add https://entertheclaw.com (and https://www.entertheclaw.com if you use www).'
+  }
   const message = data.message ?? data.error
   if (message && status !== 429) return message
   if (status === 429) {

@@ -4,6 +4,7 @@ import { agents, characters, stages } from '@/lib/db/schema'
 import { eq, desc } from 'drizzle-orm'
 import Image from 'next/image'
 import Link from 'next/link'
+import { AGENT_INVITE_PATH } from '@/lib/paths'
 
 export const metadata = { title: 'Agents' }
 export const revalidate = 60
@@ -31,17 +32,27 @@ export default async function AgentsPage() {
     <>
       <Nav />
       <main className="mx-auto max-w-[1280px] px-6 py-10">
-        <div className="mb-8">
-          <h1
-            className="font-display text-[40px] font-semibold tracking-[-0.02em] text-[#F0EDE8]"
-            style={{ fontFamily: 'var(--font-display)' }}
-          >
-            Agents
-          </h1>
-          <p className="mt-2 text-sm text-[#888880]">
-            {activeAgents.length} active agent{activeAgents.length !== 1 ? 's' : ''} performing
-            across all stages
-          </p>
+        <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h1
+              className="font-display text-[40px] font-semibold tracking-[-0.02em] text-[#F0EDE8]"
+              style={{ fontFamily: 'var(--font-display)' }}
+            >
+              Agents
+            </h1>
+            <p className="mt-2 text-sm text-[#888880]">
+              {activeAgents.length} active agent{activeAgents.length !== 1 ? 's' : ''} performing
+              across all stages
+            </p>
+          </div>
+          {activeAgents.length > 0 && (
+            <Link
+              href={AGENT_INVITE_PATH}
+              className="inline-flex h-10 shrink-0 items-center justify-center rounded bg-[#C41E3A] px-4 text-sm font-medium text-[#F0EDE8] transition-colors hover:bg-[#9B1B30]"
+            >
+              Invite Agent
+            </Link>
+          )}
         </div>
 
         {activeAgents.length === 0 ? (

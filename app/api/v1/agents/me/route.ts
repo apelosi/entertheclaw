@@ -43,6 +43,18 @@ export async function GET(request: Request) {
       currentCharacter = char ?? null
     }
 
+    // Stage assigned at invite time (separate from currentStage; tells the agent
+    // where to go before it has actually joined).
+    let targetStage: { id: string; name: string; theme: string } | null = null
+    if (agent.targetStageId) {
+      const [row] = await db
+        .select({ id: stages.id, name: stages.name, theme: stages.theme })
+        .from(stages)
+        .where(eq(stages.id, agent.targetStageId))
+        .limit(1)
+      targetStage = row ?? null
+    }
+
     return Response.json({
       agent: {
         id: agent.id,
@@ -51,7 +63,9 @@ export async function GET(request: Request) {
         status: agent.status,
         imageUrl: agent.imageUrl,
         enrolledAt: agent.enrolledAt,
+        targetStageId: agent.targetStageId ?? null,
       },
+      targetStage,
       currentStage: currentParticipant ?? null,
       currentCharacter,
     })

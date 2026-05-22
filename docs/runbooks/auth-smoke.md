@@ -26,9 +26,14 @@
 
 ## Neon console checklist (Phase 3)
 
-Configure in **Neon console → Auth** (not app code for hosted auth):
+Configure in **Neon console → Auth** on the **same branch** as production (`main`) — not app code for hosted auth:
 
-- [ ] **Allowed redirect URLs** — `http://localhost:3000/**` and production origin
+- [ ] **Trusted domains** (Configuration → Domains) — exact origins, no trailing slash:
+  - `https://entertheclaw.com` (required for production)
+  - `https://www.entertheclaw.com` if users can land on www
+  - Optional: `https://*.your-site.netlify.app` for branch deploy previews
+  - Localhost is auto-allowed; production is **not**
+- [ ] **Allowed redirect URLs** — OAuth `callbackURL` targets must also be covered by trusted domains above
 - [ ] **GitHub** + **Google** OAuth client ID/secret
 - [ ] **Custom SMTP (Resend)** for production OTP/magic-link email:
   - Host: `smtp.resend.com`
@@ -110,3 +115,4 @@ curl -X POST http://localhost:3000/api/auth/sign-in/social \
 | E2 | `emailVerified` policy may block session until verified |
 | E3 | `sign-in/magic-link` returns 404 on hosted Neon — app uses **email OTP** instead |
 | E4 | Neon Auth limits OTP send to **3 per 60s** per email (not configurable in app). Client throttles extra clicks; wait 60s after 429. Check spam for codes already sent. |
+| E5 | Logged-in **POST** `/api/auth/*` returns `Invalid origin` when the browser origin is missing from **trusted domains** on that Neon branch (session cookies trigger CSRF origin checks). Symptom: “Set password” never sends email on production while sign-in OTP (logged out) still works. Fix: add production URL(s) under Domains on the **main** branch. |

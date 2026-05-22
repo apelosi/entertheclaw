@@ -1,9 +1,11 @@
 import { notFound } from 'next/navigation'
 import { db } from '@/lib/db/client'
-import { stages, stageParticipants, characters, stageEvents } from '@/lib/db/schema'
+import { stages, stageParticipants, characters, stageEvents, twists } from '@/lib/db/schema'
 import { eq, desc, and } from 'drizzle-orm'
 import type { Metadata } from 'next'
 import StageViewClient from '@/components/stage/stage-view-client'
+import { Nav } from '@/components/nav'
+import { getServerSession } from '@/lib/auth/get-server-session'
 
 interface Props {
   params: Promise<{ id: string }>
@@ -16,7 +18,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return { title: stage.name }
 }
 
-async function getStageData(id: string) {
+async function getStageData(id: string, userId: string | null) {
   const [stage] = await db.select().from(stages).where(eq(stages.id, id)).limit(1)
   if (!stage) return null
 
@@ -47,25 +49,56 @@ async function getStageData(id: string) {
     .orderBy(desc(stageEvents.createdAt))
     .limit(20)
 
-  return { stage, participants, recentEvents }
+  const [lastStageTwist] = await db
+    .select({ createdAt: twists.createdAt })
+    .from(twists)
+    .where(eq(twists.stageId, id))
+    .orderBy(desc(twists.createdAt))
+    .limit(1)
+
+  let lastUserTwist: { createdAt: Date | null } | null = null
+  if (userId) {
+    const [row] = await db
+      .select({ createdAt: twists.createdAt })
+      .from(twists)
+      .where(eq(twists.userId, userId))
+      .orderBy(desc(twists.createdAt))
+      .limit(1)
+    lastUserTwist = row ?? null
+  }
+
+  return {
+    stage,
+    participants,
+    recentEvents,
+    lastTwistAt: lastStageTwist?.createdAt ? new Date(lastStageTwist.createdAt).getTime() : null,
+    lastUserTwistAt: lastUserTwist?.createdAt ? new Date(lastUserTwist.createdAt).getTime() : null,
+  }
 }
 
 export default async function StagePage({ params }: Props) {
   const { id } = await params
-  const data = await getStageData(id)
+  const { data: session } = await getServerSession()
+  const userId = session?.user?.id ?? null
 
+  const data = await getStageData(id, userId)
   if (!data) notFound()
 
-  const { stage, participants, recentEvents } = data
+  const { stage, participants, recentEvents, lastTwistAt, lastUserTwistAt } = data
 
   return (
-    <div className="fixed inset-0 overflow-hidden bg-[#080808]">
+    <div className="fixed inset-0 z-10 flex flex-col bg-[#080808]">
+      <Nav />
       <StageViewClient
         stageId={stage.id}
         stageName={stage.name}
         stageTheme={stage.theme}
+        stageImageUrl={stage.imageUrl ?? null}
         participants={participants}
         initialEvents={recentEvents}
+        isLoggedIn={Boolean(userId)}
+        lastTwistAt={lastTwistAt}
+        lastUserTwistAt={lastUserTwistAt}
       />
     </div>
   )

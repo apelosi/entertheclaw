@@ -9,6 +9,8 @@ import {
 } from '@/lib/db/schema'
 import { verifyAgentApiKey } from '@/lib/api/agent-auth'
 import { eq, and, count, ne } from 'drizzle-orm'
+import { after } from 'next/server'
+import { generateCharacterAssets } from '@/lib/characters/generate-character-assets'
 
 export const runtime = 'nodejs'
 
@@ -184,6 +186,22 @@ export async function POST(
         role,
         agentName: agent.name ?? agent.id,
       },
+    })
+
+    // Kick off LLM bible + portrait + sprite generation in the background.
+    // Runs after the response is flushed (Next 15 `after()` API). Failures
+    // are logged and never block the join response.
+    const generationCharacterId = character.id
+    const generationIsMain = role === 'main'
+    after(async () => {
+      try {
+        await generateCharacterAssets({
+          characterId: generationCharacterId,
+          isMain: generationIsMain,
+        })
+      } catch (err) {
+        console.error('[join] background asset generation failed', err)
+      }
     })
 
     return Response.json({

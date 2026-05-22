@@ -114,11 +114,21 @@ export async function POST(
       })
       .returning()
 
+    const userDisplayName =
+      (typeof user.name === 'string' && user.name.trim()) ||
+      (typeof user.email === 'string' && user.email.split('@')[0]) ||
+      'Anonymous Director'
+
     await db.insert(stageEvents).values({
       stageId,
       type: 'twist',
       userId: user.id,
-      content: { text: trimmedContent, twistId: twist.id },
+      content: {
+        text: trimmedContent,
+        twistId: twist.id,
+        userId: user.id,
+        userDisplayName,
+      },
     })
 
     return Response.json({ ok: true, twistId: twist.id })

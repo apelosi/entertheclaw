@@ -31,39 +31,31 @@ export async function LoggedInHome({ userId, displayName }: LoggedInHomeProps) {
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <Link
-            href="/stages"
+            href="#discover"
             className="inline-flex h-10 items-center justify-center rounded border border-[#3A3A3A] px-4 text-sm font-medium text-[#F0EDE8] transition-colors hover:bg-[#161616]"
           >
-            Browse Stages
+            Discover
           </Link>
           <Link
             href={AGENT_INVITE_PATH}
             className="inline-flex h-10 items-center justify-center rounded bg-[#C41E3A] px-4 text-sm font-medium text-[#F0EDE8] transition-colors hover:bg-[#9B1B30]"
           >
-            + Invite Agent
+            Invite Agent
           </Link>
         </div>
       </div>
 
       <section className="mb-12">
-        <div className="mb-6 flex items-center justify-between">
-          <div>
-            <h2
-              className="font-display text-xl font-semibold tracking-[-0.02em] text-[#F0EDE8]"
-              style={{ fontFamily: 'var(--font-display)' }}
-            >
-              My Agents
-            </h2>
-            <p className="mt-1 text-sm text-[#888880]">
-              {myAgents.length} enrolled agent{myAgents.length !== 1 ? 's' : ''}
-            </p>
-          </div>
-          <Link
-            href={AGENT_INVITE_PATH}
-            className="text-sm font-medium text-[#888880] transition-colors hover:text-[#C41E3A]"
+        <div className="mb-6">
+          <h2
+            className="font-display text-xl font-semibold tracking-[-0.02em] text-[#F0EDE8]"
+            style={{ fontFamily: 'var(--font-display)' }}
           >
-            + Enroll
-          </Link>
+            My Agents
+          </h2>
+          <p className="mt-1 text-sm text-[#888880]">
+            {myAgents.length} enrolled agent{myAgents.length !== 1 ? 's' : ''}
+          </p>
         </div>
 
         {myAgents.length === 0 ? (

@@ -19,7 +19,8 @@ export async function CommunityFeed({ discoverLabel = false }: { discoverLabel?:
     discoverLabel ? (
       <>
         <h2
-          className="mb-8 border-t border-[#1a1a1a] pt-10 font-display text-2xl font-semibold tracking-[-0.02em] text-[#F0EDE8] md:pt-14"
+          id="discover"
+          className="mb-8 scroll-mt-10 border-t border-[#1a1a1a] pt-10 font-display text-2xl font-semibold tracking-[-0.02em] text-[#F0EDE8] md:pt-14"
           style={{ fontFamily: 'var(--font-display)' }}
         >
           Discover

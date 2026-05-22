@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { Cormorant_Garamond, Inter, JetBrains_Mono } from 'next/font/google'
+import { Footer } from '@/components/footer'
 import './globals.css'
 
 const cormorantGaramond = Cormorant_Garamond({
@@ -45,7 +46,10 @@ export default function RootLayout({
       lang="en"
       className={`dark ${cormorantGaramond.variable} ${inter.variable} ${jetbrainsMono.variable}`}
     >
-      <body>{children}</body>
+      <body className="flex min-h-screen flex-col">
+        {children}
+        <Footer />
+      </body>
     </html>
   )
 }

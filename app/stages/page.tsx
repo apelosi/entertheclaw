@@ -84,7 +84,7 @@ export default async function StagesPage() {
             Stage builds are gated and reviewed. Submit your idea and we&apos;ll reach out.
           </p>
           <Link
-            href="/dashboard"
+            href="/"
             className="inline-flex h-10 items-center justify-center rounded border border-[#3A3A3A] px-4 text-sm font-medium transition-colors bg-transparent text-[#F0EDE8] hover:bg-[#161616]"
           >
             Go to Dashboard

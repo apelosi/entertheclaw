@@ -1,108 +1,65 @@
 import Link from 'next/link'
 import Image from 'next/image'
-import { auth } from '@/lib/auth'
+import { getServerSession } from '@/lib/auth/get-server-session'
+import { AUTH_PATH } from '@/lib/auth/paths'
+import { MobileMenu } from '@/components/nav/mobile-menu'
+import { NavLinks } from '@/components/nav/nav-links'
 
-function Logo() {
+function Wordmark({ className }: { className?: string }) {
   return (
-    <div className="flex items-center gap-2">
-      <Image
-        src="/logo-mark.png"
-        alt=""
-        width={28}
-        height={28}
-        className="rounded-sm"
-        priority
-      />
-      <span
-        className="text-[13px] font-bold uppercase tracking-[0.12em] text-[#C41E3A]"
-        style={{ fontFamily: 'var(--font-ui, ui-sans-serif)', letterSpacing: '0.12em' }}
-      >
-        Enter The Claw
-      </span>
-    </div>
+    <Image
+      src="/logo-wordmark.webp?v=15"
+      alt="Enter The Claw"
+      width={1960}
+      height={303}
+      className={className ?? 'h-8 w-auto'}
+      priority
+    />
   )
 }
 
-const NAV_LINKS = [
-  { href: '/stages', label: 'Stages' },
-  { href: '/agents', label: 'Agents' },
-  { href: '/characters', label: 'Characters' },
-  { href: '/dashboard', label: 'Build a Stage' },
-]
-
 const navClass =
-  'sticky top-0 z-50 flex h-14 items-center justify-between px-6 ' +
+  'relative sticky top-0 z-50 flex h-14 shrink-0 items-center px-6 ' +
   'bg-[#080808]/90 backdrop-blur-md shadow-[0_4px_20px_rgba(196,30,58,0.12)] ' +
   'border-b border-[#1a1a1a]'
 
-const linkClass =
-  'font-ui text-[13px] font-medium text-[#888880] transition-colors duration-200 ' +
-  'hover:text-[#C41E3A]'
+const accountBtnClass =
+  'inline-flex h-8 shrink-0 items-center justify-center rounded bg-[#C41E3A] px-3 ' +
+  'font-ui text-[13px] font-medium text-[#F0EDE8] transition-colors hover:bg-[#9B1B30]'
 
-function NavLoggedOut() {
+function NavBar({
+  accountHref,
+  accountLabel,
+}: {
+  accountHref: string
+  accountLabel: string
+}) {
   return (
     <nav className={navClass}>
-      {/* Logo */}
-      <Link href="/" className="flex items-center">
-        <Logo />
-      </Link>
-
-      {/* Links */}
-      <ul className="hidden items-center gap-8 md:flex">
-        {NAV_LINKS.map((link) => (
-          <li key={link.href}>
-            <Link href={link.href} className={linkClass}>
-              {link.label}
-            </Link>
-          </li>
-        ))}
-      </ul>
-
-      {/* Auth */}
-      <div className="flex items-center gap-3">
-        <Link href="/sign-in" className={linkClass}>
-          Sign In
-        </Link>
-        <Link
-          href="/sign-up"
-          className="inline-flex h-8 items-center justify-center rounded bg-[#C41E3A] px-3 font-ui text-[13px] font-medium text-[#F0EDE8] transition-colors hover:bg-[#9B1B30]"
-        >
-          Join
-        </Link>
+      <div className="relative z-10 flex shrink-0 items-center md:hidden">
+        <MobileMenu accountHref={accountHref} accountLabel={accountLabel} />
       </div>
-    </nav>
-  )
-}
 
-function NavLoggedIn({ userDisplayName }: { userDisplayName: string }) {
-  return (
-    <nav className={navClass}>
-      {/* Logo */}
-      <Link href="/" className="flex items-center">
-        <Logo />
+      <Link href="/" className="relative z-10 hidden shrink-0 items-center md:flex">
+        <Wordmark />
       </Link>
 
-      {/* Links */}
-      <ul className="hidden items-center gap-8 md:flex">
-        {NAV_LINKS.map((link) => (
-          <li key={link.href}>
-            <Link href={link.href} className={linkClass}>
-              {link.label}
-            </Link>
-          </li>
-        ))}
-      </ul>
+      <Link
+        href="/"
+        className="absolute left-1/2 z-10 flex -translate-x-1/2 items-center md:hidden"
+      >
+        <Wordmark className="h-7 w-auto max-w-[min(52vw,220px)]" />
+      </Link>
 
-      {/* Account */}
-      <div className="flex items-center gap-3">
-        <Link
-          href="/dashboard"
-          className="flex h-8 items-center gap-2 rounded border border-[#3A3A3A] px-3 font-ui text-[13px] font-medium text-[#F0EDE8] transition-colors hover:bg-[#161616] hover:border-[#C41E3A]/30"
-        >
-          <span className="inline-block h-5 w-5 overflow-hidden rounded-full bg-[#C41E3A] text-center font-mono text-[10px] leading-5 text-white">
-            {userDisplayName[0]?.toUpperCase() ?? '?'}
-          </span>
-          <span className="hidden sm:inline">{userDisplayName}</span>
+      <div className="pointer-events-none absolute inset-0 hidden items-center justify-center md:flex">
+        <div className="pointer-events-auto">
+          <NavLinks />
+        </div>
+      </div>
+
+      <div className="relative z-10 ml-auto hidden md:block">
+        <Link href={accountHref} className={accountBtnClass}>
+          {accountLabel}
         </Link>
       </div>
     </nav>
@@ -110,14 +67,10 @@ function NavLoggedIn({ userDisplayName }: { userDisplayName: string }) {
 }
 
 export async function Nav() {
-  const { data: session } = await auth.getSession()
+  const { data: session } = await getServerSession()
+  const isLoggedIn = Boolean(session?.user)
+  const accountHref = isLoggedIn ? '/account' : AUTH_PATH
+  const accountLabel = isLoggedIn ? 'Account' : 'Sign Up / In'
 
-  if (!session?.user) {
-    return <NavLoggedOut />
-  }
-
-  const displayName =
-    session.user.name ?? session.user.email?.split('@')[0] ?? 'Account'
-
-  return <NavLoggedIn userDisplayName={displayName} />
+  return <NavBar accountHref={accountHref} accountLabel={accountLabel} />
 }

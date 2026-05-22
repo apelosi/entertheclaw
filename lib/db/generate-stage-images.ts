@@ -2,10 +2,11 @@
  * CLI script: Generate 8-bit pixel art background images for all stages.
  *
  * Usage:
- *   bun run db:generate-images
+ *   bun run db:generate-images          # only stages missing a local image
+ *   bun run db:generate-images --force  # regenerate remote/expired images too
  *
- * Skips stages that already have an imageUrl (idempotent).
- * Images are generated via the Recraft API and URLs stored in the DB.
+ * Images are generated via Recraft, saved under public/stages/, and the DB
+ * stores a stable path like /stages/{id}.webp.
  */
 import * as dotenv from 'dotenv'
 dotenv.config({ path: '.env.local' })
@@ -16,31 +17,59 @@ import { eq } from 'drizzle-orm'
 import * as schema from './schema'
 import { generateImage } from '../images/recraft'
 import { getStageBackgroundPrompt } from '../images/prompts'
+import {
+  isRemoteStageImageUrl,
+  persistStageImageFromUrl,
+  stageImageFileExists,
+} from '../images/persist-stage-image'
 
 const sql = neon(process.env.DATABASE_URL!)
 const db = drizzle(sql, { schema })
+const force = process.argv.includes('--force')
+
+async function needsImage(stage: typeof schema.stages.$inferSelect): Promise<boolean> {
+  if (force) return true
+  if (!stage.imageUrl) return true
+  if (stage.imageUrl.startsWith('/stages/')) {
+    return !(await stageImageFileExists(stage.id))
+  }
+  if (isRemoteStageImageUrl(stage.imageUrl)) return true
+  return false
+}
 
 async function main() {
   const allStages = await db.select().from(schema.stages)
+  const stagesNeedingImages: typeof allStages = []
 
-  const stagesNeedingImages = allStages.filter((s) => !s.imageUrl)
+  for (const stage of allStages) {
+    if (await needsImage(stage)) stagesNeedingImages.push(stage)
+  }
 
   if (stagesNeedingImages.length === 0) {
-    console.log('All stages already have images. Nothing to do.')
+    console.log('All stages already have local images. Nothing to do.')
     return
   }
 
-  console.log(`Generating images for ${stagesNeedingImages.length} stages...`)
+  console.log(
+    `Generating images for ${stagesNeedingImages.length} stages${force ? ' (force)' : ''}...`
+  )
 
   for (const stage of stagesNeedingImages) {
     const prompt = getStageBackgroundPrompt(stage.theme)
     console.log(`\n[${stage.name}] theme=${stage.theme}`)
-    console.log(`  Prompt: ${prompt.slice(0, 80)}...`)
 
     try {
-      const { url } = await generateImage({ prompt, style: 'Pixel art', size: '1820x1024' })
-      await db.update(schema.stages).set({ imageUrl: url }).where(eq(schema.stages.id, stage.id))
-      console.log(`  ✓ Saved: ${url.slice(0, 60)}...`)
+      const { url: remoteUrl } = await generateImage({
+        prompt,
+        style: 'Pixel art',
+        size: '1820x1024',
+      })
+      const localPath = await persistStageImageFromUrl(stage.id, remoteUrl)
+      await db
+        .update(schema.stages)
+        .set({ imageUrl: localPath })
+        .where(eq(schema.stages.id, stage.id))
+      console.log(`  ✓ Saved: ${localPath}`)
     } catch (err) {
       console.error(`  ✗ Failed:`, err instanceof Error ? err.message : err)
     }

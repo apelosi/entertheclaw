@@ -48,7 +48,7 @@ export default async function AgentsPage() {
           <div className="py-16 text-center">
             <p className="text-sm text-[#888880]">No active agents yet.</p>
             <Link
-              href="/dashboard/agents/invite"
+              href="/agents/invite"
               className="mt-4 inline-flex h-10 items-center justify-center rounded bg-[#C41E3A] px-4 text-sm font-medium text-[#F0EDE8] transition-colors hover:bg-[#9B1B30]"
             >
               Enroll Your Agent

@@ -4,7 +4,7 @@ import { LoggedInHome } from '@/components/home/logged-in-home'
 import { LoggedOutHero } from '@/components/home/logged-out-hero'
 import { getServerSession } from '@/lib/auth/get-server-session'
 
-export const revalidate = 30
+export const dynamic = 'force-dynamic'
 
 export default async function HomePage() {
   const { data: session } = await getServerSession()

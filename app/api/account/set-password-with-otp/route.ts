@@ -35,10 +35,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: confirmError }, { status: 400 })
   }
 
-  const upstream = await callNeonAuthUpstream('email-otp/reset-password', {
-    method: 'POST',
-    body: { email, otp, password },
-  })
+  const upstream = await callNeonAuthUpstream(
+    'email-otp/reset-password',
+    {
+      method: 'POST',
+      body: { email, otp, password },
+    },
+    request,
+  )
   const data = await upstream.json().catch(() => ({}))
   return NextResponse.json(data, { status: upstream.status })
 }

@@ -417,9 +417,9 @@ export default function StageCanvas({
             <Link
               href="/"
               aria-label="Exit stage"
-              className="inline-flex shrink-0 items-center gap-1.5 font-mono text-[11px] uppercase tracking-[0.18em] text-[#F0EDE8]/90 drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)] transition-colors hover:text-[#F0EDE8]"
+              className="inline-flex shrink-0 items-center gap-1.5 font-mono text-[11px] uppercase tracking-[0.18em] text-[#F0EDE8]/70 drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)] transition-colors hover:text-[#F0EDE8]"
             >
-              <span className="text-[#C41E3A]">←</span>
+              <span>←</span>
               <span className="hidden sm:inline">Exit Stage</span>
             </Link>
 
@@ -452,14 +452,6 @@ export default function StageCanvas({
           onClose={() => setAboutOpen(false)}
         />
 
-        {/* Mobile: dialogue overlay anchored to bottom of band */}
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 px-4 lg:hidden">
-          <DialoguePanel
-            {...sharedDialogueProps}
-            recentItems={recentDialogueItems}
-          />
-        </div>
-
         {/* Desktop left HUD stack */}
         <div className="pointer-events-none absolute left-5 top-[4.5rem] z-20 hidden w-[min(20rem,calc(100%-2.5rem))] flex-col gap-3 pb-2 lg:flex">
           <CharactersRail
@@ -481,6 +473,12 @@ export default function StageCanvas({
 
       {/* Mobile stacked panels below the stage band */}
       <div className="flex flex-col gap-3 p-4 lg:hidden">
+        <DialoguePanel
+          {...sharedDialogueProps}
+          recentItems={recentDialogueItems}
+          collapsible
+          defaultOpen={false}
+        />
         <NarrativeTwist {...sharedNarrativeProps} collapsible defaultOpen />
         <CharactersRail
           stageId={stageId}

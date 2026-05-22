@@ -22,7 +22,6 @@ interface Props {
   recentTwists: FeedItem[]
   twistCount: number
   feedBumpKey: number
-  /** When true the whole panel can be toggled open/closed (used in mobile stack). */
   collapsible?: boolean
   defaultOpen?: boolean
 }
@@ -42,7 +41,6 @@ export function NarrativeTwist({
   lastUserTwistAt,
   liveLastTwistAt,
   onLocalSubmitSuccess,
-  activeTwist,
   recentTwists,
   twistCount,
   feedBumpKey,
@@ -50,7 +48,6 @@ export function NarrativeTwist({
   defaultOpen = true,
 }: Props) {
   const [panelOpen, setPanelOpen] = useState(defaultOpen)
-  const [recentOpen, setRecentOpen] = useState(false)
   const [historyOpen, setHistoryOpen] = useState(false)
   const [now, setNow] = useState(() => Date.now())
   const [draft, setDraft] = useState('')
@@ -79,6 +76,7 @@ export function NarrativeTwist({
   const stageLocked = stageRemainingMs > 0
   const userLocked = userRemainingMs > 0
   const canSubmit = isLoggedIn && !stageLocked && !userLocked && submission.kind !== 'submitting'
+  const windowOpen = !stageLocked && !userLocked
 
   const handleSubmit = useCallback(async () => {
     if (!isLoggedIn) {
@@ -134,106 +132,10 @@ export function NarrativeTwist({
     }
   }, [submission.kind])
 
-  const liveIndicator = (
-    <span className="flex shrink-0 items-center gap-1.5">
-      <span className="h-1.5 w-1.5 rounded-full bg-[#C41E3A] shadow-[0_0_8px_#C41E3A] animate-pulse-glow" />
-      <span className="font-mono text-[9px] uppercase tracking-[0.18em] text-[#C41E3A]">
-        Live
-      </span>
-    </span>
-  )
-
-  const twistPreview = activeTwist
-    ? `"${activeTwist.text.length > 45 ? activeTwist.text.slice(0, 45) + '…' : activeTwist.text}"`
-    : null
-
   const body = (
     <>
-      {/* Active twist display */}
-      {activeTwist && (
-        <div className="flex flex-col gap-1.5">
-          <p
-            className="text-[16px] italic leading-snug text-[#F0EDE8]"
-            style={{ fontFamily: 'var(--font-display)' }}
-          >
-            "{activeTwist.text}"
-          </p>
-          <p className="font-mono text-[10px] uppercase tracking-[0.15em] text-[#888880]">
-            — {activeTwist.userDisplayName}
-          </p>
-        </div>
-      )}
-
-      {/* Recent twists toggle */}
-      <div className={cn('border-t border-[#242424]/50 pt-2', !activeTwist && 'border-none pt-0')}>
-        <button
-          type="button"
-          onClick={() => setRecentOpen((v) => !v)}
-          className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.18em] text-[#888880] transition-colors hover:text-[#F0EDE8]"
-        >
-          <span
-            className={cn(
-              'inline-block text-[8px] transition-transform',
-              recentOpen ? 'rotate-180' : '',
-            )}
-          >
-            ▾
-          </span>
-          {recentOpen ? (
-            <span>
-              History{' '}
-              <span className="text-[#F0EDE8]/60">
-                · {twistCount} twist{twistCount !== 1 ? 's' : ''}
-              </span>
-            </span>
-          ) : (
-            <span>
-              History
-              {recentTwists.length > 0 && (
-                <span className="ml-1 text-[#444440]">({recentTwists.length})</span>
-              )}
-            </span>
-          )}
-        </button>
-
-        {recentOpen && (
-          <>
-            {recentTwists.length > 0 ? (
-              <ul
-                key={feedBumpKey}
-                className="mt-2 flex flex-col gap-2"
-                aria-label="Recent twists"
-              >
-                {recentTwists.map((item, index) => {
-                  if (item.kind !== 'twist') return null
-                  return (
-                    <li
-                      key={item.id}
-                      className="stage-feed-enter font-mono text-[11px] italic leading-relaxed text-[#B8860B]/90"
-                      style={{ animationDelay: `${index * 40}ms` }}
-                    >
-                      <span className="not-italic text-[#888880]">{item.userDisplayName}:</span>{' '}
-                      "{item.text}"
-                    </li>
-                  )
-                })}
-              </ul>
-            ) : (
-              <p className="mt-2 font-mono text-[11px] text-[#444440]">No prior twists.</p>
-            )}
-            <button
-              type="button"
-              onClick={() => setHistoryOpen(true)}
-              className="mt-2 inline-flex w-fit font-mono text-[10px] uppercase tracking-[0.18em] text-[#888880] underline-offset-2 transition-colors hover:text-[#F0EDE8] hover:underline"
-            >
-              Full history
-            </button>
-          </>
-        )}
-      </div>
-
-      {/* Submit form */}
-      <div className="flex flex-col gap-2 border-t border-[#242424]/50 pt-2.5">
+      {/* Submit form — at the top */}
+      <div className="flex flex-col gap-2">
         <CountdownLine
           stageLocked={stageLocked}
           userLocked={userLocked}
@@ -278,6 +180,37 @@ export function NarrativeTwist({
         </button>
         <SubmissionStatus state={submission} />
       </div>
+
+      {/* History — always shown, no toggle, up to 5 recent twists */}
+      {recentTwists.length > 0 && (
+        <div className="flex flex-col gap-2 border-t border-[#242424]/50 pt-2.5">
+          <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-[#444440]">
+            Recent · {twistCount} twist{twistCount !== 1 ? 's' : ''}
+          </p>
+          <ul key={feedBumpKey} className="flex flex-col gap-2" aria-label="Recent twists">
+            {recentTwists.map((item, index) => {
+              if (item.kind !== 'twist') return null
+              return (
+                <li
+                  key={item.id}
+                  className="stage-feed-enter font-mono text-[11px] italic leading-relaxed text-[#B8860B]/90"
+                  style={{ animationDelay: `${index * 40}ms` }}
+                >
+                  <span className="not-italic text-[#888880]">{item.userDisplayName}:</span>{' '}
+                  "{item.text}"
+                </li>
+              )
+            })}
+          </ul>
+          <button
+            type="button"
+            onClick={() => setHistoryOpen(true)}
+            className="inline-flex w-fit font-mono text-[10px] uppercase tracking-[0.18em] text-[#888880] underline-offset-2 transition-colors hover:text-[#F0EDE8] hover:underline"
+          >
+            Full history
+          </button>
+        </div>
+      )}
     </>
   )
 
@@ -297,28 +230,20 @@ export function NarrativeTwist({
               >
                 Narrative Twist
               </h2>
-              {!panelOpen && twistPreview && (
-                <span className="truncate font-mono text-[10px] italic text-[#888880]">
-                  {twistPreview}
-                </span>
-              )}
-              {!panelOpen && !stageLocked && !userLocked && (
+              {windowOpen && (
                 <span className="shrink-0 font-mono text-[10px] uppercase tracking-[0.18em] text-[#C41E3A]">
                   Open
                 </span>
               )}
             </div>
-            <div className="flex shrink-0 items-center gap-2">
-              {liveIndicator}
-              <span
-                className={cn(
-                  'text-[10px] text-[#444440] transition-transform',
-                  panelOpen && 'rotate-180',
-                )}
-              >
-                ▾
-              </span>
-            </div>
+            <span
+              className={cn(
+                'shrink-0 text-[10px] text-[#444440] transition-transform',
+                panelOpen && 'rotate-180',
+              )}
+            >
+              ▾
+            </span>
           </button>
 
           {panelOpen && (
@@ -349,7 +274,11 @@ export function NarrativeTwist({
           >
             Narrative Twist
           </h2>
-          {liveIndicator}
+          {windowOpen && (
+            <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-[#C41E3A]">
+              Open
+            </span>
+          )}
         </header>
         {body}
       </aside>
@@ -370,22 +299,13 @@ function CountdownLine({
   userLocked,
   stageRemainingMs,
   userRemainingMs,
-  inline = false,
 }: {
   stageLocked: boolean
   userLocked: boolean
   stageRemainingMs: number
   userRemainingMs: number
-  inline?: boolean
 }) {
   if (!stageLocked && !userLocked) {
-    if (inline) {
-      return (
-        <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-[#C41E3A]">
-          Open
-        </span>
-      )
-    }
     return (
       <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-[#888880]">
         Window open — <span className="text-[#C41E3A]">submit now</span>
@@ -394,20 +314,12 @@ function CountdownLine({
   }
 
   const ms = stageLocked ? stageRemainingMs : userRemainingMs
+  const label = stageLocked ? 'Window closes in' : 'Your cooldown'
   const minutes = Math.floor(ms / 60000)
   const seconds = Math.floor((ms % 60000) / 1000)
   const mm = String(minutes).padStart(2, '0')
   const ss = String(seconds).padStart(2, '0')
 
-  if (inline) {
-    return (
-      <span className="font-mono text-[10px] tracking-[0.05em] text-[#F0EDE8]/60">
-        {mm}:{ss}
-      </span>
-    )
-  }
-
-  const label = stageLocked ? 'Window closes in' : 'Your cooldown'
   return (
     <p className="flex items-baseline gap-2 font-mono text-[11px] uppercase tracking-[0.18em] text-[#888880]">
       <span>{label}</span>

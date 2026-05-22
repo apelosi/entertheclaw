@@ -17,7 +17,7 @@ If the user has made recent design changes and asks you to continue or extend th
 
 ## Local dev (iCloud)
 
-Repo lives on iCloud Drive. `bun run dev` marks `.next` with **`.nosync`** so iCloud does not evict webpack chunks mid-dev (`ChunkLoadError` on `/auth`). If it still happens: `bun run dev:clean` and hard-refresh the browser (Cmd+Shift+R).
+Repo lives on iCloud Drive. `bun run dev` marks `.next` with **`.nosync`** so iCloud does not evict webpack chunks mid-dev (`ChunkLoadError`, unstyled pages). If it still happens: `bun run dev:clean` and hard-refresh the browser (Cmd+Shift+R).
 
 ## Stack
 

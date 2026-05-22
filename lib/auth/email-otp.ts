@@ -136,6 +136,20 @@ function otpSendError(data: OtpApiResponse, status: number, retryAfterSec?: numb
   return 'Could not send sign-in code.'
 }
 
+function verificationCodeSendError(
+  data: OtpApiResponse,
+  status: number,
+  retryAfterSec?: number,
+): string {
+  const message = data.message ?? data.error
+  if (message && status !== 429) return message
+  if (status === 429) {
+    const wait = retryAfterSec ?? OTP_SERVER_WINDOW_SEC
+    return formatBlockedMessage(wait, false)
+  }
+  return 'Could not send verification code.'
+}
+
 let sendInFlight: Promise<SendSignInOtpResult> | null = null
 let sendInFlightEmail: string | null = null
 
@@ -234,5 +248,56 @@ export async function verifySignInOtp(options: {
     }
   }
 
+  return { ok: true }
+}
+
+export type SendForgetPasswordOtpResult = SendSignInOtpResult
+
+/** Sends a forget-password OTP (used to set an initial password on the account page). */
+export async function sendForgetPasswordOtp(email: string): Promise<SendForgetPasswordOtpResult> {
+  const normalized = normalizeEmail(email)
+  if (!normalized || !normalized.includes('@')) {
+    return { ok: false, error: 'Enter a valid email address.' }
+  }
+
+  const cooldown = getOtpSendCooldown(normalized)
+  if (cooldown.blocked) {
+    return {
+      ok: false,
+      error: formatBlockedMessage(cooldown.retryAfterSec, cooldown.clientBlocked),
+      rateLimited: true,
+      retryAfterSec: cooldown.retryAfterSec,
+      clientBlocked: cooldown.clientBlocked,
+    }
+  }
+
+  const res = await fetch('/api/auth/forget-password/email-otp', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify({ email: normalized }),
+  })
+
+  const data = (await res.json().catch(() => ({}))) as OtpApiResponse
+
+  if (res.status === 429) {
+    recordServerRateLimit(normalized)
+    const retryAfterSec = OTP_SERVER_WINDOW_SEC
+    return {
+      ok: false,
+      error: verificationCodeSendError(data, res.status, retryAfterSec),
+      rateLimited: true,
+      retryAfterSec,
+    }
+  }
+
+  if (!res.ok || data.success !== true) {
+    return {
+      ok: false,
+      error: verificationCodeSendError(data, res.status),
+    }
+  }
+
+  recordSendSuccess(normalized)
   return { ok: true }
 }

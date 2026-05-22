@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import { Nav } from '@/components/nav'
 import { ConnectedProviders } from '@/components/account/connected-providers'
 import { DisplayNameForm } from '@/components/account/display-name-form'
+import { PasswordForm } from '@/components/account/password-form'
 import { SignOutButton } from '@/components/auth/sign-out-button'
 import { InfoTooltip } from '@/components/ui/info-tooltip'
 import type { Metadata } from 'next'
@@ -58,6 +59,13 @@ export default async function AccountPage() {
               </dd>
             </div>
           </dl>
+        </section>
+
+        <section className="mb-8 rounded-md border border-[#242424] bg-[#161616] p-5">
+          <h2 className="mb-4 text-xs font-semibold uppercase tracking-[0.1em] text-[#888880]">
+            Password
+          </h2>
+          <PasswordForm />
         </section>
 
         <section className="mb-8 rounded-md border border-[#242424] bg-[#161616] p-5">

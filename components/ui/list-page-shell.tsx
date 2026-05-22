@@ -1,8 +1,5 @@
 import Link from 'next/link'
 
-const TAB_LINK_BASE =
-  'font-mono text-xs uppercase tracking-[0.1em] transition-colors'
-
 export interface ListPageTab {
   key: string
   label: string
@@ -18,29 +15,25 @@ function ListPageTabLinks({
 }) {
   return (
     <nav
-      className="mt-3 flex flex-wrap items-center gap-x-1 gap-y-1"
+      className="mt-3 flex flex-wrap items-center gap-x-6"
       aria-label="View"
     >
-      {tabs.map((tab, index) => {
+      {tabs.map((tab) => {
         const isActive = tab.key === activeKey
         return (
-          <span key={tab.key} className="inline-flex items-center gap-x-1">
-            {index > 0 ? (
-              <span className="font-mono text-xs text-[#444440]" aria-hidden>
-                ·
-              </span>
-            ) : null}
-            <Link
-              href={tab.href}
-              aria-current={isActive ? 'page' : undefined}
-              className={
-                TAB_LINK_BASE +
-                (isActive ? ' text-[#C41E3A]' : ' text-[#888880] hover:text-[#C41E3A]')
-              }
-            >
-              {tab.label}
-            </Link>
-          </span>
+          <Link
+            key={tab.key}
+            href={tab.href}
+            aria-current={isActive ? 'page' : undefined}
+            className={
+              'inline-flex h-8 items-center border-b-2 font-mono text-xs uppercase tracking-[0.1em] transition-colors ' +
+              (isActive
+                ? 'border-[#C41E3A] text-[#C41E3A]'
+                : 'border-transparent text-[#888880] hover:border-[#3A3A3A] hover:text-[#F0EDE8]')
+            }
+          >
+            {tab.label}
+          </Link>
         )
       })}
     </nav>

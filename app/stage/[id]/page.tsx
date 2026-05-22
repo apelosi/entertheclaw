@@ -126,6 +126,7 @@ export default async function StagePage({ params }: Props) {
         stageTheme={stage.theme}
         stageDescription={stage.description ?? null}
         stageImageUrl={stage.imageUrl ?? null}
+        stageCreatedAt={stage.createdAt ? stage.createdAt.toISOString() : null}
         participants={participants}
         initialEvents={recentEvents}
         isLoggedIn={Boolean(userId)}

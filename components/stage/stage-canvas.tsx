@@ -8,7 +8,7 @@ import { CharactersRail, type RailCharacter } from './characters-rail'
 import { NarrativeTwist } from './narrative-twist'
 import { DialoguePanel, type CurrentDialogue } from './dialogue-panel'
 import { CharacterOnStage, layoutPositions, type OnStageCharacter } from './character-on-stage'
-import { ActiveTwistPanel, type ActiveTwist } from './active-twist'
+import { TwistPanel, type ActiveTwist } from './active-twist'
 import { StageAboutPanel } from './stage-about-panel'
 import { useStageEvents } from './use-stage-events'
 import {
@@ -44,6 +44,7 @@ interface StageCanvasProps {
   stageTheme: string
   stageDescription: string | null
   stageImageUrl: string | null
+  stageCreatedAt: string | null
   participants: Participant[]
   initialEvents: StageEvent[]
   isLoggedIn: boolean
@@ -82,6 +83,7 @@ export default function StageCanvas({
   stageTheme,
   stageDescription,
   stageImageUrl,
+  stageCreatedAt,
   participants,
   initialEvents,
   isLoggedIn,
@@ -301,10 +303,19 @@ export default function StageCanvas({
     }
   }, [])
 
-  const recentItems = useMemo(() => {
+  // Dialogue-only feed for the dialogue panel's recent lines
+  const recentDialogueItems = useMemo(() => {
     const activeId = dialogue?.eventId
-    return feedItems.filter((i) => i.id !== activeId).slice(0, RECENT_FEED_LIMIT)
+    return feedItems
+      .filter((i) => i.kind === 'dialogue' && i.id !== activeId)
+      .slice(0, RECENT_FEED_LIMIT)
   }, [feedItems, dialogue?.eventId])
+
+  // Twist-only feed for the twist panel
+  const recentTwistItems = useMemo(
+    () => feedItems.filter((i) => i.kind === 'twist').slice(0, RECENT_FEED_LIMIT),
+    [feedItems],
+  )
 
   const onStageChars: OnStageCharacter[] = useMemo(
     () =>
@@ -339,10 +350,38 @@ export default function StageCanvas({
 
   const themeLabel = THEME_LABELS[stageTheme] ?? stageTheme
 
+  // Shared panel props
+  const sharedDialogueProps = {
+    stageId,
+    stageName,
+    dialogue,
+    allHistoryItems: feedItems,
+    feedBumpKey,
+    lineCount,
+  }
+
+  const sharedTwistProps = {
+    twist: activeTwist,
+    recentTwists: recentTwistItems,
+    twistCount,
+    stageId,
+    stageName,
+    feedBumpKey,
+  }
+
+  const sharedNarrativeProps = {
+    stageId,
+    isLoggedIn,
+    lastTwistAt,
+    lastUserTwistAt,
+    liveLastTwistAt,
+    onLocalSubmitSuccess: () => setLiveLastTwistAt(Date.now()),
+  }
+
   return (
-    <main className="relative w-full overflow-hidden">
-      {/* Stage band: backdrop + sprites + HUD overlays. Aspect matches source image so no vertical crop. */}
-      <div className="relative aspect-[16/9] min-h-[640px] w-full">
+    <main className="relative w-full overflow-hidden bg-[#080808]">
+      {/* Stage band: backdrop + sprites + HUD overlays */}
+      <div className="relative aspect-[16/9] min-h-[200px] w-full">
         {/* Backdrop */}
         <div className="absolute inset-0">
           {stageImageUrl ? (
@@ -375,39 +414,33 @@ export default function StageCanvas({
           ))}
         </div>
 
-        {/* Title bar overlay: exit / centered title + stats / about */}
-        <div className="pointer-events-none absolute inset-x-0 top-0 z-20 px-5 pt-4">
-          <div className="pointer-events-auto flex items-start gap-4">
+        {/* Slim title bar: ← | Stage Name | About */}
+        <div className="pointer-events-none absolute inset-x-0 top-0 z-20 px-4 pt-3">
+          <div className="pointer-events-auto flex items-center gap-3">
+            {/* Back — icon only on mobile, label on desktop */}
             <Link
               href="/"
-              className="mt-1 inline-flex shrink-0 items-center gap-1.5 font-mono text-[11px] uppercase tracking-[0.18em] text-[#F0EDE8]/90 drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)] transition-colors hover:text-[#F0EDE8]"
+              aria-label="Exit stage"
+              className="inline-flex shrink-0 items-center gap-1.5 font-mono text-[11px] uppercase tracking-[0.18em] text-[#F0EDE8]/90 drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)] transition-colors hover:text-[#F0EDE8]"
             >
-              <span className="text-[#C41E3A]">←</span> Exit Stage
+              <span className="text-[#C41E3A]">←</span>
+              <span className="hidden sm:inline">Exit Stage</span>
             </Link>
-            <div className="flex flex-1 flex-col items-center gap-1.5">
-              <h1
-                className="text-center text-[28px] font-light italic leading-none tracking-[-0.02em] text-[#F0EDE8] drop-shadow-[0_2px_12px_rgba(0,0,0,0.85)]"
-                style={{ fontFamily: 'var(--font-display)' }}
-              >
-                {stageName}
-              </h1>
-              <div className="flex items-center gap-3 font-mono text-[10px] uppercase tracking-[0.18em] text-[#F0EDE8]/80 drop-shadow-[0_1px_3px_rgba(0,0,0,0.85)]">
-                <span>{themeLabel}</span>
-                <span className="text-[#C41E3A]">·</span>
-                <span>
-                  Lines <span className="text-[#F0EDE8]">{lineCount}</span>
-                </span>
-                <span className="text-[#C41E3A]">·</span>
-                <span>
-                  Twists <span className="text-[#F0EDE8]">{twistCount}</span>
-                </span>
-              </div>
-            </div>
+
+            {/* Stage name */}
+            <h1
+              className="flex-1 text-center text-[22px] font-light italic leading-none tracking-[-0.02em] text-[#F0EDE8] drop-shadow-[0_2px_12px_rgba(0,0,0,0.85)] sm:text-[28px]"
+              style={{ fontFamily: 'var(--font-display)' }}
+            >
+              {stageName}
+            </h1>
+
+            {/* About */}
             <button
               type="button"
               onClick={() => setAboutOpen((v) => !v)}
               aria-expanded={aboutOpen}
-              className="mt-1 inline-flex shrink-0 items-center gap-1 rounded border border-[#3A3A3A]/60 bg-[#080808]/40 px-2 py-1 font-mono text-[10px] uppercase tracking-[0.18em] text-[#F0EDE8]/90 backdrop-blur-sm transition-colors hover:border-[#C41E3A]/60 hover:text-[#F0EDE8]"
+              className="shrink-0 font-mono text-[10px] uppercase tracking-[0.18em] text-[#F0EDE8]/70 drop-shadow-[0_1px_3px_rgba(0,0,0,0.85)] transition-colors hover:text-[#F0EDE8]"
             >
               About
             </button>
@@ -416,39 +449,52 @@ export default function StageCanvas({
 
         <StageAboutPanel
           description={stageDescription}
+          theme={stageTheme}
+          themeLabel={themeLabel}
+          createdAt={stageCreatedAt}
           open={aboutOpen}
           onClose={() => setAboutOpen(false)}
         />
 
-        {/* Left HUD stack */}
-        <div className="pointer-events-none absolute left-5 top-[5.75rem] z-20 flex w-[min(20rem,calc(100%-2.5rem))] flex-col gap-3 pb-2">
+        {/* Mobile: dialogue overlay anchored to bottom of band */}
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 px-4 lg:hidden">
+          <DialoguePanel
+            {...sharedDialogueProps}
+            recentItems={recentDialogueItems}
+          />
+        </div>
+
+        {/* Desktop left HUD stack */}
+        <div className="pointer-events-none absolute left-5 top-[4.5rem] z-20 hidden w-[min(20rem,calc(100%-2.5rem))] flex-col gap-3 pb-2 lg:flex">
           <CharactersRail
             stageId={stageId}
             mainCharacters={mainCharacters}
             activeAgentId={activeAgentId}
           />
-          <NarrativeTwist
-            stageId={stageId}
-            isLoggedIn={isLoggedIn}
-            lastTwistAt={lastTwistAt}
-            lastUserTwistAt={lastUserTwistAt}
-            liveLastTwistAt={liveLastTwistAt}
-            onLocalSubmitSuccess={() => setLiveLastTwistAt(Date.now())}
-          />
-          <ActiveTwistPanel twist={activeTwist} />
+          <NarrativeTwist {...sharedNarrativeProps} />
+          <TwistPanel {...sharedTwistProps} />
         </div>
 
-        {/* Right HUD — dialogue */}
-        <div className="pointer-events-none absolute right-5 top-[5.75rem] z-20 w-[min(20rem,calc(100%-2.5rem))] pb-4">
+        {/* Desktop right HUD — dialogue */}
+        <div className="pointer-events-none absolute right-5 top-[4.5rem] z-20 hidden w-[min(20rem,calc(100%-2.5rem))] pb-4 lg:block">
           <DialoguePanel
-            stageId={stageId}
-            stageName={stageName}
-            dialogue={dialogue}
-            recentItems={recentItems}
-            allHistoryItems={feedItems}
-            feedBumpKey={feedBumpKey}
+            {...sharedDialogueProps}
+            recentItems={recentDialogueItems}
           />
         </div>
+      </div>
+
+      {/* Mobile stacked panels below the stage band */}
+      <div className="flex flex-col gap-3 p-4 lg:hidden">
+        <NarrativeTwist {...sharedNarrativeProps} collapsible defaultOpen />
+        <TwistPanel {...sharedTwistProps} collapsible defaultOpen={false} />
+        <CharactersRail
+          stageId={stageId}
+          mainCharacters={mainCharacters}
+          activeAgentId={activeAgentId}
+          collapsible
+          defaultOpen={false}
+        />
       </div>
     </main>
   )

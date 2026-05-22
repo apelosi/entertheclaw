@@ -75,8 +75,8 @@ export default async function AgentsPage({
   ])
 
   const tabs = [
-    { key: 'community', label: 'Community Agents', href: '/agents' },
-    { key: 'mine', label: 'My Agents', href: '/agents?tab=mine' },
+    { key: 'community', label: 'Community', href: '/agents' },
+    { key: 'mine', label: 'My', href: '/agents?tab=mine' },
   ]
 
   const subtitle =

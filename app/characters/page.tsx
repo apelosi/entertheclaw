@@ -75,8 +75,8 @@ export default async function CharactersPage({
   ])
 
   const tabs = [
-    { key: 'community', label: "Community Agent's Characters", href: '/characters' },
-    { key: 'mine', label: "My Agent's Characters", href: '/characters?tab=mine' },
+    { key: 'community', label: 'Community', href: '/characters' },
+    { key: 'mine', label: 'My', href: '/characters?tab=mine' },
   ]
 
   const subtitle =

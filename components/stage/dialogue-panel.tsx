@@ -23,6 +23,7 @@ interface Props {
   recentItems: FeedItem[]
   allHistoryItems: FeedItem[]
   feedBumpKey: number
+  lineCount: number
 }
 
 export function DialoguePanel({
@@ -32,8 +33,10 @@ export function DialoguePanel({
   recentItems,
   allHistoryItems,
   feedBumpKey,
+  lineCount,
 }: Props) {
   const [historyOpen, setHistoryOpen] = useState(false)
+  const [recentOpen, setRecentOpen] = useState(false)
 
   return (
     <>
@@ -87,51 +90,76 @@ export function DialoguePanel({
           </div>
         </div>
 
-        {recentItems.length > 0 && (
-          <ul
-            key={feedBumpKey}
-            className="flex flex-col gap-2 border-t border-[#242424]/50 pt-3"
-            aria-label="Recent lines"
+        {/* Recent lines toggle */}
+        <div className="border-t border-[#242424]/50 pt-2">
+          <button
+            type="button"
+            onClick={() => setRecentOpen((v) => !v)}
+            className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.18em] text-[#888880] transition-colors hover:text-[#F0EDE8]"
           >
-            {recentItems.map((item, index) => (
-              <li
-                key={item.id}
-                className={cn(
-                  'stage-feed-enter font-mono text-[11px] leading-relaxed',
-                  item.kind === 'twist' ? 'text-[#B8860B]/90' : 'text-[#888880]',
+            <span
+              className={cn(
+                'inline-block transition-transform text-[8px]',
+                recentOpen ? 'rotate-180' : '',
+              )}
+            >
+              ▾
+            </span>
+            {recentOpen ? (
+              <span>
+                Recent{' '}
+                <span className="text-[#F0EDE8]/60">
+                  · {lineCount} line{lineCount !== 1 ? 's' : ''}
+                </span>
+              </span>
+            ) : (
+              <span>
+                Recent
+                {recentItems.length > 0 && (
+                  <span className="ml-1 text-[#444440]">({recentItems.length})</span>
                 )}
-                style={{ animationDelay: `${index * 40}ms` }}
-              >
-                {item.kind === 'twist' ? (
-                  <span>
-                    <span className="uppercase tracking-[0.12em] text-[#B8860B]">
-                      Twist
-                    </span>
-                    {' · '}
-                    <span className="italic text-[#888880]">“{item.text}”</span>
-                  </span>
-                ) : (
-                  <span>
-                    <span className="text-[#C41E3A]/80">{item.speakerName}:</span>{' '}
-                    {item.isEmote ? (
-                      <em>{item.text}</em>
-                    ) : (
-                      item.text
-                    )}
-                  </span>
-                )}
-              </li>
-            ))}
-          </ul>
-        )}
+              </span>
+            )}
+          </button>
 
-        <button
-          type="button"
-          onClick={() => setHistoryOpen(true)}
-          className="mt-1 inline-flex w-fit font-mono text-[10px] uppercase tracking-[0.18em] text-[#888880] underline-offset-2 transition-colors hover:text-[#F0EDE8] hover:underline"
-        >
-          Dialogue history
-        </button>
+          {recentOpen && (
+            <>
+              {recentItems.length > 0 ? (
+                <ul
+                  key={feedBumpKey}
+                  className="mt-2 flex flex-col gap-2"
+                  aria-label="Recent lines"
+                >
+                  {recentItems.map((item, index) => (
+                    <li
+                      key={item.id}
+                      className={cn(
+                        'stage-feed-enter font-mono text-[11px] leading-relaxed text-[#888880]',
+                      )}
+                      style={{ animationDelay: `${index * 40}ms` }}
+                    >
+                      {item.kind === 'dialogue' && (
+                        <span>
+                          <span className="text-[#C41E3A]/80">{item.speakerName}:</span>{' '}
+                          {item.isEmote ? <em>{item.text}</em> : item.text}
+                        </span>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="mt-2 font-mono text-[11px] text-[#444440]">No prior lines.</p>
+              )}
+              <button
+                type="button"
+                onClick={() => setHistoryOpen(true)}
+                className="mt-2 inline-flex w-fit font-mono text-[10px] uppercase tracking-[0.18em] text-[#888880] underline-offset-2 transition-colors hover:text-[#F0EDE8] hover:underline"
+              >
+                Full history
+              </button>
+            </>
+          )}
+        </div>
       </section>
 
       <DialogueHistoryModal

@@ -1,5 +1,4 @@
 import type { NextConfig } from 'next'
-import type { Compiler } from 'webpack'
 import fs from 'fs'
 import path from 'path'
 import { execSync } from 'child_process'
@@ -19,7 +18,9 @@ function markNextDirNoSync(projectDir: string) {
 class EnsureNextNosyncPlugin {
   constructor(private readonly projectDir: string) {}
 
-  apply(compiler: Compiler) {
+  apply(compiler: {
+    hooks: { done: { tap: (name: string, fn: () => void) => void } }
+  }) {
     compiler.hooks.done.tap('EnsureNextNosync', () => {
       markNextDirNoSync(this.projectDir)
     })

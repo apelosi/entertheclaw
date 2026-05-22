@@ -41,20 +41,7 @@ export function DialoguePanel({
   return (
     <>
       <section className="glass-hud pointer-events-auto flex w-full flex-col gap-2.5 rounded-sm border-l-2 border-l-[#C41E3A]/70 p-3 shadow-[0_12px_40px_rgba(0,0,0,0.45)]">
-        <header className="flex items-baseline justify-between gap-3">
-          <h3
-            className="text-[20px] font-light italic leading-none tracking-[-0.02em] text-[#F0EDE8]"
-            style={{ fontFamily: 'var(--font-display)' }}
-          >
-            Dialogue
-          </h3>
-          {dialogue && (
-            <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-[#C41E3A]">
-              {dialogue.speakerName}
-            </span>
-          )}
-        </header>
-
+        {/* Portrait + current line — no "Dialogue" heading */}
         <div className="flex items-start gap-3">
           <div className="h-12 w-12 shrink-0 overflow-hidden rounded-sm bg-[#0e0e0e]/70 ring-1 ring-[#242424]/60">
             {dialogue?.speakerImageUrl ? (
@@ -74,14 +61,19 @@ export function DialoguePanel({
 
           <div className="min-h-[3rem] flex-1">
             {dialogue ? (
-              <p className="font-mono text-[13px] leading-relaxed text-[#F0EDE8]">
-                {dialogue.isEmote ? (
-                  <em className="text-[#888880]">{dialogue.displayedText}</em>
-                ) : (
-                  dialogue.displayedText
-                )}
-                <span className="ml-1 inline-block h-3.5 w-1.5 align-middle bg-[#C41E3A] animate-pulse-live" />
-              </p>
+              <>
+                <p className="mb-1 font-mono text-[10px] uppercase tracking-[0.18em] text-[#C41E3A]">
+                  {dialogue.speakerName}
+                </p>
+                <p className="font-mono text-[13px] leading-relaxed text-[#F0EDE8]">
+                  {dialogue.isEmote ? (
+                    <em className="text-[#888880]">{dialogue.displayedText}</em>
+                  ) : (
+                    dialogue.displayedText
+                  )}
+                  <span className="ml-1 inline-block h-3.5 w-1.5 align-middle bg-[#C41E3A] animate-pulse-live" />
+                </p>
+              </>
             ) : (
               <p className="font-mono text-[13px] leading-relaxed text-[#444440]">
                 Waiting for the stage to speak…
@@ -90,7 +82,7 @@ export function DialoguePanel({
           </div>
         </div>
 
-        {/* Recent lines toggle */}
+        {/* Recent lines toggle — at the bottom */}
         <div className="border-t border-[#242424]/50 pt-2">
           <button
             type="button"
@@ -99,7 +91,7 @@ export function DialoguePanel({
           >
             <span
               className={cn(
-                'inline-block transition-transform text-[8px]',
+                'inline-block text-[8px] transition-transform',
                 recentOpen ? 'rotate-180' : '',
               )}
             >
@@ -133,9 +125,7 @@ export function DialoguePanel({
                   {recentItems.map((item, index) => (
                     <li
                       key={item.id}
-                      className={cn(
-                        'stage-feed-enter font-mono text-[11px] leading-relaxed text-[#888880]',
-                      )}
+                      className="stage-feed-enter font-mono text-[11px] leading-relaxed text-[#888880]"
                       style={{ animationDelay: `${index * 40}ms` }}
                     >
                       {item.kind === 'dialogue' && (

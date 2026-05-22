@@ -8,7 +8,7 @@ import { CharactersRail, type RailCharacter } from './characters-rail'
 import { NarrativeTwist } from './narrative-twist'
 import { DialoguePanel, type CurrentDialogue } from './dialogue-panel'
 import { CharacterOnStage, layoutPositions, type OnStageCharacter } from './character-on-stage'
-import { TwistPanel, type ActiveTwist } from './active-twist'
+import { type ActiveTwist } from './active-twist'
 import { StageAboutPanel } from './stage-about-panel'
 import { useStageEvents } from './use-stage-events'
 import {
@@ -360,22 +360,18 @@ export default function StageCanvas({
     lineCount,
   }
 
-  const sharedTwistProps = {
-    twist: activeTwist,
-    recentTwists: recentTwistItems,
-    twistCount,
-    stageId,
-    stageName,
-    feedBumpKey,
-  }
-
   const sharedNarrativeProps = {
     stageId,
+    stageName,
     isLoggedIn,
     lastTwistAt,
     lastUserTwistAt,
     liveLastTwistAt,
     onLocalSubmitSuccess: () => setLiveLastTwistAt(Date.now()),
+    activeTwist,
+    recentTwists: recentTwistItems,
+    twistCount,
+    feedBumpKey,
   }
 
   return (
@@ -414,8 +410,8 @@ export default function StageCanvas({
           ))}
         </div>
 
-        {/* Slim title bar: ← | Stage Name | About */}
-        <div className="pointer-events-none absolute inset-x-0 top-0 z-20 px-4 pt-3">
+        {/* Slim title bar: ← | Stage Name | About — z-30 so it renders above dialogue overlay */}
+        <div className="pointer-events-none absolute inset-x-0 top-0 z-30 px-4 pt-3">
           <div className="pointer-events-auto flex items-center gap-3">
             {/* Back — icon only on mobile, label on desktop */}
             <Link
@@ -472,7 +468,6 @@ export default function StageCanvas({
             activeAgentId={activeAgentId}
           />
           <NarrativeTwist {...sharedNarrativeProps} />
-          <TwistPanel {...sharedTwistProps} />
         </div>
 
         {/* Desktop right HUD — dialogue */}
@@ -487,7 +482,6 @@ export default function StageCanvas({
       {/* Mobile stacked panels below the stage band */}
       <div className="flex flex-col gap-3 p-4 lg:hidden">
         <NarrativeTwist {...sharedNarrativeProps} collapsible defaultOpen />
-        <TwistPanel {...sharedTwistProps} collapsible defaultOpen={false} />
         <CharactersRail
           stageId={stageId}
           mainCharacters={mainCharacters}

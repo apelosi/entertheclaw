@@ -375,9 +375,9 @@ export default function StageCanvas({
   }
 
   return (
-    <main className="relative w-full overflow-hidden bg-[#080808]">
+    <main className="relative w-full bg-[#080808]">
       {/* Stage band: backdrop + sprites + HUD overlays */}
-      <div className="relative aspect-[16/9] min-h-[200px] w-full">
+      <div className="relative aspect-[16/9] min-h-[200px] w-full overflow-hidden">
         {/* Backdrop */}
         <div className="absolute inset-0">
           {stageImageUrl ? (

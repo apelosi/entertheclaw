@@ -35,10 +35,10 @@ export function CharactersRail({
   const activeCount = mainCharacters.length
 
   return (
-    <aside className="pointer-events-auto hidden w-64 flex-col gap-3 border-l-2 border-l-[#C41E3A]/70 pl-4 lg:flex">
+    <aside className="glass-hud pointer-events-auto flex w-full flex-col gap-2.5 rounded-sm border-l-2 border-l-[#C41E3A]/70 p-3 shadow-[0_12px_40px_rgba(0,0,0,0.45)]">
       <header className="flex items-baseline justify-between gap-3">
         <h2
-          className="text-[22px] font-light italic leading-none tracking-[-0.02em] text-[#F0EDE8]"
+          className="text-[20px] font-light italic leading-none tracking-[-0.02em] text-[#F0EDE8]"
           style={{ fontFamily: 'var(--font-display)' }}
         >
           Characters

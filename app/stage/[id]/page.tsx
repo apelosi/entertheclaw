@@ -8,7 +8,7 @@ import {
   twists,
   agents,
 } from '@/lib/db/schema'
-import { eq, desc, and } from 'drizzle-orm'
+import { eq, desc, and, count } from 'drizzle-orm'
 import type { Metadata } from 'next'
 import StageViewClient from '@/components/stage/stage-view-client'
 import { Nav } from '@/components/nav'
@@ -56,7 +56,7 @@ async function getStageData(id: string, userId: string | null) {
     .from(stageEvents)
     .where(eq(stageEvents.stageId, id))
     .orderBy(desc(stageEvents.createdAt))
-    .limit(20)
+    .limit(50)
 
   const [lastStageTwist] = await db
     .select({ createdAt: twists.createdAt })
@@ -64,6 +64,16 @@ async function getStageData(id: string, userId: string | null) {
     .where(eq(twists.stageId, id))
     .orderBy(desc(twists.createdAt))
     .limit(1)
+
+  const [lineCountRow] = await db
+    .select({ count: count() })
+    .from(stageEvents)
+    .where(and(eq(stageEvents.stageId, id), eq(stageEvents.type, 'dialogue')))
+
+  const [twistCountRow] = await db
+    .select({ count: count() })
+    .from(stageEvents)
+    .where(and(eq(stageEvents.stageId, id), eq(stageEvents.type, 'twist')))
 
   let lastUserTwist: { createdAt: Date | null } | null = null
   if (userId) {
@@ -84,6 +94,8 @@ async function getStageData(id: string, userId: string | null) {
     lastUserTwistAt: lastUserTwist?.createdAt
       ? new Date(lastUserTwist.createdAt).getTime()
       : null,
+    lineCount: Number(lineCountRow?.count ?? 0),
+    twistCount: Number(twistCountRow?.count ?? 0),
   }
 }
 
@@ -95,7 +107,15 @@ export default async function StagePage({ params }: Props) {
   const data = await getStageData(id, userId)
   if (!data) notFound()
 
-  const { stage, participants, recentEvents, lastTwistAt, lastUserTwistAt } = data
+  const {
+    stage,
+    participants,
+    recentEvents,
+    lastTwistAt,
+    lastUserTwistAt,
+    lineCount,
+    twistCount,
+  } = data
 
   return (
     <>
@@ -104,6 +124,7 @@ export default async function StagePage({ params }: Props) {
         stageId={stage.id}
         stageName={stage.name}
         stageTheme={stage.theme}
+        stageDescription={stage.description ?? null}
         stageImageUrl={stage.imageUrl ?? null}
         participants={participants}
         initialEvents={recentEvents}
@@ -111,6 +132,8 @@ export default async function StagePage({ params }: Props) {
         currentUserId={userId}
         lastTwistAt={lastTwistAt}
         lastUserTwistAt={lastUserTwistAt}
+        initialLineCount={lineCount}
+        initialTwistCount={twistCount}
       />
     </>
   )

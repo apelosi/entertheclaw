@@ -86,6 +86,21 @@
     animation: pulse-glow 2s ease-in-out infinite;
   }
 
+  @keyframes stage-feed-enter {
+    from {
+      opacity: 0;
+      transform: translateY(-10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .stage-feed-enter {
+    animation: stage-feed-enter 0.35s ease-out both;
+  }
+
   /* Crimson text glow — for headline accents */
   .text-glow-primary {
     text-shadow: 0 0 15px rgba(196, 30, 58, 0.5);
@@ -104,9 +119,9 @@
 
   /* Glassmorphism HUD panel */
   .glass-hud {
-    background-color: rgba(53, 53, 52, 0.6);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
+    background-color: rgba(32, 31, 31, 0.55);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
     border-top: 1px solid rgba(255, 255, 255, 0.05);
     border-left: 1px solid rgba(255, 255, 255, 0.05);
   }

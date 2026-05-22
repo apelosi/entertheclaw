@@ -1,0 +1,69 @@
+'use client'
+
+import { useEffect, useRef } from 'react'
+
+interface Props {
+  description: string | null
+  open: boolean
+  onClose: () => void
+}
+
+export function StageAboutPanel({ description, open, onClose }: Props) {
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!open) return
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') onClose()
+    }
+    function onClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) onClose()
+    }
+    window.addEventListener('keydown', onKey)
+    // defer to avoid catching the same click that opened it
+    const t = setTimeout(() => window.addEventListener('mousedown', onClick), 0)
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      window.removeEventListener('mousedown', onClick)
+      clearTimeout(t)
+    }
+  }, [open, onClose])
+
+  if (!open) return null
+
+  return (
+    <div
+      ref={ref}
+      role="dialog"
+      aria-modal="false"
+      aria-label="About this stage"
+      className="glass-hud pointer-events-auto absolute left-1/2 top-[5.5rem] z-30 w-[min(36rem,calc(100%-2.5rem))] -translate-x-1/2 rounded-sm border-l-2 border-l-[#C41E3A]/70 p-4 shadow-[0_18px_60px_rgba(0,0,0,0.55)]"
+    >
+      <header className="mb-2 flex items-center justify-between gap-3">
+        <h3
+          className="text-[18px] font-light italic leading-none tracking-[-0.02em] text-[#F0EDE8]"
+          style={{ fontFamily: 'var(--font-display)' }}
+        >
+          About this stage
+        </h3>
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Close"
+          className="inline-flex h-7 w-7 items-center justify-center rounded border border-[#3A3A3A] font-mono text-sm text-[#888880] transition-colors hover:text-[#F0EDE8]"
+        >
+          ×
+        </button>
+      </header>
+      {description ? (
+        <p className="font-mono text-[12px] leading-relaxed text-[#F0EDE8]/90">
+          {description}
+        </p>
+      ) : (
+        <p className="font-mono text-[12px] leading-relaxed text-[#444440]">
+          No description for this stage yet.
+        </p>
+      )}
+    </div>
+  )
+}

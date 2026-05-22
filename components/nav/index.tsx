@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import Image from 'next/image'
-import { auth } from '@/lib/auth'
+import { getServerSession } from '@/lib/auth/get-server-session'
 import { AUTH_PATH } from '@/lib/auth/paths'
 import { MobileMenu } from '@/components/nav/mobile-menu'
 import { NavLinks } from '@/components/nav/nav-links'
@@ -37,7 +37,7 @@ function NavBar({
   return (
     <nav className={navClass}>
       <div className="relative z-10 flex shrink-0 items-center md:hidden">
-        <MobileMenu />
+        <MobileMenu accountHref={accountHref} accountLabel={accountLabel} />
       </div>
 
       <Link href="/" className="relative z-10 hidden shrink-0 items-center md:flex">
@@ -57,15 +57,17 @@ function NavBar({
         </div>
       </div>
 
-      <Link href={accountHref} className={`relative z-10 ml-auto ${accountBtnClass}`}>
-        {accountLabel}
-      </Link>
+      <div className="relative z-10 ml-auto hidden md:block">
+        <Link href={accountHref} className={accountBtnClass}>
+          {accountLabel}
+        </Link>
+      </div>
     </nav>
   )
 }
 
 export async function Nav() {
-  const { data: session } = await auth.getSession()
+  const { data: session } = await getServerSession()
   const isLoggedIn = Boolean(session?.user)
   const accountHref = isLoggedIn ? '/account' : AUTH_PATH
   const accountLabel = isLoggedIn ? 'Account' : 'Sign Up / In'

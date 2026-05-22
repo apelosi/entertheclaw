@@ -2,12 +2,12 @@ import { Nav } from '@/components/nav'
 import { CommunityFeed } from '@/components/home/community-feed'
 import { LoggedInHome } from '@/components/home/logged-in-home'
 import { LoggedOutHero } from '@/components/home/logged-out-hero'
-import { auth } from '@/lib/auth'
+import { getServerSession } from '@/lib/auth/get-server-session'
 
 export const revalidate = 30
 
 export default async function HomePage() {
-  const { data: session } = await auth.getSession()
+  const { data: session } = await getServerSession()
 
   if (session?.user) {
     const displayName =

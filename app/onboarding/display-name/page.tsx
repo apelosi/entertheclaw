@@ -1,4 +1,4 @@
-import { auth } from '@/lib/auth'
+import { getServerSession } from '@/lib/auth/get-server-session'
 import { displayNameOnboardingPath, needsDisplayName } from '@/lib/auth/display-name'
 import { authUrl } from '@/lib/auth/paths'
 import { DisplayNameForm } from '@/components/account/display-name-form'
@@ -18,7 +18,7 @@ export default async function DisplayNameOnboardingPage({ searchParams }: PagePr
   const callbackUrl =
     rawCallback?.startsWith('/') && !rawCallback.startsWith('//') ? rawCallback : HOME_PATH
 
-  const { data: session } = await auth.getSession()
+  const { data: session } = await getServerSession()
   if (!session?.user) {
     redirect(authUrl(displayNameOnboardingPath(callbackUrl)))
   }

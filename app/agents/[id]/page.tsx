@@ -1,5 +1,5 @@
 
-import { auth } from '@/lib/auth'
+import { getServerSession } from '@/lib/auth/get-server-session'
 import { redirect, notFound } from 'next/navigation'
 import { Nav } from '@/components/nav'
 import { db } from '@/lib/db/client'
@@ -20,7 +20,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function AgentDetailPage({ params }: Props) {
   const { id } = await params
-  const { data: session } = await auth.getSession()
+  const { data: session } = await getServerSession()
   if (!session?.user) redirect('/auth')
   const user = session.user
 

@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import type { ReactNode } from 'react'
-import { auth } from '@/lib/auth'
+import { getServerSession } from '@/lib/auth/get-server-session'
 import { authUrl } from '@/lib/auth/paths'
 import { cn } from '@/lib/utils'
 
@@ -14,7 +14,7 @@ interface EnrollAgentLinkProps {
 }
 
 export async function EnrollAgentLink({ className, children }: EnrollAgentLinkProps) {
-  const { data: session } = await auth.getSession()
+  const { data: session } = await getServerSession()
   const href = session?.user ? INVITE_PATH : authUrl(INVITE_PATH)
 
   return (

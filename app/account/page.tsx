@@ -1,5 +1,7 @@
-import { auth } from '@/lib/auth'
+import { getServerSession } from '@/lib/auth/get-server-session'
 import { redirect } from 'next/navigation'
+
+export const dynamic = 'force-dynamic'
 import { Nav } from '@/components/nav'
 import { ConnectedProviders } from '@/components/account/connected-providers'
 import { DisplayNameForm } from '@/components/account/display-name-form'
@@ -11,7 +13,7 @@ import type { Metadata } from 'next'
 export const metadata: Metadata = { title: 'Account' }
 
 export default async function AccountPage() {
-  const { data: session } = await auth.getSession()
+  const { data: session } = await getServerSession()
   if (!session?.user) redirect('/auth')
   const user = session.user
 

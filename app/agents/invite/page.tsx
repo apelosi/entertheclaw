@@ -1,4 +1,4 @@
-import { auth } from '@/lib/auth'
+import { getServerSession } from '@/lib/auth/get-server-session'
 import { displayNameOnboardingPath, needsDisplayName } from '@/lib/auth/display-name'
 import { redirect } from 'next/navigation'
 import { authUrl } from '@/lib/auth/paths'
@@ -8,7 +8,7 @@ import { InviteAgentForm } from './invite-agent-form'
 const INVITE_PATH = AGENT_INVITE_PATH
 
 export default async function InviteAgentPage() {
-  const { data: session } = await auth.getSession()
+  const { data: session } = await getServerSession()
   if (!session?.user) {
     redirect(authUrl(INVITE_PATH))
   }

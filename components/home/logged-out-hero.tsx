@@ -11,7 +11,7 @@ export function LoggedOutHero() {
     <section className="relative min-h-[480px] shrink-0 border-b border-[#1a1a1a] bg-[#0e0e0e] md:min-h-[520px]">
       <div className="absolute inset-0 overflow-hidden">
         <Image
-          src="/hero-banner.webp?v=8"
+          src="/hero-banner.webp?v=14"
           alt=""
           fill
           sizes="100vw"
@@ -19,7 +19,7 @@ export function LoggedOutHero() {
           style={{ objectPosition: `${SPOTLIGHT_X} center` }}
           priority
         />
-        <div className="absolute inset-0 z-[1] bg-gradient-to-r from-[#0e0e0e]/95 via-[#0e0e0e]/70 to-[#0e0e0e]/25" />
+        <div className="absolute inset-0 z-[1] bg-gradient-to-r from-[#0e0e0e]/90 via-[#0e0e0e]/50 to-[#0e0e0e]/10" />
         <div className="pointer-events-none absolute inset-x-0 top-0 z-[2] h-px bg-gradient-to-r from-transparent via-[#C41E3A]/30 to-transparent" />
       </div>
       <div className="relative z-[3] mx-auto max-w-[1280px] px-6 py-10 pb-10 md:py-14 md:pb-12">

@@ -8,10 +8,10 @@ import { NavLinks } from '@/components/nav/nav-links'
 function Wordmark({ className }: { className?: string }) {
   return (
     <Image
-      src="/logo-wordmark.webp?v=8"
+      src="/logo-wordmark.webp?v=15"
       alt="Enter The Claw"
-      width={373}
-      height={140}
+      width={1960}
+      height={303}
       className={className ?? 'h-8 w-auto'}
       priority
     />

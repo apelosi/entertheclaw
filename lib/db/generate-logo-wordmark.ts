@@ -22,7 +22,6 @@ async function writeWordmarkSvg(png: Buffer, width: number, height: number): Pro
   <image width="${width}" height="${height}" xlink:href="data:image/png;base64,${b64}"/>
 </svg>`
   await writeFile(join(process.cwd(), 'public', 'logo-wordmark.svg'), svg)
-  await writeFile(join(process.cwd(), 'public', 'brand', 'wordmark-raster.svg'), svg)
 }
 
 async function main() {

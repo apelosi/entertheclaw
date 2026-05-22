@@ -1,5 +1,5 @@
 /**
- * Refresh hero: seeded theater stage → composite (no Recraft, no postprocess).
+ * Refresh hero: fixed hero-stage.webp → composite (no Recraft, no stage swap).
  * Usage: bun run hero:refresh
  */
 import * as dotenv from 'dotenv'
@@ -26,8 +26,7 @@ function run(script: string): Promise<void> {
 }
 
 async function main() {
-  console.log('Refreshing hero (Clawshank theater stage → composite)...\n')
-  await run('hero:from-stage')
+  console.log('Refreshing hero (fixed stage → composite)...\n')
   await run('hero:composite')
   console.log('\nDone. Homepage uses public/hero-banner.webp')
 }

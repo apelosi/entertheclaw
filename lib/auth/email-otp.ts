@@ -274,11 +274,10 @@ export async function sendForgetPasswordOtp(email: string): Promise<SendForgetPa
     }
   }
 
-  const res = await fetch('/api/auth/forget-password/email-otp', {
+  const res = await fetch('/api/account/send-password-setup-code', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     credentials: 'include',
-    body: JSON.stringify({ email: normalized }),
   })
 
   const data = (await res.json().catch(() => ({}))) as OtpApiResponse

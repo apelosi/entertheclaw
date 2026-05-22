@@ -150,13 +150,23 @@ export function PasswordForm() {
 
     setLoading(true)
     try {
-      const result = await authClient.emailOtp.resetPassword({
-        email: userEmail,
-        otp: otp.trim(),
-        password: newPassword,
+      const res = await fetch('/api/account/set-password-with-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          otp: otp.trim(),
+          password: newPassword,
+          confirmPassword,
+        }),
       })
-      if (result.error) {
-        setError(result.error.message ?? 'Could not set password.')
+      const data = (await res.json().catch(() => ({}))) as {
+        error?: string
+        message?: string
+        code?: string
+      }
+      if (!res.ok) {
+        setError(data.message ?? data.error ?? 'Could not set password.')
         return
       }
       setSuccess('Password set. You can now sign in with email and password.')

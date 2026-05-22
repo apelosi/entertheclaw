@@ -16,3 +16,9 @@
 ## Trade-offs accepted:
 
 - Operators must keep Neon trusted domains in sync with every public app URL (apex, www, preview wildcards).
+
+## Follow-up (2026-05-22): App workaround when allowlist still returns INVALID_ORIGIN
+
+- `POST /api/account/send-password-setup-code` and `POST /api/account/set-password-with-otp` verify session via `getServerSession()`, then call `NEON_AUTH_BASE_URL` directly **without** forwarding browser session cookies (forget-password / reset-password OTP do not require an upstream session).
+- Client set-password flow uses these routes instead of `/api/auth/forget-password/email-otp` and `authClient.emailOtp.resetPassword`.
+- **Change password** (existing credential) still uses `/api/auth/change-password` and remains blocked until Neon trusted domains match production or `NEON_AUTH_BASE_URL` branch config is corrected.

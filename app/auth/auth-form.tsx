@@ -1,6 +1,6 @@
 'use client'
 
-import { Suspense, useState, type ReactNode } from 'react'
+import { Suspense, useEffect, useState, type ReactNode } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { authClient } from '@/lib/auth-client'
@@ -15,6 +15,10 @@ import { displayNameOnboardingPath, needsDisplayName } from '@/lib/auth/display-
 import { HOME_PATH } from '@/lib/paths'
 
 type Step = 'main' | 'otp' | 'password'
+
+const OTP_EMAIL_HINT =
+  'Check spam and Promotions. Subject: “Your Sign-In Code - Enter the Claw (dev)” from entertheclaw@vibez.ventures.'
+const OTP_RESEND_COOLDOWN_SEC = 60
 
 function SocialButton({
   provider,
@@ -71,11 +75,20 @@ function AuthFormInner() {
   const [error, setError] = useState('')
   const [info, setInfo] = useState('')
   const [loading, setLoading] = useState(false)
+  const [resendCooldown, setResendCooldown] = useState(0)
 
   const resetMessages = () => {
     setError('')
     setInfo('')
   }
+
+  useEffect(() => {
+    if (resendCooldown <= 0) return
+    const timer = window.setTimeout(() => {
+      setResendCooldown((seconds) => (seconds <= 1 ? 0 : seconds - 1))
+    }, 1000)
+    return () => window.clearTimeout(timer)
+  }, [resendCooldown])
 
   const finishAuth = async () => {
     const session = await authClient.getSession()
@@ -87,22 +100,34 @@ function AuthFormInner() {
     router.push(callbackURL)
   }
 
-  const handleEmailContinue = async () => {
+  const requestSignInOtp = async (options?: { advanceToOtp?: boolean }) => {
     resetMessages()
     setLoading(true)
     try {
       const result = await sendSignInOtp(email.trim())
       if (!result.ok) {
         setError(result.error)
-        return
+        return false
       }
       setInfo('We sent a sign-in code to your email.')
-      setStep('otp')
+      setResendCooldown(OTP_RESEND_COOLDOWN_SEC)
+      if (options?.advanceToOtp !== false) setStep('otp')
+      return true
     } catch {
       setError('Could not send sign-in code. Check your connection and try again.')
+      return false
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleEmailContinue = async () => {
+    await requestSignInOtp()
+  }
+
+  const handleResendOtp = async () => {
+    if (resendCooldown > 0 || loading) return
+    await requestSignInOtp({ advanceToOtp: false })
   }
 
   const handleOtpSubmit = async () => {
@@ -278,9 +303,10 @@ function AuthFormInner() {
 
         {step === 'otp' && (
           <>
-            <p className="mb-4 text-center text-sm text-[#888880]">
+            <p className="mb-2 text-center text-sm text-[#888880]">
               Enter the code we sent to <span className="text-[#F0EDE8]">{email}</span>
             </p>
+            <p className="mb-4 text-center text-xs text-[#666660]">{OTP_EMAIL_HINT}</p>
             <div className="space-y-3">
               <input
                 type="text"
@@ -309,17 +335,32 @@ function AuthFormInner() {
                 {loading ? 'Please wait…' : 'Continue'}
               </button>
             </div>
-            <p className="mt-4 text-center text-xs text-[#888880]">
-              <button
-                type="button"
-                onClick={() => {
-                  resetMessages()
-                  setStep('main')
-                }}
-                className="text-[#F0EDE8] underline-offset-2 hover:underline"
-              >
-                Use a different email
-              </button>
+            <p className="mt-4 space-y-2 text-center text-xs text-[#888880]">
+              <span className="block">
+                <button
+                  type="button"
+                  disabled={loading || resendCooldown > 0}
+                  onClick={() => void handleResendOtp()}
+                  className="text-[#F0EDE8] underline-offset-2 hover:underline disabled:cursor-not-allowed disabled:text-[#555550] disabled:no-underline"
+                >
+                  {resendCooldown > 0
+                    ? `Resend code in ${resendCooldown}s`
+                    : 'Resend code'}
+                </button>
+              </span>
+              <span className="block">
+                <button
+                  type="button"
+                  onClick={() => {
+                    resetMessages()
+                    setResendCooldown(0)
+                    setStep('main')
+                  }}
+                  className="text-[#F0EDE8] underline-offset-2 hover:underline"
+                >
+                  Use a different email
+                </button>
+              </span>
             </p>
           </>
         )}

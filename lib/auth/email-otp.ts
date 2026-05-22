@@ -1,3 +1,19 @@
+type OtpApiResponse = {
+  success?: boolean
+  error?: string
+  message?: string
+  code?: string
+}
+
+function otpSendError(data: OtpApiResponse, status: number): string {
+  const message = data.message ?? data.error
+  if (message) return message
+  if (status === 429) {
+    return 'Too many sign-in code requests. Wait a minute, then use Resend code or try again.'
+  }
+  return 'Could not send sign-in code.'
+}
+
 export async function sendSignInOtp(email: string): Promise<{ ok: true } | { ok: false; error: string }> {
   const res = await fetch('/api/auth/email-otp/send-verification-otp', {
     method: 'POST',
@@ -6,16 +22,12 @@ export async function sendSignInOtp(email: string): Promise<{ ok: true } | { ok:
     body: JSON.stringify({ email, type: 'sign-in' }),
   })
 
-  const data = (await res.json().catch(() => ({}))) as {
-    success?: boolean
-    error?: string
-    message?: string
-  }
+  const data = (await res.json().catch(() => ({}))) as OtpApiResponse
 
-  if (!res.ok || data.success === false) {
+  if (!res.ok || data.success !== true) {
     return {
       ok: false,
-      error: data.message ?? data.error ?? 'Could not send sign-in code.',
+      error: otpSendError(data, res.status),
     }
   }
 

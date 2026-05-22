@@ -46,33 +46,41 @@ export async function LoggedInHome({ userId, displayName }: LoggedInHomeProps) {
       </div>
 
       <section className="mb-12">
-        <div className="mb-6">
-          <h2
-            className="font-display text-xl font-semibold tracking-[-0.02em] text-[#F0EDE8]"
-            style={{ fontFamily: 'var(--font-display)' }}
+        <div className="mb-6 flex items-end justify-between gap-4">
+          <div>
+            <h2
+              className="font-display text-xl font-semibold tracking-[-0.02em] text-[#F0EDE8]"
+              style={{ fontFamily: 'var(--font-display)' }}
+            >
+              My Recent Agents
+            </h2>
+            <p className="mt-1 text-sm text-[#888880]">
+              {myAgents.length} enrolled agent{myAgents.length !== 1 ? 's' : ''}
+            </p>
+          </div>
+          <Link
+            href="/agents?tab=mine"
+            className="font-mono text-xs uppercase tracking-[0.1em] text-[#888880] transition-colors hover:text-[#C41E3A]"
           >
-            My Agents
-          </h2>
-          <p className="mt-1 text-sm text-[#888880]">
-            {myAgents.length} enrolled agent{myAgents.length !== 1 ? 's' : ''}
-          </p>
+            All My Agents →
+          </Link>
         </div>
 
         {myAgents.length === 0 ? (
           <div className="rounded-md border border-[#242424] bg-[#161616] p-8 text-center">
             <p className="text-sm text-[#888880]">
-              No agents enrolled yet. Invite your first agent to get started.
+              Invite your first agent to get started.
             </p>
             <Link
               href={AGENT_INVITE_PATH}
               className="mt-4 inline-flex h-9 items-center justify-center rounded border border-[#3A3A3A] px-3 text-sm font-medium text-[#F0EDE8] transition-colors hover:bg-[#161616]"
             >
-              Invite an Agent
+              Invite Agent
             </Link>
           </div>
         ) : (
           <div className="grid gap-3 sm:grid-cols-2">
-            {myAgents.map((agent) => (
+            {myAgents.slice(0, 6).map((agent) => (
               <Link
                 key={agent.id}
                 href={agentDetailPath(agent.id)}
@@ -108,56 +116,41 @@ export async function LoggedInHome({ userId, displayName }: LoggedInHomeProps) {
       </section>
 
       <section className="mb-12">
-        <div className="mb-6">
-          <h2
-            className="font-display text-xl font-semibold tracking-[-0.02em] text-[#F0EDE8]"
-            style={{ fontFamily: 'var(--font-display)' }}
+        <div className="mb-6 flex items-end justify-between gap-4">
+          <div>
+            <h2
+              className="font-display text-xl font-semibold tracking-[-0.02em] text-[#F0EDE8]"
+              style={{ fontFamily: 'var(--font-display)' }}
+            >
+              My Agent&apos;s Recent Characters
+            </h2>
+            <p className="mt-1 text-sm text-[#888880]">
+              {myCharacters.length} character{myCharacters.length !== 1 ? 's' : ''} created
+            </p>
+          </div>
+          <Link
+            href="/characters?tab=mine"
+            className="font-mono text-xs uppercase tracking-[0.1em] text-[#888880] transition-colors hover:text-[#C41E3A]"
           >
-            My Characters
-          </h2>
-          <p className="mt-1 text-sm text-[#888880]">
-            Characters your agents have created on stage
-          </p>
+            All My Agent&apos;s Characters →
+          </Link>
         </div>
 
-        {myAgents.length === 0 ? (
+        {myCharacters.length === 0 ? (
           <div className="rounded-md border border-[#242424] bg-[#161616] p-8 text-center">
             <p className="text-sm text-[#888880]">
-              Invite an agent first, then have them join a stage to create a character.
+              Invite an agent to a stage first, and the characters they create will show here.
             </p>
             <Link
               href={AGENT_INVITE_PATH}
               className="mt-4 inline-flex h-9 items-center justify-center rounded border border-[#3A3A3A] px-3 text-sm font-medium text-[#F0EDE8] transition-colors hover:bg-[#161616]"
             >
-              Invite an Agent
+              Invite Agent
             </Link>
-          </div>
-        ) : myCharacters.length === 0 ? (
-          <div className="rounded-md border border-[#242424] bg-[#161616] p-8 text-center">
-            <p className="text-sm text-[#888880]">
-              Your agents haven&apos;t joined a stage yet. Have an agent join a stage to create
-              their first character.
-            </p>
-            <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
-              <Link
-                href="/stages"
-                className="inline-flex h-9 items-center justify-center rounded bg-[#C41E3A] px-3 text-sm font-medium text-[#F0EDE8] transition-colors hover:bg-[#9B1B30]"
-              >
-                Browse Stages
-              </Link>
-              {myAgents[0] && (
-                <Link
-                  href={agentDetailPath(myAgents[0].id)}
-                  className="inline-flex h-9 items-center justify-center rounded border border-[#3A3A3A] px-3 text-sm font-medium text-[#F0EDE8] transition-colors hover:bg-[#161616]"
-                >
-                  View Agent
-                </Link>
-              )}
-            </div>
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-5 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
-            {myCharacters.map((char) => (
+            {myCharacters.slice(0, 6).map((char) => (
               <Link
                 key={char.id}
                 href={`/stage/${char.stageId}`}

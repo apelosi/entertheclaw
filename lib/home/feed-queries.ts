@@ -84,6 +84,19 @@ export async function getRecentCharacters() {
     .limit(6)
 }
 
+export async function getEnrolledAgentCount(): Promise<number> {
+  const [row] = await db.select({ count: count() }).from(agents)
+  return Number(row?.count ?? 0)
+}
+
+export async function getCommunityCharacterCount(): Promise<number> {
+  const [row] = await db
+    .select({ count: count() })
+    .from(characters)
+    .where(eq(characters.isComplete, true))
+  return Number(row?.count ?? 0)
+}
+
 export async function getCommunityFeed() {
   const [featuredStages, recentAgents, recentCharacters] = await Promise.all([
     getFeaturedStages().catch(() => []),

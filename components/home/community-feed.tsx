@@ -1,19 +1,24 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { StageCard } from '@/components/stage/stage-card'
-import { HomeFeedSection } from '@/components/home/feed-section'
+import { HomeFeedSection, HomeSectionEmpty } from '@/components/home/feed-section'
 import {
   getFeaturedStages,
   getRecentAgents,
   getRecentCharacters,
+  getEnrolledAgentCount,
+  getCommunityCharacterCount,
 } from '@/lib/home/feed-queries'
 
 export async function CommunityFeed({ discoverLabel = false }: { discoverLabel?: boolean }) {
-  const [featuredStages, recentAgents, recentCharacters] = await Promise.all([
-    getFeaturedStages().catch(() => []),
-    getRecentAgents().catch(() => []),
-    getRecentCharacters().catch(() => []),
-  ])
+  const [featuredStages, recentAgents, recentCharacters, enrolledAgentCount, characterCount] =
+    await Promise.all([
+      getFeaturedStages().catch(() => []),
+      getRecentAgents().catch(() => []),
+      getRecentCharacters().catch(() => []),
+      getEnrolledAgentCount().catch(() => 0),
+      getCommunityCharacterCount().catch(() => 0),
+    ])
 
   const wrap = (content: React.ReactNode) =>
     discoverLabel ? (
@@ -54,9 +59,14 @@ export async function CommunityFeed({ discoverLabel = false }: { discoverLabel?:
         )}
       </HomeFeedSection>
 
-      <HomeFeedSection title="Recent Agents" href="/agents" linkLabel="All agents">
-        {recentAgents.length === 0 ? (
-          <p className="text-sm text-[#888880]">No agents enrolled yet.</p>
+      <HomeFeedSection
+        title="Recent Agents"
+        subtitle={`${enrolledAgentCount} enrolled agent${enrolledAgentCount !== 1 ? 's' : ''}`}
+        href="/agents"
+        linkLabel="All agents"
+      >
+        {enrolledAgentCount === 0 ? (
+          <HomeSectionEmpty message="No agents enrolled yet." />
         ) : (
           <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
             {recentAgents.map((agent) => (
@@ -90,9 +100,14 @@ export async function CommunityFeed({ discoverLabel = false }: { discoverLabel?:
         )}
       </HomeFeedSection>
 
-      <HomeFeedSection title="Recent Characters" href="/characters" linkLabel="All characters">
-        {recentCharacters.length === 0 ? (
-          <p className="text-sm text-[#888880]">No characters on stage yet.</p>
+      <HomeFeedSection
+        title="Recent Characters"
+        subtitle={`${characterCount} character${characterCount !== 1 ? 's' : ''} created`}
+        href="/characters"
+        linkLabel="All characters"
+      >
+        {characterCount === 0 ? (
+          <HomeSectionEmpty message="No characters on stage yet." />
         ) : (
           <div className="grid grid-cols-2 gap-5 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-6">
             {recentCharacters.map((char) => (

@@ -5,7 +5,12 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { authClient } from '@/lib/auth-client'
 import { startSocialSignIn } from '@/lib/auth/start-social-sign-in'
-import { sendSignInOtp, verifySignInOtp } from '@/lib/auth/email-otp'
+import {
+  getOtpSendCooldown,
+  OTP_SERVER_WINDOW_SEC,
+  sendSignInOtp,
+  verifySignInOtp,
+} from '@/lib/auth/email-otp'
 import {
   isExistingUserSignUpError,
   isNewUserSignInError,
@@ -18,7 +23,7 @@ type Step = 'main' | 'otp' | 'password'
 
 const OTP_EMAIL_HINT =
   'Check spam and Promotions. Subject: “Your Sign-In Code - Enter the Claw (dev)” from entertheclaw@vibez.ventures.'
-const OTP_RESEND_COOLDOWN_SEC = 60
+const OTP_RESEND_COOLDOWN_SEC = OTP_SERVER_WINDOW_SEC
 
 function SocialButton({
   provider,
@@ -82,13 +87,34 @@ function AuthFormInner() {
     setInfo('')
   }
 
+  const syncOtpCooldownFromStorage = (address: string) => {
+    const trimmed = address.trim()
+    if (!trimmed) {
+      setResendCooldown(0)
+      return
+    }
+    const { blocked, retryAfterSec } = getOtpSendCooldown(trimmed)
+    setResendCooldown(blocked ? retryAfterSec : 0)
+  }
+
+  useEffect(() => {
+    syncOtpCooldownFromStorage(email)
+  }, [email])
+
   useEffect(() => {
     if (resendCooldown <= 0) return
     const timer = window.setTimeout(() => {
-      setResendCooldown((seconds) => (seconds <= 1 ? 0 : seconds - 1))
+      setResendCooldown((seconds) => {
+        const next = seconds <= 1 ? 0 : seconds - 1
+        if (next === 0 && email.trim()) {
+          const { blocked, retryAfterSec } = getOtpSendCooldown(email.trim())
+          return blocked ? retryAfterSec : 0
+        }
+        return next
+      })
     }, 1000)
     return () => window.clearTimeout(timer)
-  }, [resendCooldown])
+  }, [resendCooldown, email])
 
   const finishAuth = async () => {
     const session = await authClient.getSession()
@@ -101,12 +127,16 @@ function AuthFormInner() {
   }
 
   const requestSignInOtp = async (options?: { advanceToOtp?: boolean }) => {
+    const trimmedEmail = email.trim()
+    if (!trimmedEmail) return false
+
     resetMessages()
     setLoading(true)
     try {
-      const result = await sendSignInOtp(email.trim())
+      const result = await sendSignInOtp(trimmedEmail)
       if (!result.ok) {
         setError(result.error)
+        if (result.retryAfterSec) setResendCooldown(result.retryAfterSec)
         return false
       }
       setInfo('We sent a sign-in code to your email.')
@@ -278,11 +308,15 @@ function AuthFormInner() {
               {info && <p className="text-xs text-[#888880]">{info}</p>}
               <button
                 type="button"
-                disabled={loading || !email.trim()}
+                disabled={loading || !email.trim() || resendCooldown > 0}
                 onClick={() => void handleEmailContinue()}
                 className="h-10 w-full rounded bg-[#C41E3A] text-sm font-medium text-[#F0EDE8] transition-colors hover:bg-[#9B1B30] disabled:opacity-50"
               >
-                {loading ? 'Please wait…' : 'Continue with Email'}
+                {loading
+                  ? 'Please wait…'
+                  : resendCooldown > 0
+                    ? `Wait ${resendCooldown}s`
+                    : 'Continue with Email'}
               </button>
             </div>
 

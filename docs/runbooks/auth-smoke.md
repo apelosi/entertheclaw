@@ -109,3 +109,4 @@ curl -X POST http://localhost:3000/api/auth/sign-in/social \
 | E1 | OAuth credentials live in Neon console |
 | E2 | `emailVerified` policy may block session until verified |
 | E3 | `sign-in/magic-link` returns 404 on hosted Neon — app uses **email OTP** instead |
+| E4 | Neon Auth limits OTP send to **3 per 60s** per email (not configurable in app). Client throttles extra clicks; wait 60s after 429. Check spam for codes already sent. |

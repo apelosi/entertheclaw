@@ -46,7 +46,7 @@ export default function RootLayout({
       lang="en"
       className={`dark ${cormorantGaramond.variable} ${inter.variable} ${jetbrainsMono.variable}`}
     >
-      <body className="flex min-h-screen flex-col">
+      <body className="flex min-h-screen flex-col" suppressHydrationWarning>
         {children}
         <Footer />
       </body>

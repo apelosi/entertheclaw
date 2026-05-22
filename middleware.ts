@@ -9,7 +9,6 @@ function isProtectedRoute(pathname: string): boolean {
   if (pathname.startsWith('/account')) return true
   if (pathname.startsWith('/onboarding')) return true
   if (pathname.startsWith('/agents/invite')) return true
-  if (/^\/agents\/[^/]+$/.test(pathname)) return true
   return false
 }
 

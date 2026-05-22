@@ -1,7 +1,9 @@
 'use client'
 
 import Image from 'next/image'
+import Link from 'next/link'
 import { cn } from '@/lib/utils'
+import { agentDetailPath } from '@/lib/paths'
 
 export interface OnStageCharacter {
   participantId: string
@@ -10,6 +12,7 @@ export interface OnStageCharacter {
   characterName: string | null
   characterSpriteUrl: string | null
   characterImageUrl: string | null
+  isMine: boolean
 }
 
 interface Props {
@@ -22,20 +25,28 @@ interface Props {
 
 export function CharacterOnStage({ character, x, y, isActive }: Props) {
   const sprite = character.characterSpriteUrl ?? character.characterImageUrl
+  const title = character.isMine
+    ? `${character.characterName ?? 'Your character'} — your agent`
+    : (character.characterName ?? 'Character')
 
   return (
-    <div
-      className="pointer-events-auto absolute z-10 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center"
+    <Link
+      href={agentDetailPath(character.agentId)}
+      title={title}
+      className={cn(
+        'group pointer-events-auto absolute z-10 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center transition-transform duration-200',
+        isActive && 'scale-110',
+      )}
       style={{ left: `${x * 100}%`, top: `${y * 100}%` }}
     >
       <div
         className={cn(
-          'relative h-16 w-16 overflow-hidden rounded-sm bg-[#0e0e0e] shadow-lg image-pixelated',
+          'relative h-16 w-16 overflow-hidden rounded-sm image-pixelated transition-all',
           isActive
-            ? 'border border-[#C41E3A] shadow-[0_0_24px_rgba(196,30,58,0.45)]'
-            : character.role === 'main'
-              ? 'border border-[#C41E3A]/40'
-              : 'border border-[#B8860B]/30'
+            ? 'ring-2 ring-[#C41E3A] shadow-[0_0_36px_rgba(196,30,58,0.55)]'
+            : character.isMine
+              ? 'ring-2 ring-[#B8860B] shadow-[0_4px_14px_rgba(0,0,0,0.6)]'
+              : 'shadow-[0_4px_14px_rgba(0,0,0,0.6)] group-hover:shadow-[0_4px_18px_rgba(0,0,0,0.8)]',
         )}
       >
         {sprite ? (
@@ -51,34 +62,49 @@ export function CharacterOnStage({ character, x, y, isActive }: Props) {
             <span className="text-3xl text-[#C41E3A]/60">◈</span>
           </div>
         )}
+        {character.isMine && !isActive && (
+          <span
+            className="absolute right-1 top-1 inline-block h-1.5 w-1.5 rounded-full bg-[#B8860B] shadow-[0_0_6px_#B8860B]"
+            aria-label="Your agent"
+          />
+        )}
       </div>
-      <div className="mt-1 whitespace-nowrap rounded-sm border-t border-l border-[#3A3A3A]/40 bg-[#0e0e0e]/80 px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.15em] text-[#888880] backdrop-blur-sm">
+      <div
+        className={cn(
+          'mt-1 whitespace-nowrap px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.18em] transition-colors',
+          isActive
+            ? 'text-[#F0EDE8] [text-shadow:_0_0_8px_rgba(196,30,58,0.7)]'
+            : 'text-[#F0EDE8]/80 [text-shadow:_0_1px_3px_rgba(0,0,0,0.9)]',
+        )}
+      >
         {character.characterName ?? 'Unnamed'}
       </div>
-    </div>
+    </Link>
   )
 }
 
 /**
- * Place participants around a circular stage center.
- * Mains sit on an inner ring, NPCs on an outer ring.
+ * Place participants around the stage center.
+ * Mains sit on an inner ring, NPCs on an outer ring. The container is rectangular
+ * so we use elliptical placement to spread along the wider horizontal axis.
  */
 export function layoutPositions(
-  participants: OnStageCharacter[]
+  participants: OnStageCharacter[],
 ): Array<{ character: OnStageCharacter; x: number; y: number }> {
   const mains = participants.filter((p) => p.role === 'main')
   const npcs = participants.filter((p) => p.role !== 'main')
 
-  const ring = (items: OnStageCharacter[], radius: number) =>
+  const ring = (items: OnStageCharacter[], rx: number, ry: number) =>
     items.map((char, i) => {
       const count = items.length
       const angle = (i / Math.max(count, 1)) * 2 * Math.PI - Math.PI / 2
       return {
         character: char,
-        x: 0.5 + Math.cos(angle) * radius,
-        y: 0.5 + Math.sin(angle) * radius,
+        x: 0.5 + Math.cos(angle) * rx,
+        y: 0.55 + Math.sin(angle) * ry,
       }
     })
 
-  return [...ring(mains, 0.26), ...ring(npcs, 0.4)]
+  // Mains on an inner ellipse; NPCs on a wider outer ellipse.
+  return [...ring(mains, 0.22, 0.18), ...ring(npcs, 0.36, 0.28)]
 }

@@ -1,6 +1,13 @@
 import { notFound } from 'next/navigation'
 import { db } from '@/lib/db/client'
-import { stages, stageParticipants, characters, stageEvents, twists } from '@/lib/db/schema'
+import {
+  stages,
+  stageParticipants,
+  characters,
+  stageEvents,
+  twists,
+  agents,
+} from '@/lib/db/schema'
 import { eq, desc, and } from 'drizzle-orm'
 import type { Metadata } from 'next'
 import StageViewClient from '@/components/stage/stage-view-client'
@@ -27,18 +34,20 @@ async function getStageData(id: string, userId: string | null) {
       participantId: stageParticipants.id,
       role: stageParticipants.role,
       agentId: stageParticipants.agentId,
+      agentUserId: agents.userId,
       characterName: characters.name,
       characterOccupation: characters.occupation,
       characterImageUrl: characters.imageUrl,
       characterSpriteUrl: characters.spriteUrl,
     })
     .from(stageParticipants)
+    .leftJoin(agents, eq(agents.id, stageParticipants.agentId))
     .leftJoin(
       characters,
       and(
         eq(characters.agentId, stageParticipants.agentId),
-        eq(characters.stageId, id)
-      )
+        eq(characters.stageId, id),
+      ),
     )
     .where(eq(stageParticipants.stageId, id))
 
@@ -72,7 +81,9 @@ async function getStageData(id: string, userId: string | null) {
     participants,
     recentEvents,
     lastTwistAt: lastStageTwist?.createdAt ? new Date(lastStageTwist.createdAt).getTime() : null,
-    lastUserTwistAt: lastUserTwist?.createdAt ? new Date(lastUserTwist.createdAt).getTime() : null,
+    lastUserTwistAt: lastUserTwist?.createdAt
+      ? new Date(lastUserTwist.createdAt).getTime()
+      : null,
   }
 }
 
@@ -87,7 +98,7 @@ export default async function StagePage({ params }: Props) {
   const { stage, participants, recentEvents, lastTwistAt, lastUserTwistAt } = data
 
   return (
-    <div className="fixed inset-0 z-10 flex flex-col bg-[#080808]">
+    <>
       <Nav />
       <StageViewClient
         stageId={stage.id}
@@ -97,9 +108,10 @@ export default async function StagePage({ params }: Props) {
         participants={participants}
         initialEvents={recentEvents}
         isLoggedIn={Boolean(userId)}
+        currentUserId={userId}
         lastTwistAt={lastTwistAt}
         lastUserTwistAt={lastUserTwistAt}
       />
-    </div>
+    </>
   )
 }

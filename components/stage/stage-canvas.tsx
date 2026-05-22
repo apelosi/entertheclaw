@@ -4,9 +4,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import Link from 'next/link'
-import { DramatisPersonae, type DramatisCharacter } from './dramatis-personae'
-import { InterventionTerminal } from './intervention-terminal'
-import { Scriptorium, type CurrentDialogue } from './scriptorium'
+import { CharactersRail, type RailCharacter } from './characters-rail'
+import { NarrativeTwist } from './narrative-twist'
+import { DialoguePanel, type CurrentDialogue } from './dialogue-panel'
 import { CharacterOnStage, layoutPositions, type OnStageCharacter } from './character-on-stage'
 import { TwistBanner, type TwistAnnouncement } from './twist-banner'
 import { useStageEvents } from './use-stage-events'
@@ -15,6 +15,7 @@ interface Participant {
   participantId: string
   role: string
   agentId: string
+  agentUserId: string | null
   characterName: string | null
   characterOccupation: string | null
   characterImageUrl: string | null
@@ -38,6 +39,7 @@ interface StageCanvasProps {
   participants: Participant[]
   initialEvents: StageEvent[]
   isLoggedIn: boolean
+  currentUserId: string | null
   lastTwistAt: number | null
   lastUserTwistAt: number | null
 }
@@ -51,6 +53,7 @@ export default function StageCanvas({
   participants,
   initialEvents,
   isLoggedIn,
+  currentUserId,
   lastTwistAt,
   lastUserTwistAt,
 }: StageCanvasProps) {
@@ -75,6 +78,12 @@ export default function StageCanvas({
     return map
   }, [participants])
 
+  const isMine = useCallback(
+    (agentUserId: string | null) =>
+      Boolean(currentUserId) && agentUserId === currentUserId,
+    [currentUserId],
+  )
+
   const showDialogue = useCallback(
     (speakerName: string, text: string, opts?: { agentId?: string | null; isEmote?: boolean }) => {
       if (typewriterRef.current) {
@@ -87,7 +96,6 @@ export default function StageCanvas({
       const speaker = matchedByAgent ?? matchedByName ?? null
 
       setActiveAgentId(speaker?.agentId ?? opts?.agentId ?? null)
-      const logEntry = Math.abs(hashString(`${speakerName}:${text}`)) % 9999
 
       setDialogue({
         speakerName,
@@ -95,7 +103,6 @@ export default function StageCanvas({
         displayedText: '',
         isEmote: opts?.isEmote,
         speakerImageUrl: speaker?.characterImageUrl ?? null,
-        logEntry,
       })
 
       let i = 0
@@ -104,7 +111,7 @@ export default function StageCanvas({
         setDialogue((current) =>
           current && current.text === text
             ? { ...current, displayedText: text.slice(0, i) }
-            : current
+            : current,
         )
         if (i >= text.length) {
           if (typewriterRef.current) clearInterval(typewriterRef.current)
@@ -112,7 +119,7 @@ export default function StageCanvas({
         }
       }, TYPEWRITER_INTERVAL_MS)
     },
-    [participantBySpeakerName, participantByAgentId]
+    [participantBySpeakerName, participantByAgentId],
   )
 
   // Seed dialogue from most recent dialogue event in initial fetch
@@ -152,12 +159,9 @@ export default function StageCanvas({
       }
     },
     onCharacterReady: () => {
-      // Bible + portrait + sprite landed for some character. Re-fetch
-      // participants so the new portrait shows up everywhere.
       router.refresh()
     },
     onJoined: () => {
-      // New agent on stage — refresh so the new slot/character shows up.
       router.refresh()
     },
   })
@@ -177,13 +181,14 @@ export default function StageCanvas({
         characterName: p.characterName,
         characterImageUrl: p.characterImageUrl,
         characterSpriteUrl: p.characterSpriteUrl,
+        isMine: isMine(p.agentUserId),
       })),
-    [participants]
+    [participants, isMine],
   )
 
   const positions = useMemo(() => layoutPositions(onStageChars), [onStageChars])
 
-  const mainCharacters: DramatisCharacter[] = useMemo(
+  const mainCharacters: RailCharacter[] = useMemo(
     () =>
       participants
         .filter((p) => p.role === 'main')
@@ -193,13 +198,14 @@ export default function StageCanvas({
           role: p.role,
           characterName: p.characterName,
           characterImageUrl: p.characterImageUrl,
+          isMine: isMine(p.agentUserId),
         })),
-    [participants]
+    [participants, isMine],
   )
 
   return (
-    <main className="relative flex-1 overflow-hidden bg-[#0e0e0e]">
-      {/* Stage background */}
+    <main className="relative h-[calc(100vh-3.5rem)] min-h-[640px] w-full overflow-hidden bg-[#0e0e0e]">
+      {/* Stage background — full bleed, no circular ring, no radial vignette */}
       <div className="absolute inset-0">
         {stageImageUrl ? (
           <Image
@@ -208,23 +214,21 @@ export default function StageCanvas({
             fill
             priority
             sizes="100vw"
-            className="object-cover opacity-50 image-pixelated"
+            className="object-cover opacity-70 image-pixelated"
           />
         ) : (
           <div className="absolute inset-0 bg-gradient-to-br from-[#1a0a14] via-[#0e0e0e] to-[#080808]" />
         )}
-        <div className="absolute inset-0 bg-gradient-to-t from-[#080808] via-transparent to-[#080808]/60" />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_transparent_30%,_#080808_85%)]" />
+        {/* Soft top + bottom darkening for HUD legibility */}
+        <div className="absolute inset-0 bg-gradient-to-b from-[#080808]/80 via-transparent to-[#080808]/85" />
+        {/* Left + right edge vignettes for the rail/twist zones */}
+        <div className="absolute inset-y-0 left-0 w-72 bg-gradient-to-r from-[#080808]/75 to-transparent" />
+        <div className="absolute inset-y-0 right-0 w-80 bg-gradient-to-l from-[#080808]/75 to-transparent" />
       </div>
 
-      {/* Circular stage area + sprite positions */}
-      <div className="absolute inset-0 z-10 flex items-center justify-center">
-        <div className="relative h-[min(90vw,800px)] w-[min(90vw,800px)] max-w-[800px] max-h-[800px] rounded-full border border-white/5 bg-[#0e0e0e]/20 shadow-[0_0_120px_rgba(196,30,58,0.1)]">
-          {/* Subtle grid floor */}
-          <div className="absolute inset-0 rounded-full bg-[linear-gradient(rgba(255,255,255,0.05)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.05)_1px,transparent_1px)] bg-[size:40px_40px] opacity-30" />
-          {/* Focal point */}
-          <div className="absolute left-1/2 top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border border-[#C41E3A]/40 bg-[#C41E3A]/15 animate-pulse-live" />
-
+      {/* Stage area + character sprites */}
+      <div className="absolute inset-0 z-10">
+        <div className="relative h-full w-full">
           {positions.map(({ character, x, y }) => (
             <CharacterOnStage
               key={character.participantId}
@@ -237,16 +241,34 @@ export default function StageCanvas({
         </div>
       </div>
 
-      {/* Twist banner */}
       <TwistBanner twist={twist} />
 
-      {/* HUDs */}
-      <div className="pointer-events-none absolute left-6 top-6 z-20">
-        <DramatisPersonae mainCharacters={mainCharacters} activeAgentId={activeAgentId} />
+      {/* Top-left cluster: Exit Stage → stage name → Characters rail (one cohesive column) */}
+      <div className="pointer-events-auto absolute left-5 top-4 z-20 flex flex-col gap-4">
+        <div className="flex flex-col gap-1">
+          <Link
+            href="/"
+            className="inline-flex w-fit items-center gap-1.5 font-mono text-[11px] uppercase tracking-[0.18em] text-[#888880] transition-colors hover:text-[#F0EDE8]"
+          >
+            <span className="text-[#C41E3A]">←</span> Exit Stage
+          </Link>
+          <h1
+            className="text-[28px] font-light italic leading-none tracking-[-0.02em] text-[#F0EDE8]"
+            style={{ fontFamily: 'var(--font-display)' }}
+          >
+            {stageName}
+          </h1>
+        </div>
+        <CharactersRail
+          stageId={stageId}
+          mainCharacters={mainCharacters}
+          activeAgentId={activeAgentId}
+        />
       </div>
 
-      <div className="pointer-events-none absolute right-6 top-6 z-20">
-        <InterventionTerminal
+      {/* Top-right: Narrative Twist */}
+      <div className="absolute right-5 top-4 z-20">
+        <NarrativeTwist
           stageId={stageId}
           isLoggedIn={isLoggedIn}
           lastTwistAt={lastTwistAt}
@@ -256,27 +278,10 @@ export default function StageCanvas({
         />
       </div>
 
-      <div className="pointer-events-none absolute bottom-6 left-1/2 z-20 w-11/12 -translate-x-1/2 max-w-3xl">
-        <Scriptorium dialogue={dialogue} />
-      </div>
-
-      {/* Exit affordance — small footnote-style link, in case nav isn't enough */}
-      <div className="pointer-events-auto absolute bottom-2 left-3 z-20">
-        <Link
-          href="/"
-          className="font-mono text-[10px] uppercase tracking-[0.18em] text-[#444440] transition-colors hover:text-[#888880]"
-        >
-          ← exit stage
-        </Link>
+      {/* Bottom-center: Dialogue */}
+      <div className="absolute bottom-6 left-1/2 z-20 w-[min(720px,calc(100%-3rem))] -translate-x-1/2">
+        <DialoguePanel dialogue={dialogue} />
       </div>
     </main>
   )
-}
-
-function hashString(s: string): number {
-  let h = 0
-  for (let i = 0; i < s.length; i++) {
-    h = (h * 31 + s.charCodeAt(i)) | 0
-  }
-  return h
 }

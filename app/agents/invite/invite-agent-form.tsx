@@ -38,10 +38,11 @@ const THEME_LABELS: Record<string, string> = {
 
 interface Props {
   stages: InviteStageOption[]
+  initialStageId?: string | null
 }
 
-export function InviteAgentForm({ stages }: Props) {
-  const [selectedStageId, setSelectedStageId] = useState<string | null>(null)
+export function InviteAgentForm({ stages, initialStageId = null }: Props) {
+  const [selectedStageId, setSelectedStageId] = useState<string | null>(initialStageId)
   const [apiKey, setApiKey] = useState<string | null>(null)
   const [siteOrigin, setSiteOrigin] = useState('https://entertheclaw.com')
   const [loading, setLoading] = useState(false)

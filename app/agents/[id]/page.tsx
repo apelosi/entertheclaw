@@ -1,10 +1,10 @@
-
 import { getServerSession } from '@/lib/auth/get-server-session'
-import { redirect, notFound } from 'next/navigation'
+import { notFound } from 'next/navigation'
 import { Nav } from '@/components/nav'
 import { db } from '@/lib/db/client'
 import { agents, characters, stageParticipants, stages } from '@/lib/db/schema'
-import { eq, and } from 'drizzle-orm'
+import { eq } from 'drizzle-orm'
+import Image from 'next/image'
 import Link from 'next/link'
 import type { Metadata } from 'next'
 
@@ -21,18 +21,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function AgentDetailPage({ params }: Props) {
   const { id } = await params
   const { data: session } = await getServerSession()
-  if (!session?.user) redirect('/auth')
-  const user = session.user
 
-  const [agent] = await db
-    .select()
-    .from(agents)
-    .where(and(eq(agents.id, id), eq(agents.userId, user.id)))
-    .limit(1)
-
+  const [agent] = await db.select().from(agents).where(eq(agents.id, id)).limit(1)
   if (!agent) notFound()
 
-  // Current stage assignment
+  const isOwner = Boolean(session?.user && session.user.id === agent.userId)
+
   const [currentParticipant] = await db
     .select({
       role: stageParticipants.role,
@@ -45,7 +39,6 @@ export default async function AgentDetailPage({ params }: Props) {
     .where(eq(stageParticipants.agentId, agent.id))
     .limit(1)
 
-  // Current character
   const [currentCharacter] = await db
     .select()
     .from(characters)
@@ -65,17 +58,35 @@ export default async function AgentDetailPage({ params }: Props) {
           </Link>
         </div>
 
-        <div className="mb-8 mt-4">
-          <h1
-            className="font-display text-[32px] font-semibold tracking-[-0.02em] text-[#F0EDE8]"
-            style={{ fontFamily: 'var(--font-display)' }}
-          >
-            {agent.name ?? 'Unnamed Agent'}
-          </h1>
-          <p className="mt-1 font-mono text-xs text-[#444440]">{agent.apiKeyPrefix}</p>
+        <div className="mb-8 mt-4 flex items-center gap-4">
+          <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-full bg-[#111111]">
+            {agent.imageUrl ? (
+              <Image
+                src={agent.imageUrl}
+                alt={agent.name ?? 'Agent'}
+                fill
+                sizes="64px"
+                className="object-cover"
+              />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center text-2xl text-[#444440]">
+                ◈
+              </div>
+            )}
+          </div>
+          <div>
+            <h1
+              className="font-display text-[32px] font-semibold tracking-[-0.02em] text-[#F0EDE8]"
+              style={{ fontFamily: 'var(--font-display)' }}
+            >
+              {agent.name ?? 'Unnamed Agent'}
+            </h1>
+            {isOwner && (
+              <p className="mt-1 font-mono text-xs text-[#444440]">{agent.apiKeyPrefix}</p>
+            )}
+          </div>
         </div>
 
-        {/* Status */}
         <section className="mb-6 rounded-md border border-[#242424] bg-[#161616] p-5">
           <h2 className="mb-4 text-xs font-semibold uppercase tracking-[0.1em] text-[#888880]">
             Status
@@ -116,7 +127,6 @@ export default async function AgentDetailPage({ params }: Props) {
           </div>
         </section>
 
-        {/* Stage assignment */}
         <section className="mb-6 rounded-md border border-[#242424] bg-[#161616] p-5">
           <h2 className="mb-4 text-xs font-semibold uppercase tracking-[0.1em] text-[#888880]">
             Current Stage
@@ -141,7 +151,6 @@ export default async function AgentDetailPage({ params }: Props) {
           )}
         </section>
 
-        {/* Character */}
         {currentCharacter && (
           <section className="mb-6 rounded-md border border-[#242424] bg-[#161616] p-5">
             <h2 className="mb-4 text-xs font-semibold uppercase tracking-[0.1em] text-[#888880]">

@@ -49,7 +49,12 @@ async function getInviteStages(): Promise<InviteStageOption[]> {
   return withCounts.sort((a, b) => a.name.localeCompare(b.name))
 }
 
-export default async function InviteAgentPage() {
+interface InvitePageProps {
+  searchParams: Promise<{ stage?: string }>
+}
+
+export default async function InviteAgentPage({ searchParams }: InvitePageProps) {
+  const { stage: requestedStageId } = await searchParams
   const { data: session } = await getServerSession()
   if (!session?.user) {
     redirect(authUrl(INVITE_PATH))
@@ -61,10 +66,15 @@ export default async function InviteAgentPage() {
 
   const inviteStages = await getInviteStages().catch(() => [] as InviteStageOption[])
 
+  const initialStageId =
+    requestedStageId && inviteStages.some((s) => s.id === requestedStageId)
+      ? requestedStageId
+      : null
+
   return (
     <>
       <Nav />
-      <InviteAgentForm stages={inviteStages} />
+      <InviteAgentForm stages={inviteStages} initialStageId={initialStageId} />
     </>
   )
 }

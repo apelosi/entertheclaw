@@ -3,7 +3,11 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { authClient } from '@/lib/auth-client'
-import { getOtpSendCooldown, sendForgetPasswordOtp } from '@/lib/auth/email-otp'
+import {
+  getOtpSendCooldown,
+  resetPasswordWithEmailOtp,
+  sendForgetPasswordOtp,
+} from '@/lib/auth/email-otp'
 import {
   PASSWORD_MIN_LENGTH,
   validateNewPassword,
@@ -20,6 +24,15 @@ function hasPasswordCredential(accounts: LinkedAccount[]) {
   return accounts.some(
     (a) => a.providerId === 'credential' || a.providerId === 'email',
   )
+}
+
+function formatAuthErrorMessage(message: string | undefined, fallback: string): string {
+  if (message === 'Invalid origin') {
+    const site =
+      process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, '') ?? 'your production site URL'
+    return `Password change is blocked until ${site} is added to Neon Auth trusted domains (Neon console → Settings → Auth).`
+  }
+  return message ?? fallback
 }
 
 export function PasswordForm() {
@@ -150,13 +163,13 @@ export function PasswordForm() {
 
     setLoading(true)
     try {
-      const result = await authClient.emailOtp.resetPassword({
+      const result = await resetPasswordWithEmailOtp({
         email: userEmail,
         otp: otp.trim(),
         password: newPassword,
       })
-      if (result.error) {
-        setError(result.error.message ?? 'Could not set password.')
+      if (!result.ok) {
+        setError(result.error)
         return
       }
       setSuccess('Password set. You can now sign in with email and password.')
@@ -198,7 +211,7 @@ export function PasswordForm() {
         revokeOtherSessions: true,
       })
       if (result.error) {
-        setError(result.error.message ?? 'Could not change password.')
+        setError(formatAuthErrorMessage(result.error.message, 'Could not change password.'))
         return
       }
       setSuccess('Password updated.')

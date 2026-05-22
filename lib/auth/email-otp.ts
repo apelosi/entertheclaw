@@ -271,10 +271,12 @@ export async function sendForgetPasswordOtp(email: string): Promise<SendForgetPa
     }
   }
 
+  // Omit session cookies: Better Auth validates Origin when cookies are present.
+  // Production Neon Auth may only list localhost until trusted domains are configured.
   const res = await fetch('/api/auth/forget-password/email-otp', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    credentials: 'include',
+    credentials: 'omit',
     body: JSON.stringify({ email: normalized }),
   })
 
@@ -299,5 +301,49 @@ export async function sendForgetPasswordOtp(email: string): Promise<SendForgetPa
   }
 
   recordSendSuccess(normalized)
+  return { ok: true }
+}
+
+export type ResetPasswordWithEmailOtpResult =
+  | { ok: true }
+  | { ok: false; error: string }
+
+/** Sets or resets password using a forget-password OTP (account page set-password flow). */
+export async function resetPasswordWithEmailOtp(options: {
+  email: string
+  otp: string
+  password: string
+}): Promise<ResetPasswordWithEmailOtpResult> {
+  const email = normalizeEmail(options.email)
+  const otp = options.otp.trim()
+  const password = options.password
+
+  if (!email || !email.includes('@')) {
+    return { ok: false, error: 'Enter a valid email address.' }
+  }
+  if (!otp) {
+    return { ok: false, error: 'Verification code is required.' }
+  }
+
+  const res = await fetch('/api/auth/email-otp/reset-password', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'omit',
+    body: JSON.stringify({ email, otp, password }),
+  })
+
+  const data = (await res.json().catch(() => ({}))) as {
+    error?: string
+    message?: string
+    code?: string
+  }
+
+  if (!res.ok) {
+    return {
+      ok: false,
+      error: data.message ?? data.error ?? 'Could not set password.',
+    }
+  }
+
   return { ok: true }
 }

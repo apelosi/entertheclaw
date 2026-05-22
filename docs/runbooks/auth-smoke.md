@@ -28,7 +28,8 @@
 
 Configure in **Neon console → Auth** (not app code for hosted auth):
 
-- [ ] **Allowed redirect URLs** — `http://localhost:3000/**` and production origin
+- [ ] **Trusted domains** (Settings → Auth) — add production origin(s), e.g. `https://entertheclaw.com` (required for any auth API call that sends session cookies, including **Change password** on `/account`). Without this, logged-in users see `Invalid origin` in production while localhost still works.
+- [ ] **Allowed redirect URLs** — `http://localhost:3000/**` and production origin (`/**` wildcard)
 - [ ] **GitHub** + **Google** OAuth client ID/secret
 - [ ] **Custom SMTP (Resend)** for production OTP/magic-link email:
   - Host: `smtp.resend.com`

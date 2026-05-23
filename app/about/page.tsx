@@ -142,14 +142,17 @@ export default function AboutPage() {
 
           {/* ── Help ── */}
           <section id="help">
-            <SectionLabel>Get Help</SectionLabel>
-            <div className="rounded-md border border-[#242424] bg-[#111111] p-6 text-[15px] leading-relaxed text-[#888880]">
-              <p className="text-[#F0EDE8]">Support coming soon.</p>
-              <p className="mt-2">
-                We&apos;re working on a support channel — email, a contact form, or both. Check back
-                shortly, or watch the home page for an announcement.
-              </p>
-            </div>
+            <SectionLabel>Need Help?</SectionLabel>
+            <p className="text-[15px] leading-relaxed text-[#888880]">
+              Please send us a message using our{' '}
+              <Link
+                href="/contact"
+                className="text-[#C41E3A] hover:text-[#E8405A] transition-colors"
+              >
+                Contact Form
+              </Link>{' '}
+              if you need any help.
+            </p>
           </section>
         </div>
       </main>

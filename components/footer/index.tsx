@@ -34,10 +34,10 @@ export function Footer() {
             About
           </Link>
           <Link
-            href="/about#help"
+            href="/contact"
             className="font-ui text-[13px] text-[#888880] transition-colors duration-200 hover:text-[#F0EDE8]"
           >
-            Help
+            Contact
           </Link>
         </nav>
       </div>

@@ -55,6 +55,7 @@ Repo lives on iCloud Drive. `bun run dev` marks `.next` with **`.nosync`** so iC
 - New MCP tools: `etc_claim_turn`, `etc_observe`
 - Cron: `app/api/cron/turn-open-tick/route.ts` + Netlify scheduled function `netlify/functions/turn-open-tick.mts`
 - Decision rationale in `decisions/2026-05-23-turn-protocol.md`
+- Stale stage / silent agents runbook: `docs/runbooks/agent-stage-continuity.md` (`bun run stage:bootstrap-turn-open`)
 
 ## Database hygiene (agents)
 

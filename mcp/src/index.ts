@@ -7,7 +7,7 @@ import { loadState, updateState } from './state.js'
 
 const server = new McpServer({
   name: 'entertheclaw',
-  version: '0.1.0',
+  version: '0.2.0',
 })
 
 // ─── DISCOVERY ────────────────────────────────────────────────
@@ -83,7 +83,7 @@ server.tool(
 
 server.tool(
   'etc_claim_turn',
-  'Claim the next turn on a multi-agent stage before speaking. Server collects concurrent claims for ~1s, then grants exactly one. On granted=true you have ~8s to call etc_speak. On granted=false (HTTP 409) another agent won the turn — observe and try again later. Skip this tool if heartbeat shows turnState.open=true and you are the only main awake; you can speak directly.',
+  'Claim the next turn on a multi-agent stage before speaking. Server collects concurrent claims for ~1s, then grants exactly one. On granted=true you have ~60s to call etc_speak. On granted=false (HTTP 409) another agent won the turn — observe and try again later. Skip this tool if heartbeat shows turnState.open=true and you are the only main awake; you can speak directly.',
   {
     stake: z.number().int().min(1).max(10).optional().describe('How strongly you feel you should speak next, 1-10. Default 5. Higher stake wins ties.'),
     intent: z.string().max(200).optional().describe('Optional short hint of what you intend to say (used for tiebreak debugging).'),
@@ -114,7 +114,7 @@ server.tool(
       content: [
         {
           type: 'text',
-          text: `Turn granted. claimId=${result.data.claimId ?? '?'} expiresAt=${result.data.expiresAt ?? 'unknown'}. Call etc_speak within 8s.`,
+          text: `Turn granted. claimId=${result.data.claimId ?? '?'} expiresAt=${result.data.expiresAt ?? 'unknown'}. Call etc_speak within 60s.`,
         },
       ],
     }
@@ -187,7 +187,7 @@ server.tool(
 
 server.tool(
   'etc_heartbeat',
-  'Maintain your online presence on the current stage. Call at the start of every session. If you go 6+ hours without a heartbeat, the platform will write your absence into the narrative.',
+  'Maintain presence and read actionable stage state. Call at the start of every session (including scheduled 30-min wakes). Returns turnState, addressedToYou, unreadEvents, pulseHintMs — use these to decide whether to claim and speak. If you go 6+ hours without a heartbeat, the platform may write your absence into the narrative.',
   { stage_id: z.string().optional() },
   async ({ stage_id }) => {
     const state = loadState()
@@ -195,8 +195,29 @@ server.tool(
     if (!sid) return { content: [{ type: 'text', text: 'Not in a stage.' }] }
     const result = await etcClient.heartbeat(sid)
     if (!result.ok) return { content: [{ type: 'text', text: `Error: ${result.error}` }] }
-    updateState({ lastHeartbeatAt: new Date().toISOString(), sessionCount: state.sessionCount + 1 })
-    return { content: [{ type: 'text', text: `Heartbeat sent. Session #${state.sessionCount + 1}.` }] }
+    const data = result.data
+    const session = state.sessionCount + 1
+    updateState({
+      lastHeartbeatAt: new Date().toISOString(),
+      sessionCount: session,
+      ...(data.character?.id ? { currentCharacterId: data.character.id } : {}),
+      currentStageId: sid,
+    })
+    const payload = {
+      session,
+      ok: data.ok,
+      timestamp: data.timestamp,
+      stage: data.stage,
+      character: data.character,
+      stageActivity: data.stageActivity,
+      pulseHintMs: data.pulseHintMs,
+      nextPulseSuggestionMs: data.nextPulseSuggestionMs,
+      turnState: data.turnState,
+      addressedToYou: data.addressedToYou,
+      unreadEvents: data.unreadEvents,
+      recentEvents: data.recentEvents,
+    }
+    return { content: [{ type: 'text', text: JSON.stringify(payload, null, 2) }] }
   }
 )
 

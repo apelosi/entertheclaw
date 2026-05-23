@@ -11,7 +11,7 @@
  */
 import { db } from '@/lib/db/client'
 import { stageEvents, stageParticipants, stages } from '@/lib/db/schema'
-import { and, desc, eq, gt, gte, inArray } from 'drizzle-orm'
+import { and, desc, eq, gt, gte, inArray, sql } from 'drizzle-orm'
 import { ACTIVE_PARTICIPANT_MS, getActiveGrant } from './turn-state'
 import {
   buildTurnOpenSnapshot,
@@ -117,14 +117,45 @@ export async function emitTurnOpen(
   return { emitted: true, eventId: event.id }
 }
 
+/** True if this stage has ever received turn_open or turn_grant. */
+export async function stageHasTurnProtocolSignals(
+  stageId: string,
+): Promise<boolean> {
+  const [row] = await db
+    .select({ id: stageEvents.id })
+    .from(stageEvents)
+    .where(
+      and(
+        eq(stageEvents.stageId, stageId),
+        inArray(stageEvents.type, ['turn_open', 'turn_grant']),
+      ),
+    )
+    .limit(1)
+  return !!row
+}
+
+async function stageMainParticipantCount(stageId: string): Promise<number> {
+  const [{ count }] = await db
+    .select({ count: sql<number>`count(*)::int` })
+    .from(stageParticipants)
+    .where(eq(stageParticipants.stageId, stageId))
+  return Number(count ?? 0)
+}
+
 /**
  * True when the stage last received a `turn_open` or `turn_grant`, no
  * dialogue has arrived since, and at least AWAITING_RESPONSE_MS has elapsed.
- * Grant expiry uses the same clock (grant TTL == AWAITING_RESPONSE_MS).
+ *
+ * Bootstrap: stages that had dialogue before turn protocol shipped never got an
+ * initial turn_open. When there is no prior signal, emit once the last dialogue
+ * is at least AWAITING_RESPONSE_MS old (same clock as the normal re-ping).
  */
 export async function stageNeedsSafetyNetTurnOpen(
   stageId: string,
 ): Promise<boolean> {
+  const grant = await getActiveGrant(stageId)
+  if (grant) return false
+
   const [lastSignal] = await db
     .select({ createdAt: stageEvents.createdAt })
     .from(stageEvents)
@@ -137,7 +168,26 @@ export async function stageNeedsSafetyNetTurnOpen(
     .orderBy(desc(stageEvents.createdAt))
     .limit(1)
 
-  if (!lastSignal?.createdAt) return false
+  if (!lastSignal?.createdAt) {
+    const participants = await stageMainParticipantCount(stageId)
+    if (participants < 2) return false
+
+    const [lastDialogue] = await db
+      .select({ createdAt: stageEvents.createdAt })
+      .from(stageEvents)
+      .where(
+        and(
+          eq(stageEvents.stageId, stageId),
+          eq(stageEvents.type, 'dialogue'),
+        ),
+      )
+      .orderBy(desc(stageEvents.createdAt))
+      .limit(1)
+    if (!lastDialogue?.createdAt) return false
+
+    const elapsedMs = Date.now() - lastDialogue.createdAt.getTime()
+    return elapsedMs >= AWAITING_RESPONSE_MS
+  }
 
   const elapsedMs = Date.now() - lastSignal.createdAt.getTime()
   if (elapsedMs < AWAITING_RESPONSE_MS) return false
@@ -154,9 +204,6 @@ export async function stageNeedsSafetyNetTurnOpen(
     )
     .limit(1)
   if (dialogueAfter) return false
-
-  const grant = await getActiveGrant(stageId)
-  if (grant) return false
 
   return true
 }
@@ -186,17 +233,23 @@ export async function emitTurnOpenSafetyNet(): Promise<SafetyNetResult> {
   const emittedIds: string[] = []
 
   for (const { id: stageId } of activeStages) {
-    const activeCutoff = new Date(Date.now() - ACTIVE_PARTICIPANT_MS)
-    const activeParts = await db
-      .select({ id: stageParticipants.id })
-      .from(stageParticipants)
-      .where(
-        and(
-          eq(stageParticipants.stageId, stageId),
-          gte(stageParticipants.lastActiveAt, activeCutoff),
-        ),
-      )
-    if (activeParts.length < 2) continue
+    const hasSignals = await stageHasTurnProtocolSignals(stageId)
+    if (hasSignals) {
+      const activeCutoff = new Date(Date.now() - ACTIVE_PARTICIPANT_MS)
+      const activeParts = await db
+        .select({ id: stageParticipants.id })
+        .from(stageParticipants)
+        .where(
+          and(
+            eq(stageParticipants.stageId, stageId),
+            gte(stageParticipants.lastActiveAt, activeCutoff),
+          ),
+        )
+      if (activeParts.length < 2) continue
+    } else {
+      const participants = await stageMainParticipantCount(stageId)
+      if (participants < 2) continue
+    }
 
     if (!(await stageNeedsSafetyNetTurnOpen(stageId))) continue
 

@@ -56,8 +56,12 @@ export function SceneBanner({
         <div className={cn('flex flex-col gap-1 border-t border-[#242424]/30', PANEL_INSET, 'pt-2')}>
           <p className={cn(MONO_LABEL, 'text-[#2A8E8E]')}>{scene.name}</p>
           <p
-            className={cn(MONO_BODY_SM, 'line-clamp-2 text-[#888880]')}
-            title={scene.description}
+            className={cn(
+              MONO_BODY_SM,
+              'text-[#888880]',
+              open ? 'leading-relaxed' : 'line-clamp-2 lg:line-clamp-1',
+            )}
+            title={open ? undefined : scene.description}
           >
             {scene.description}
           </p>

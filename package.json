@@ -28,6 +28,8 @@
     "logo:generate:claw-c": "tsx lib/db/generate-claw-letter-c.ts",
     "wordmark:refresh": "tsx lib/db/refresh-wordmark.ts",
     "hero:generate": "tsx lib/db/generate-hero.ts",
+    "stage:bootstrap-turn-open": "tsx scripts/bootstrap-stale-turn-open.ts",
+    "test:mcp-heartbeat": "tsx scripts/test-mcp-heartbeat.ts",
     "hero:generate:stage": "tsx lib/db/generate-hero.ts",
     "hero:from-stage": "tsx lib/db/hero-from-featured-stage.ts",
     "hero:generate:agent": "tsx lib/db/generate-hero-agent.ts",
@@ -51,6 +53,7 @@
     "phaser": "^3.90.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "resend": "^6.12.3",
     "sharp": "^0.33.5",
     "tailwind-merge": "^2.6.0",
     "ws": "^8.18.0"

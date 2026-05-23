@@ -17,6 +17,7 @@ import {
   buildTurnOpenSnapshot,
   type TurnOpenSnapshot,
 } from './build-turn-open-snapshot'
+import { deliverTurnWebhooks } from './deliver-turn-webhooks'
 
 export const TURN_OPEN_DEDUPE_MS = 3_000
 /** Re-ping if no dialogue within this window after turn_open or turn_grant. */
@@ -101,7 +102,17 @@ export async function emitTurnOpen(
       type: 'turn_open',
       content,
     })
-    .returning({ id: stageEvents.id })
+    .returning({ id: stageEvents.id, createdAt: stageEvents.createdAt })
+
+  const createdAt =
+    event.createdAt?.toISOString() ?? new Date().toISOString()
+  deliverTurnWebhooks(stageId, {
+    type: 'turn_open',
+    stageId,
+    eventId: event.id,
+    createdAt,
+    content,
+  })
 
   return { emitted: true, eventId: event.id }
 }

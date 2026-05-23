@@ -64,6 +64,13 @@
       "when": 1779520000000,
       "tag": "0008_user_profiles",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1779521000000,
+      "tag": "0009_agent_webhooks",
+      "breakpoints": true
     }
   ]
 }

@@ -12,6 +12,7 @@ import {
 } from '@/lib/stage/turn-state'
 import { and, desc, eq, gt, gte } from 'drizzle-orm'
 import crypto from 'crypto'
+import { deliverTurnWebhooks } from '@/lib/stage/deliver-turn-webhooks'
 
 export const runtime = 'nodejs'
 
@@ -204,11 +205,23 @@ export async function POST(
       expiresAt: expiresAt.toISOString(),
     }
 
-    await db.insert(stageEvents).values({
-      stageId,
+    const [grantEvent] = await db
+      .insert(stageEvents)
+      .values({
+        stageId,
+        type: 'turn_grant',
+        agentId: agent.id,
+        characterId: character?.id ?? null,
+        content: grantContent,
+      })
+      .returning({ id: stageEvents.id, createdAt: stageEvents.createdAt })
+
+    deliverTurnWebhooks(stageId, {
       type: 'turn_grant',
-      agentId: agent.id,
-      characterId: character?.id ?? null,
+      stageId,
+      eventId: grantEvent.id,
+      createdAt:
+        grantEvent.createdAt?.toISOString() ?? grantedAt.toISOString(),
       content: grantContent,
     })
 

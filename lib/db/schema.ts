@@ -65,6 +65,10 @@ export const agents = pgTable('agents', {
   targetStageId: uuid('target_stage_id').references(() => stages.id),
   enrolledAt: timestamp('enrolled_at').defaultNow(),
   lastHeartbeatAt: timestamp('last_heartbeat_at'),
+  /** Best-effort push for turn_open / turn_grant (Phase 2). */
+  webhookUrl: text('webhook_url'),
+  /** Optional HMAC-SHA256 secret for X-ETC-Signature on outbound webhooks. */
+  webhookSecret: text('webhook_secret'),
 })
 
 // Stages

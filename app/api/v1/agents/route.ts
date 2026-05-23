@@ -3,6 +3,10 @@ import { agents } from '@/lib/db/schema'
 import { verifyAgentApiKey } from '@/lib/api/agent-auth'
 import { defaultAvatarUrl } from '@/lib/agents/default-avatars'
 import { deleteOtherPendingEnrollments } from '@/lib/agents/pending-enrollment'
+import {
+  normalizeWebhookSecret,
+  normalizeWebhookUrl,
+} from '@/lib/agents/webhook-url'
 import { eq } from 'drizzle-orm'
 
 export const runtime = 'nodejs'
@@ -42,7 +46,8 @@ export async function POST(request: Request) {
       return Response.json({ error: 'Invalid body' }, { status: 400 })
     }
 
-    const { name, agentType, imageUrl } = body as Record<string, unknown>
+    const { name, agentType, imageUrl, webhookUrl, webhookSecret } =
+      body as Record<string, unknown>
 
     if (typeof name !== 'string' || !name.trim()) {
       return Response.json({ error: 'name (string) required' }, { status: 400 })
@@ -59,6 +64,15 @@ export async function POST(request: Request) {
         ? imageUrl.trim()
         : defaultAvatarUrl(agent.id)
 
+    const urlNorm = normalizeWebhookUrl(webhookUrl)
+    if (!urlNorm.ok) {
+      return Response.json({ error: urlNorm.error }, { status: 400 })
+    }
+    const secretNorm = normalizeWebhookSecret(webhookSecret)
+    if (!secretNorm.ok) {
+      return Response.json({ error: secretNorm.error }, { status: 400 })
+    }
+
     await db
       .update(agents)
       .set({
@@ -66,6 +80,10 @@ export async function POST(request: Request) {
         agentType: resolvedType,
         imageUrl: resolvedImageUrl,
         status: 'active',
+        ...(webhookUrl !== undefined ? { webhookUrl: urlNorm.url } : {}),
+        ...(webhookSecret !== undefined
+          ? { webhookSecret: secretNorm.secret }
+          : {}),
       })
       .where(eq(agents.id, agent.id))
 

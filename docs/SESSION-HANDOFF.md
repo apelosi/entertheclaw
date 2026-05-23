@@ -1,12 +1,14 @@
-# Session handoff — 2026-05-23 (turn protocol shipped)
+# Session handoff — 2026-05-23 (turn protocol shipped, push channel mid-design)
 
 ## Start new chat (paste this)
 
 ```
-Continue Enter The Claw. Read docs/SESSION-HANDOFF.md, docs/agents/turn-protocol.md, and
-docs/PRD-implementation-gap-plan.md first. Phase 0 + Phase 1 turn protocol done
-(claim/grant + agent SSE + loop-agent.ts + MCP tools etc_claim_turn / etc_observe).
-bun run dev → http://localhost:3000. Do not commit unless I ask.
+Continue Enter The Claw. Read docs/SESSION-HANDOFF.md, docs/agents/turn-protocol.md,
+and decisions/2026-05-23-turn-protocol.md first. Phase 1 (pull-based turn protocol)
+is shipped on dev (commit f157f49, pushed). Phase 2 push-channel design was open;
+I now have a different idea for it — wait for me to share it before designing or
+coding anything in that area. bun run dev → http://localhost:3000. Do not commit
+unless I ask.
 ```
 
 Also: `~/.cursor/skills/global-operating-standards/SKILL.md`
@@ -22,8 +24,26 @@ Auth → enroll → autonomous agents on a stage → continuous live dialogue. T
 | Phase | Status |
 | --- | --- |
 | **0** | **PASS** — API smoke + E5/E6/E7; auth OAuth fix |
-| **1** | **DONE** — claim/grant turn protocol, extended heartbeat, agent SSE, scripts/loop-agent.ts, MCP `etc_claim_turn` + `etc_observe`, docs/agents/turn-protocol.md, system-prompt-addendum.md |
-| **Verify** | Paste addendum into the 4 Claw Wars agents, wait, confirm autonomous progression |
+| **1** | **DONE & PUSHED** — claim/grant turn protocol (commit `f157f49` on `dev`). Extended heartbeat (`pulseHintMs`, `turnState`, `addressedToYou`, `unreadEvents`), agent SSE, `scripts/loop-agent.ts`, MCP `etc_claim_turn` + `etc_observe`, `docs/agents/turn-protocol.md`, `docs/agents/system-prompt-addendum.md`, `decisions/2026-05-23-turn-protocol.md` |
+| **2** | **DESIGN PAUSED — user has a new idea.** Goal is dual-mode wakeups (push webhook + heartbeat). No code yet. Last conversation explored filtered push with per-agent `live` / `responsive` / `none` modes; user wants to revisit before any of this is built. **Do not start coding Phase 2 — wait for the user's new direction.** |
+| **Verify (user-side)** | Paste `docs/agents/system-prompt-addendum.md` into the 4 Claw Wars NanoClaws, watch the stage page for autonomous progression. 30-min cadence will limit liveness — that's expected and is the motivation for Phase 2. |
+
+## Phase 2 — context for whoever picks this up
+
+**What's already decided / fixed:**
+
+- Push and pull must coexist; webhook is opt-in per agent. Heartbeat stays as durable catch-up.
+- Webhook delivery model: best-effort (no retry queue in v1). Heartbeat's `unreadEvents` cursor backfills any missed deliveries.
+- Webhook payload mirrors the heartbeat response shape so the persona logic is push/pull-agnostic.
+
+**What is still open (user wants to redesign):**
+
+- Which event types push, and to whom (filtered vs firehose)
+- Whether to ship multiple per-agent modes (`live` / `responsive` / `none`) or just one default
+- How registration flows — generic webhook URL with HMAC vs something else
+- Whether to layer a different mechanism entirely (the user said "I have a better idea")
+
+**Do not start any of this until the user shares the new idea.** Re-reading the previous chat is unnecessary — the open question is just "what's the new idea, and what does it imply".
 
 ## Environment
 
@@ -98,13 +118,14 @@ rm -rf .next && bun run dev   # if ChunkLoadError
 | `app/api/v1/stages/[id]/emote/route.ts` | E7 |
 | `components/stage/stage-canvas.tsx` | Live view + SSE dialogue |
 
-## Still open / Phase 2+
+## Still open (unrelated to Phase 2)
 
 - SSE poll fix in `app/api/v1/stages/[id]/events/route.ts`
 - `/stages/[id]` alias → `/stage/[id]`
-- Twist UI, absence cron, Phaser v2
+- Absence cron, Phaser v2
 - Optional: redirect `/sign-in` → `/auth` for old links
+- Pre-existing uncommitted edits in `components/stage/{active-twist,dialogue-history-modal,dialogue-panel,narrative-twist,twist-banner}.tsx` and `lib/stage/feed-items.ts` — not mine, left alone
 
 ## New chat discipline
 
-Lean context: this file + gap plan. No extra MCPs unless needed. No commit without ask.
+Lean context: this file + `docs/agents/turn-protocol.md` + `decisions/2026-05-23-turn-protocol.md`. No extra MCPs unless needed. No commit without ask. **For Phase 2: wait for the user's new idea before designing anything — do not re-derive the previous webhook plan.**

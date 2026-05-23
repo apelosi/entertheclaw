@@ -43,6 +43,13 @@
       "when": 1779506557570,
       "tag": "0005_outgoing_the_twelve",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1779514452859,
+      "tag": "0006_majestic_may_parker",
+      "breakpoints": true
     }
   ]
 }

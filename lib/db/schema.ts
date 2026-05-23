@@ -7,6 +7,7 @@ import {
   jsonb,
   uuid,
   pgEnum,
+  unique,
 } from 'drizzle-orm/pg-core'
 import { bytea } from './bytea'
 
@@ -75,48 +76,70 @@ export const stages = pgTable('stages', {
 })
 
 // Who is in which stage right now
-export const stageParticipants = pgTable('stage_participants', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  stageId: uuid('stage_id')
-    .notNull()
-    .references(() => stages.id),
-  agentId: uuid('agent_id')
-    .notNull()
-    .references(() => agents.id),
-  role: participantRoleEnum('role').notNull(),
-  joinedAt: timestamp('joined_at').defaultNow(),
-  lastActiveAt: timestamp('last_active_at').defaultNow(),
-})
+export const stageParticipants = pgTable(
+  'stage_participants',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    stageId: uuid('stage_id')
+      .notNull()
+      .references(() => stages.id),
+    agentId: uuid('agent_id')
+      .notNull()
+      .references(() => agents.id),
+    role: participantRoleEnum('role').notNull(),
+    joinedAt: timestamp('joined_at').defaultNow(),
+    lastActiveAt: timestamp('last_active_at').defaultNow(),
+  },
+  (t) => ({
+    // One participant row per (stage, agent). Prevents duplicate joins from a
+    // racey double POST or retry. See migration 0006.
+    stageAgentUnique: unique('stage_participants_stage_agent_unique').on(
+      t.stageId,
+      t.agentId,
+    ),
+  }),
+)
 
 // Characters (active)
-export const characters = pgTable('characters', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  agentId: uuid('agent_id')
-    .notNull()
-    .references(() => agents.id),
-  stageId: uuid('stage_id')
-    .notNull()
-    .references(() => stages.id),
-  name: text('name'),
-  occupation: text('occupation'),
-  appearance: text('appearance'),
-  personality: text('personality'),
-  backstory: text('backstory'),
-  relationships: jsonb('relationships').$type<Record<string, string>>(),
-  secrets: text('secrets'),
-  fears: text('fears'),
-  goals: text('goals'),
-  speechPatterns: text('speech_patterns'),
-  socialStatus: text('social_status'),
-  imageUrl: text('image_url'), // public URL for portrait (serves portraitBytes)
-  spriteUrl: text('sprite_url'), // public URL for sprite (serves spriteBytes)
-  portraitBytes: bytea('portrait_bytes'), // generated portrait, image/webp
-  spriteBytes: bytea('sprite_bytes'), // generated 8-bit sprite, image/webp
-  assetsVersion: integer('assets_version').default(0).notNull(),
-  isComplete: boolean('is_complete').default(false),
-  createdAt: timestamp('created_at').defaultNow(),
-  updatedAt: timestamp('updated_at').defaultNow(),
-})
+export const characters = pgTable(
+  'characters',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    agentId: uuid('agent_id')
+      .notNull()
+      .references(() => agents.id),
+    stageId: uuid('stage_id')
+      .notNull()
+      .references(() => stages.id),
+    name: text('name'),
+    occupation: text('occupation'),
+    appearance: text('appearance'),
+    personality: text('personality'),
+    backstory: text('backstory'),
+    relationships: jsonb('relationships').$type<Record<string, string>>(),
+    secrets: text('secrets'),
+    fears: text('fears'),
+    goals: text('goals'),
+    speechPatterns: text('speech_patterns'),
+    socialStatus: text('social_status'),
+    imageUrl: text('image_url'), // public URL for portrait (serves portraitBytes)
+    spriteUrl: text('sprite_url'), // public URL for sprite (serves spriteBytes)
+    portraitBytes: bytea('portrait_bytes'), // generated portrait, image/webp
+    spriteBytes: bytea('sprite_bytes'), // generated 8-bit sprite, image/webp
+    assetsVersion: integer('assets_version').default(0).notNull(),
+    isComplete: boolean('is_complete').default(false),
+    createdAt: timestamp('created_at').defaultNow(),
+    updatedAt: timestamp('updated_at').defaultNow(),
+  },
+  (t) => ({
+    // One active character per (stage, agent). Pulled/timed-out characters
+    // live in `archived_characters`. See migration 0006.
+    stageAgentUnique: unique('characters_stage_agent_unique').on(
+      t.stageId,
+      t.agentId,
+    ),
+  }),
+)
 
 // Archived characters (when pulled or timed out)
 export const archivedCharacters = pgTable('archived_characters', {

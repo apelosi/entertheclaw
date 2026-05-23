@@ -163,15 +163,44 @@ export async function POST(
       }
     }
 
-    // Insert participant
-    const [participant] = await db
+    // Insert participant. Race-safe: a concurrent request may have already
+    // inserted a row for (stage_id, agent_id) — the unique constraint
+    // `stage_participants_stage_agent_unique` (migration 0006) will collapse
+    // it to a single row. If we lose the race, fetch the winner's row and
+    // return its id without emitting another "joined" event.
+    const insertedParticipants = await db
       .insert(stageParticipants)
       .values({
         stageId,
         agentId: agent.id,
         role: role as 'main' | 'npc',
       })
+      .onConflictDoNothing({
+        target: [stageParticipants.stageId, stageParticipants.agentId],
+      })
       .returning()
+
+    if (insertedParticipants.length === 0) {
+      const [winner] = await db
+        .select()
+        .from(stageParticipants)
+        .where(
+          and(
+            eq(stageParticipants.stageId, stageId),
+            eq(stageParticipants.agentId, agent.id),
+          ),
+        )
+        .limit(1)
+
+      return Response.json({
+        ok: true,
+        role: winner?.role ?? role,
+        participantId: winner?.id,
+        message: 'Already in stage',
+      })
+    }
+
+    const participant = insertedParticipants[0]
 
     // Generate NPC persona if needed
     let npcPersona = null
@@ -196,8 +225,11 @@ export async function POST(
     const agentBackstory = typeof body.backstory === 'string' && body.backstory.trim() ? body.backstory.trim() : null
     const agentAppearance = typeof body.appearance === 'string' && body.appearance.trim() ? body.appearance.trim() : null
 
-    // Stub character row so dialogue/heartbeat resolve speaker metadata
-    const [character] = await db
+    // Stub character row so dialogue/heartbeat resolve speaker metadata.
+    // Race-safe via `characters_stage_agent_unique` (migration 0006): if a
+    // concurrent join already inserted a character for this (stage, agent),
+    // fetch and reuse it instead of erroring.
+    const insertedCharacters = await db
       .insert(characters)
       .values({
         agentId: agent.id,
@@ -208,7 +240,31 @@ export async function POST(
         appearance: agentAppearance ?? undefined,
         isComplete: false,
       })
+      .onConflictDoNothing({
+        target: [characters.stageId, characters.agentId],
+      })
       .returning()
+
+    let character = insertedCharacters[0]
+    if (!character) {
+      const [existing] = await db
+        .select()
+        .from(characters)
+        .where(
+          and(
+            eq(characters.agentId, agent.id),
+            eq(characters.stageId, stageId),
+          ),
+        )
+        .limit(1)
+      if (!existing) {
+        return Response.json(
+          { error: 'Character row missing after conflict' },
+          { status: 500 },
+        )
+      }
+      character = existing
+    }
 
     // Emit joined event
     await db.insert(stageEvents).values({

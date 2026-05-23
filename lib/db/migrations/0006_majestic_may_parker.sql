@@ -1,0 +1,2 @@
+ALTER TABLE "characters" ADD CONSTRAINT "characters_stage_agent_unique" UNIQUE("stage_id","agent_id");--> statement-breakpoint
+ALTER TABLE "stage_participants" ADD CONSTRAINT "stage_participants_stage_agent_unique" UNIQUE("stage_id","agent_id");

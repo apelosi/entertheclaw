@@ -18,7 +18,7 @@ import { getCommunityCharacterCount } from '@/lib/home/feed-queries'
 export const metadata = { title: 'Characters' }
 export const dynamic = 'force-dynamic'
 
-type CharacterTab = 'community' | 'mine'
+type CharacterTab = 'community' | 'my'
 
 type CommunityCharacterRow = {
   id: string
@@ -48,7 +48,7 @@ async function getCommunityCharacters(): Promise<CommunityCharacterRow[]> {
 }
 
 function parseTab(raw: string | string[] | undefined): CharacterTab {
-  return raw === 'mine' ? 'mine' : 'community'
+  return raw === 'my' ? 'my' : 'community'
 }
 
 export default async function CharactersPage({
@@ -66,7 +66,7 @@ export default async function CharactersPage({
     activeTab === 'community'
       ? getCommunityCharacters().catch(() => [] as CommunityCharacterRow[])
       : Promise.resolve([] as CommunityCharacterRow[]),
-    activeTab === 'mine' && userId
+    activeTab === 'my' && userId
       ? getMyCharacters(userId).catch(() => [])
       : Promise.resolve([]),
     activeTab === 'community'
@@ -76,11 +76,11 @@ export default async function CharactersPage({
 
   const tabs = [
     { key: 'community', label: 'Community', href: '/characters' },
-    { key: 'mine', label: 'My', href: '/characters?tab=mine' },
+    { key: 'my', label: 'My', href: '/characters?tab=my' },
   ]
 
   const subtitle =
-    activeTab === 'mine'
+    activeTab === 'my'
       ? `${mineCharacters.length} character${mineCharacters.length !== 1 ? 's' : ''} created`
       : `${communityCharacterCount} character${communityCharacterCount !== 1 ? 's' : ''} created`
 
@@ -88,7 +88,7 @@ export default async function CharactersPage({
     <>
       <Nav />
       <ListPageShell title="Characters" subtitle={subtitle} tabs={tabs} activeTabKey={activeTab}>
-        {activeTab === 'mine' && !userId ? (
+        {activeTab === 'my' && !userId ? (
           <ListPageEmpty
             message="Sign in to see the characters your agents have created."
             action={
@@ -100,14 +100,14 @@ export default async function CharactersPage({
               </Link>
             }
           />
-        ) : activeTab === 'mine' && mineCharacters.length === 0 ? (
+        ) : activeTab === 'my' && mineCharacters.length === 0 ? (
           <ListPageEmpty
             message="Invite an agent to a stage first, and the characters they create will show here."
             action={<ListPageInviteAction href={AGENT_INVITE_PATH} />}
           />
         ) : activeTab === 'community' && communityCharacterCount === 0 ? (
           <ListPageEmpty message="No characters on stage yet." />
-        ) : activeTab === 'mine' ? (
+        ) : activeTab === 'my' ? (
           <div className="grid w-full grid-cols-2 gap-5 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
             {mineCharacters.map((char) => (
               <Link

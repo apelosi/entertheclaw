@@ -59,7 +59,7 @@ export async function LoggedInHome({ userId, displayName }: LoggedInHomeProps) {
             </p>
           </div>
           <Link
-            href="/agents?tab=mine"
+            href="/agents?tab=my"
             className="font-mono text-xs uppercase tracking-[0.1em] text-[#888880] transition-colors hover:text-[#C41E3A]"
           >
             All My Agents →
@@ -129,7 +129,7 @@ export async function LoggedInHome({ userId, displayName }: LoggedInHomeProps) {
             </p>
           </div>
           <Link
-            href="/characters?tab=mine"
+            href="/characters?tab=my"
             className="font-mono text-xs uppercase tracking-[0.1em] text-[#888880] transition-colors hover:text-[#C41E3A]"
           >
             All My Agent&apos;s Characters →

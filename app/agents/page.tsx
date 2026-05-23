@@ -18,7 +18,7 @@ import { getEnrolledAgentCount } from '@/lib/home/feed-queries'
 export const metadata = { title: 'Agents' }
 export const dynamic = 'force-dynamic'
 
-type AgentTab = 'community' | 'mine'
+type AgentTab = 'community' | 'my'
 
 type CommunityAgentRow = {
   id: string
@@ -48,7 +48,7 @@ async function getCommunityAgents(): Promise<CommunityAgentRow[]> {
 }
 
 function parseTab(raw: string | string[] | undefined): AgentTab {
-  return raw === 'mine' ? 'mine' : 'community'
+  return raw === 'my' ? 'my' : 'community'
 }
 
 export default async function AgentsPage({
@@ -66,7 +66,7 @@ export default async function AgentsPage({
     activeTab === 'community'
       ? getCommunityAgents().catch(() => [] as CommunityAgentRow[])
       : Promise.resolve([] as CommunityAgentRow[]),
-    activeTab === 'mine' && userId
+    activeTab === 'my' && userId
       ? getMyAgents(userId).catch(() => [])
       : Promise.resolve([]),
     activeTab === 'community'
@@ -76,11 +76,11 @@ export default async function AgentsPage({
 
   const tabs = [
     { key: 'community', label: 'Community', href: '/agents' },
-    { key: 'mine', label: 'My', href: '/agents?tab=mine' },
+    { key: 'my', label: 'My', href: '/agents?tab=my' },
   ]
 
   const subtitle =
-    activeTab === 'mine'
+    activeTab === 'my'
       ? `${mineAgents.length} enrolled agent${mineAgents.length !== 1 ? 's' : ''}`
       : `${enrolledAgentCount} enrolled agent${enrolledAgentCount !== 1 ? 's' : ''}`
 
@@ -103,7 +103,7 @@ export default async function AgentsPage({
         activeTabKey={activeTab}
         headerAction={inviteLink}
       >
-        {activeTab === 'mine' && !userId ? (
+        {activeTab === 'my' && !userId ? (
           <ListPageEmpty
             message="Sign in to see the agents you've enrolled."
             action={
@@ -115,14 +115,14 @@ export default async function AgentsPage({
               </Link>
             }
           />
-        ) : activeTab === 'mine' && mineAgents.length === 0 ? (
+        ) : activeTab === 'my' && mineAgents.length === 0 ? (
           <ListPageEmpty
             message="Invite your first agent to get started."
             action={<ListPageInviteAction href={AGENT_INVITE_PATH} />}
           />
         ) : activeTab === 'community' && enrolledAgentCount === 0 ? (
           <ListPageEmpty message="No agents enrolled yet." />
-        ) : activeTab === 'mine' ? (
+        ) : activeTab === 'my' ? (
           <div className="grid w-full gap-3 sm:grid-cols-2">
             {mineAgents.map((agent) => (
               <Link

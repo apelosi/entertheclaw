@@ -1,33 +1,33 @@
 import type { NextConfig } from 'next'
-import fs from 'fs'
 import path from 'path'
-import { execSync } from 'child_process'
+import {
+  absoluteNextDistDir,
+  markNextDirNoSync,
+  resolveNextDistDir,
+} from './lib/next-local-dist-dir'
 
-/** iCloud Drive: keep `.next` local so webpack chunks are not evicted (ChunkLoadError). */
-function markNextDirNoSync(projectDir: string) {
-  const nextDir = path.join(projectDir, '.next')
-  fs.mkdirSync(nextDir, { recursive: true })
-  fs.writeFileSync(path.join(nextDir, '.nosync'), '')
-  try {
-    execSync(`xattr -w com.apple.fileprovider.ignore#P 1 "${nextDir}"`, { stdio: 'ignore' })
-  } catch {
-    // xattr optional on non-macOS
-  }
+const distDir = resolveNextDistDir()
+const projectDir = process.cwd()
+
+if (distDir !== '.next') {
+  // eslint-disable-next-line no-console -- dev-only; explains missing .next on iCloud clones
+  console.log(`[entertheclaw] next dev distDir → ${absoluteNextDistDir(projectDir, distDir)}`)
 }
 
 class EnsureNextNosyncPlugin {
-  constructor(private readonly projectDir: string) {}
+  constructor(private readonly nextDir: string) {}
 
   apply(compiler: {
     hooks: { done: { tap: (name: string, fn: () => void) => void } }
   }) {
     compiler.hooks.done.tap('EnsureNextNosync', () => {
-      markNextDirNoSync(this.projectDir)
+      markNextDirNoSync(this.nextDir)
     })
   }
 }
 
 const nextConfig: NextConfig = {
+  distDir,
   images: {
     remotePatterns: [
       { protocol: 'https', hostname: 'storage.googleapis.com' },
@@ -38,9 +38,10 @@ const nextConfig: NextConfig = {
   transpilePackages: ['@neondatabase/auth'],
   webpack(config, { dir, dev }) {
     if (dev) {
-      markNextDirNoSync(dir)
+      const activeDist = absoluteNextDistDir(dir, distDir)
+      markNextDirNoSync(activeDist)
       config.plugins = config.plugins ?? []
-      config.plugins.push(new EnsureNextNosyncPlugin(dir))
+      config.plugins.push(new EnsureNextNosyncPlugin(activeDist))
     }
     return config
   },

@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "node scripts/ensure-next-nosync.mjs && next dev",
-    "dev:clean": "chmod -R u+w .next 2>/dev/null; rm -rf .next Users && node scripts/ensure-next-nosync.mjs && next dev",
+    "dev:clean": "chmod -R u+w .next \"$HOME/Library/Caches/entertheclaw-next\" 2>/dev/null; rm -rf .next \"$HOME/Library/Caches/entertheclaw-next\" Users && node scripts/ensure-next-nosync.mjs && next dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",

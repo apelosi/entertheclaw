@@ -1,33 +1,16 @@
 import Link from 'next/link'
-import Image from 'next/image'
 import { getServerSession } from '@/lib/auth/get-server-session'
 import { AUTH_PATH } from '@/lib/auth/paths'
 import { MobileMenu } from '@/components/nav/mobile-menu'
 import { NavLinks } from '@/components/nav/nav-links'
 
-/** Intrinsic display size (source asset is 1960×303). Keeps layout sane if CSS fails to load. */
-const WORDMARK_ASPECT = 1960 / 303
-
-function wordmarkDimensions(heightPx: number) {
-  return { width: Math.round(heightPx * WORDMARK_ASPECT), height: heightPx }
-}
-
-function Wordmark({
-  className,
-  heightPx = 32,
-}: {
-  className?: string
-  heightPx?: 28 | 32
-}) {
-  const { width, height } = wordmarkDimensions(heightPx)
+function Wordmark({ className }: { className?: string }) {
   return (
-    <Image
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
       src="/logo-wordmark.webp?v=15"
       alt="Enter The Claw"
-      width={width}
-      height={height}
-      className={className ?? 'h-8 w-auto'}
-      priority
+      className={className ?? 'h-[clamp(22px,2vw,32px)] w-auto'}
     />
   )
 }
@@ -62,10 +45,7 @@ function NavBar({
         href="/"
         className="absolute left-1/2 z-10 flex -translate-x-1/2 items-center md:hidden"
       >
-        <Wordmark
-          heightPx={28}
-          className="h-7 w-auto max-w-[min(52vw,220px)]"
-        />
+        <Wordmark className="h-[clamp(18px,5vw,28px)] w-auto max-w-[min(52vw,220px)]" />
       </Link>
 
       <div className="pointer-events-none absolute inset-0 hidden items-center justify-center md:flex">

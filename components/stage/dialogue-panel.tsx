@@ -3,8 +3,10 @@
 import { useState } from 'react'
 import Image from 'next/image'
 import type { FeedItem } from '@/lib/stage/feed-items'
+import { normalizeEmoteAction } from '@/lib/stage/dialogue-format'
 import { cn } from '@/lib/utils'
 import { DialogueHistoryModal } from './dialogue-history-modal'
+import { DialogueText } from './dialogue-text'
 import { SceneBanner, type CurrentScene } from './scene-banner'
 import { SceneScriptMarker, TwistScriptMarker } from './script-timeline-markers'
 import { SectionCollapsibleHeader } from './section-collapsible-header'
@@ -142,9 +144,11 @@ export function DialoguePanel({
                     </p>
                     <p className={cn(MONO_BODY, 'text-[#F0EDE8]')}>
                       {dialogue.isEmote ? (
-                        <em className="text-[#888880]">{dialogue.displayedText}</em>
+                        <em className="text-[#888880]">
+                          {normalizeEmoteAction(dialogue.displayedText)}
+                        </em>
                       ) : (
-                        dialogue.displayedText
+                        <DialogueText text={dialogue.displayedText} />
                       )}
                       <span
                         className={cn(TYPEWRITER_CURSOR, 'bg-[#C41E3A] animate-pulse-live')}
@@ -195,7 +199,11 @@ export function DialoguePanel({
                           </div>
                           <p className={cn('min-w-0 flex-1 text-[#888880]', MONO_BODY_SM)}>
                             <span className="text-[#C41E3A]/80">{item.speakerName}:</span>{' '}
-                            {item.isEmote ? <em>{item.text}</em> : item.text}
+                            {item.isEmote ? (
+                              <em>{normalizeEmoteAction(item.text)}</em>
+                            ) : (
+                              <DialogueText text={item.text} />
+                            )}
                           </p>
                         </div>
                       </li>

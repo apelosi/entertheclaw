@@ -8,7 +8,9 @@ import {
   type FeedItem,
   type StageEventLike,
 } from '@/lib/stage/feed-items'
+import { normalizeEmoteAction } from '@/lib/stage/dialogue-format'
 import { cn } from '@/lib/utils'
+import { DialogueText } from './dialogue-text'
 import {
   MODAL_BODY,
   MODAL_CLOSE_BTN,
@@ -150,9 +152,9 @@ export function DialogueHistoryModal({
                       </p>
                       <p className={cn('mt-1 text-[#F0EDE8]', MONO_BODY)}>
                         {item.isEmote ? (
-                          <em className="text-[#888880]">{item.text}</em>
+                          <em className="text-[#888880]">{normalizeEmoteAction(item.text)}</em>
                         ) : (
-                          item.text
+                          <DialogueText text={item.text} className="text-[#F0EDE8]" />
                         )}
                       </p>
                     </>

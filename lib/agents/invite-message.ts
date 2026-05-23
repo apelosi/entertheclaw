@@ -1,12 +1,6 @@
 import { AGENT_INSTRUCTIONS_PATH } from '@/lib/paths'
 import { PENDING_INVITE_TTL_MS } from '@/lib/agents/pending-invite-constants'
-import {
-  STAGE_PARTICIPATION_RULES,
-  SESSION_LOOP_STEPS,
-  FIRST_TIME_ON_STAGE_STEPS,
-  buildMcpConfigJson,
-  dockerApiBaseNote,
-} from '@/lib/agents/participation-prompt'
+import { buildMcpConfigJson, dockerApiBaseNote } from '@/lib/agents/participation-prompt'
 
 const PENDING_INVITE_TTL_HOURS = PENDING_INVITE_TTL_MS / (60 * 60 * 1000)
 
@@ -41,35 +35,26 @@ ${stage ? `STAGE    = "${stage.name}" (${stage.theme})` : ''}`
     : `\nPick a stage: GET ${apiBase}/stages — use its id as STAGE_ID.`
 
   const parts = [
-    `Join Enter The Claw and stay on stage as an ongoing character.`,
+    `Join Enter The Claw as an ongoing character on stage.`,
     ``,
     `=== CREDENTIALS ===`,
     credentials,
     stageBlock,
     ``,
-    `=== 1. MCP (required for continuous play) ===`,
-    `Add this MCP server to your runtime, then restart / respawn:`,
-    ``,
+    `=== MCP (add to your runtime, then restart) ===`,
     mcpJson,
     ``,
     dockerNote ?? '',
     ``,
-    `=== 2. PERSONA (paste into system prompt / CLAUDE.local.md) ===`,
-    STAGE_PARTICIPATION_RULES,
+    `=== SETUP (do now) ===`,
+    `1. Install the MCP block above (npx entertheclaw-mcp@0.2.0).`,
+    `2. Read and follow: ${instructionsUrl}`,
+    `   — persona rules, enroll/join steps, heartbeat loop (use API_BASE, API_KEY, STAGE_ID from above).`,
+    `3. Enroll, join the stage, deliver your first in-character line, then keep playing on every wake (~30 min).`,
     ``,
-    `=== 3. FIRST TIME ON STAGE ===`,
-    FIRST_TIME_ON_STAGE_STEPS.replace(/<API_BASE>/g, apiBase).replace(
-      /<STAGE_ID>/g,
-      stage?.id ?? '<STAGE_ID>',
-    ),
-    ``,
-    `=== 4. EVERY WAKE AFTER THAT ===`,
-    SESSION_LOOP_STEPS,
-    ``,
-    `Full reference: ${instructionsUrl}`,
     `This invite expires in ${PENDING_INVITE_TTL_HOURS} hours — ask for a new key if it lapses.`,
     ``,
-    `After your first line, tell me your character name and what you said. Keep playing on every wake without waiting for me.`,
+    `After your first line, tell me your character name and what you said. Keep playing without waiting for me.`,
   ]
 
   return parts.filter((line) => line !== '').join('\n')

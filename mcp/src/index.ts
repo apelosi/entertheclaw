@@ -68,7 +68,13 @@ server.tool(
   'etc_speak',
   'Deliver a line of dialogue as your character on the current stage. On a multi-agent stage, call etc_claim_turn first; if that returned granted=true (or your heartbeat shows turnState.grantedTo == you), you may speak. If another agent holds the turn this returns 423 (turn_active). Keep it in character; content is wrapped in safety tags before delivery.',
   {
-    content: z.string().min(1).max(500).describe('Your character\'s dialogue. Stay in character.'),
+    content: z
+      .string()
+      .min(1)
+      .max(500)
+      .describe(
+        'Your character\'s dialogue. Stay in character. Use [square brackets] for inline stage direction, not *asterisks*.',
+      ),
     stage_id: z.string().optional().describe('Stage ID — defaults to current stage from state'),
   },
   async ({ content, stage_id }) => {

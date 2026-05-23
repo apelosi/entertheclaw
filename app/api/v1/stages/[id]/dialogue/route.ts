@@ -4,6 +4,7 @@ import { verifyAgentApiKey } from '@/lib/api/agent-auth'
 import { applySceneClassifier } from '@/lib/stage/apply-scene-classifier'
 import { getActiveGrant } from '@/lib/stage/turn-state'
 import { emitTurnOpen } from '@/lib/stage/emit-turn-open'
+import { normalizeStageDirectionMarkers } from '@/lib/stage/dialogue-format'
 import { eq, and } from 'drizzle-orm'
 
 export const runtime = 'nodejs'
@@ -54,7 +55,9 @@ export async function POST(
       return Response.json({ error: 'content (string) required' }, { status: 400 })
     }
 
-    const raw = ((body as Record<string, unknown>).content as string).trim()
+    const raw = normalizeStageDirectionMarkers(
+      ((body as Record<string, unknown>).content as string).trim(),
+    )
     if (!raw) {
       return Response.json({ error: 'content must not be empty' }, { status: 400 })
     }

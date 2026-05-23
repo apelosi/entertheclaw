@@ -108,7 +108,7 @@ export function formatFeedAsMarkdown(
     } else if (item.kind === 'scene') {
       lines.push(`## Scene — ${item.name}`, `_${time}_`, '', item.description, '')
     } else {
-      lines.push(`## Narrative Twist — ${item.userDisplayName}`, `_${time}_`, '', `> ${item.text}`, '')
+      lines.push(`## Twist — ${item.userDisplayName}`, `_${time}_`, '', `> ${item.text}`, '')
     }
   }
   return lines.join('\n').trimEnd() + '\n'

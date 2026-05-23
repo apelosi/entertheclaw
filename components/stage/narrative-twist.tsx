@@ -191,7 +191,7 @@ export function NarrativeTwist({
         onClick={() => setHistoryOpen(true)}
         className="inline-flex w-fit font-mono text-[10px] uppercase tracking-[0.18em] text-[#888880] underline-offset-2 transition-colors hover:text-[#F0EDE8] hover:underline"
       >
-        Narrative history
+        Twist History
       </button>
     </>
   )
@@ -206,7 +206,7 @@ export function NarrativeTwist({
           )}
         >
           <SectionCollapsibleHeader
-            title="Narrative Twist"
+            title="Twists"
             titleClassName={twistsEnabled ? undefined : 'text-[#888880]'}
             meta={
               <HeaderStatus
@@ -220,8 +220,8 @@ export function NarrativeTwist({
             }
             open={panelOpen}
             onClick={() => setPanelOpen((v) => !v)}
-            ariaLabelExpanded="Collapse narrative twist"
-            ariaLabelCollapsed="Expand narrative twist"
+            ariaLabelExpanded="Collapse twists"
+            ariaLabelCollapsed="Expand twists"
             className="p-3"
           />
 
@@ -259,7 +259,7 @@ export function NarrativeTwist({
             )}
             style={{ fontFamily: 'var(--font-display)' }}
           >
-            Narrative Twist
+            Twists
           </h2>
           <div className="flex min-w-0 flex-1 justify-end">
             <HeaderStatus

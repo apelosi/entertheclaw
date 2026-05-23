@@ -156,7 +156,7 @@ function TwistContent({
         </>
       ) : (
         <p className="font-mono text-[12px] leading-relaxed text-[#444440]">
-          No narrative twist on stage yet.
+          No twist on stage yet.
         </p>
       )}
 

@@ -35,7 +35,7 @@ export function TwistBanner({ twist, durationMs = 7000 }: Props) {
       <div className="glass-hud flex max-w-xl flex-col gap-3 rounded-sm border-l-2 border-l-[#C41E3A] p-5 shadow-[0_30px_80px_rgba(0,0,0,0.7)]">
         <div className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.18em] text-[#C41E3A]">
           <span className="h-1.5 w-1.5 rounded-full bg-[#C41E3A] shadow-[0_0_10px_#C41E3A]" />
-          Narrative Twist Injected
+          Twist Injected
         </div>
         <p
           className="text-2xl italic leading-snug text-[#F0EDE8]"

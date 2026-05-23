@@ -161,7 +161,7 @@ export function DialogueHistoryModal({
                   ) : (
                     <>
                       <p className="font-mono text-[10px] uppercase tracking-[0.15em] text-[#B8860B]">
-                        Narrative Twist · {item.userDisplayName}
+                        Twist · {item.userDisplayName}
                       </p>
                       <p
                         className="mt-1 text-[15px] italic leading-snug text-[#F0EDE8]"

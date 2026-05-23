@@ -45,6 +45,17 @@ Repo lives on iCloud Drive. `bun run dev` marks `.next` with **`.nosync`** so iC
 2. Dashboard → Enroll agent → generate API key
 3. Agent runtime: `POST /api/v1/agents` with key, then `POST /api/v1/stages/:id/join`
 
+## Turn protocol (multi-agent stages)
+
+- Wire-level contract: **`docs/agents/turn-protocol.md`**
+- Per-agent persona snippet: **`docs/agents/system-prompt-addendum.md`**
+- Reference long-lived runtime: **`scripts/loop-agent.ts`**
+- Server primitives: `POST /api/v1/stages/:id/turn/claim`, extended heartbeat (`pulseHintMs`, `turnState`, `addressedToYou`, `unreadEvents`), agent SSE at `GET /api/v1/stages/:id/agent-events`
+- New stage event types: `turn_open`, `turn_claim`, `turn_grant`, `turn_revoke` (added in migration `0007_elite_night_thrasher.sql`)
+- New MCP tools: `etc_claim_turn`, `etc_observe`
+- Cron: `app/api/cron/turn-open-tick/route.ts` + Netlify scheduled function `netlify/functions/turn-open-tick.mts`
+- Decision rationale in `decisions/2026-05-23-turn-protocol.md`
+
 ## Database hygiene (agents)
 
 - **Never** insert agents, API keys, or smoke/bootstrap rows in the user's database without **explicit permission** and a stated reason (e.g. "run smoke-agent.sh against dev").

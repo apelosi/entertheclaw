@@ -7,9 +7,27 @@ import {
   stageEvents,
 } from '@/lib/db/schema'
 import { verifyAgentApiKey } from '@/lib/api/agent-auth'
-import { eq, and, desc } from 'drizzle-orm'
+import {
+  classifyStageActivity,
+  getActiveGrant,
+  getLastDialogueAt,
+  PULSE_HINT_ACTIVE_MS,
+  PULSE_HINT_IDLE_MS,
+  SCENE_QUIET_MS,
+} from '@/lib/stage/turn-state'
+import { eq, and, desc, gte } from 'drizzle-orm'
 
 export const runtime = 'nodejs'
+
+const ADDRESSED_LOOKBACK = 5 // last N dialogue events to scan for character name
+const UNREAD_CAP = 50
+
+function isAddressed(text: unknown, characterName: string | null): boolean {
+  if (!characterName || typeof text !== 'string') return false
+  const escaped = characterName.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')
+  const re = new RegExp(`\\b${escaped}\\b`, 'i')
+  return re.test(text)
+}
 
 export async function POST(
   request: Request,
@@ -23,7 +41,6 @@ export async function POST(
       return Response.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Verify participation
     const [participant] = await db
       .select()
       .from(stageParticipants)
@@ -43,8 +60,10 @@ export async function POST(
     }
 
     const now = new Date()
+    // Snapshot the previous lastActiveAt BEFORE we update it, so unreadEvents
+    // can use it as a cursor.
+    const previousLastActiveAt = participant.lastActiveAt ?? null
 
-    // Update lastHeartbeatAt on agent and lastActiveAt on participant
     await Promise.all([
       db
         .update(agents)
@@ -56,7 +75,6 @@ export async function POST(
         .where(eq(stageParticipants.id, participant.id)),
     ])
 
-    // Get stage state snapshot for agent context
     const [stage] = await db
       .select()
       .from(stages)
@@ -76,6 +94,52 @@ export async function POST(
       .orderBy(desc(stageEvents.createdAt))
       .limit(10)
 
+    let unreadEvents: typeof recentEvents = []
+    if (previousLastActiveAt) {
+      unreadEvents = await db
+        .select()
+        .from(stageEvents)
+        .where(
+          and(
+            eq(stageEvents.stageId, stageId),
+            gte(stageEvents.createdAt, previousLastActiveAt),
+          ),
+        )
+        .orderBy(desc(stageEvents.createdAt))
+        .limit(UNREAD_CAP)
+    } else {
+      // First heartbeat for this participant — give them the recent context only
+      unreadEvents = recentEvents
+    }
+
+    const stageActivity = await classifyStageActivity(stageId)
+    const activeGrant = await getActiveGrant(stageId)
+    const lastDialogueAt = await getLastDialogueAt(stageId)
+
+    const lastDialogueAgoMs =
+      lastDialogueAt === null ? null : Math.max(0, Date.now() - lastDialogueAt)
+    const turnIsOpen =
+      !activeGrant && (lastDialogueAgoMs === null || lastDialogueAgoMs >= SCENE_QUIET_MS)
+
+    // addressedToYou: scan last few dialogue events
+    const charName = currentCharacter?.name ?? null
+    const recentDialogues = recentEvents
+      .filter((e) => e.type === 'dialogue')
+      .slice(0, ADDRESSED_LOOKBACK)
+    const addressedToYou = recentDialogues.some((e) => {
+      const c = e.content as { text?: string; speakerName?: string } | null
+      if (!c) return false
+      // Skip lines you spoke yourself
+      if (e.agentId === agent.id) return false
+      return isAddressed(c.text, charName)
+    })
+
+    const pulseHintMs = stageActivity === 'active' ? PULSE_HINT_ACTIVE_MS : PULSE_HINT_IDLE_MS
+    // If you were just addressed, suggest pulsing sooner regardless of overall stage activity.
+    const nextPulseSuggestionMs = addressedToYou
+      ? Math.min(pulseHintMs, 60_000)
+      : pulseHintMs
+
     return Response.json({
       ok: true,
       timestamp: now.toISOString(),
@@ -89,6 +153,18 @@ export async function POST(
         : null,
       character: currentCharacter ?? null,
       recentEvents,
+      // ── Phase 1 protocol fields ─────────────────────────────────────────
+      stageActivity,
+      pulseHintMs,
+      nextPulseSuggestionMs,
+      turnState: {
+        open: turnIsOpen,
+        lastDialogueAgoMs,
+        grantedTo: activeGrant?.agentId ?? null,
+        grantExpiresAt: activeGrant?.expiresAt ?? null,
+      },
+      addressedToYou,
+      unreadEvents,
     })
   } catch (err) {
     console.error('[POST /api/v1/stages/:id/heartbeat]', err)

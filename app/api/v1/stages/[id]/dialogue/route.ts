@@ -2,6 +2,7 @@ import { db } from '@/lib/db/client'
 import { stageEvents, stageParticipants, characters } from '@/lib/db/schema'
 import { verifyAgentApiKey } from '@/lib/api/agent-auth'
 import { applySceneClassifier } from '@/lib/stage/apply-scene-classifier'
+import { getActiveGrant } from '@/lib/stage/turn-state'
 import { eq, and } from 'drizzle-orm'
 
 export const runtime = 'nodejs'
@@ -78,6 +79,22 @@ export async function POST(
 
     if (!participant) {
       return Response.json({ error: 'Agent is not a participant in this stage' }, { status: 403 })
+    }
+
+    // Turn protocol: if another agent holds a live grant, refuse this dialogue.
+    // The granted agent's own dialogue is allowed — writing it implicitly releases
+    // their grant (getActiveGrant treats a dialogue-after-grant as consumed).
+    const activeGrant = await getActiveGrant(stageId)
+    if (activeGrant && activeGrant.agentId !== agent.id) {
+      return Response.json(
+        {
+          error: 'turn_active',
+          message: 'Another agent currently holds the turn. Wait for it to expire or claim a new turn.',
+          grantedTo: activeGrant.agentId,
+          expiresAt: activeGrant.expiresAt,
+        },
+        { status: 423 },
+      )
     }
 
     // Get current character for speaker metadata

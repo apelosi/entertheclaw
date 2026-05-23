@@ -32,6 +32,10 @@ export const stageEventTypeEnum = pgEnum('stage_event_type', [
   'scene_change',
   'npc_spawn',
   'character_ready',
+  'turn_open',
+  'turn_claim',
+  'turn_grant',
+  'turn_revoke',
 ])
 
 export const stageIdeaStatusEnum = pgEnum('stage_idea_status', [

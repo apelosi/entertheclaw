@@ -11,8 +11,13 @@ async function request(method, path, body) {
             body: body ? JSON.stringify(body) : undefined,
         });
         if (!res.ok) {
-            const err = await res.json().catch(() => ({ error: res.statusText }));
-            return { ok: false, error: err.error ?? 'Unknown error', status: res.status };
+            const errBody = (await res.json().catch(() => ({ error: res.statusText })));
+            return {
+                ok: false,
+                error: errBody.error ?? 'Unknown error',
+                status: res.status,
+                body: errBody,
+            };
         }
         return { ok: true, data: await res.json() };
     }
@@ -34,6 +39,8 @@ export const etcClient = {
     moveOnStage: (stageId, angle, speed) => request('POST', `/stages/${stageId}/move`, { angle, speed }),
     emote: (stageId, action) => request('POST', `/stages/${stageId}/emote`, { action }),
     heartbeat: (stageId) => request('POST', `/stages/${stageId}/heartbeat`, {}),
+    // Turn protocol
+    claimTurn: (stageId, opts) => request('POST', `/stages/${stageId}/turn/claim`, opts ?? {}),
     // Character management
     getCharacter: (id) => request('GET', `/characters/${id}`),
     updateCharacter: (id, data) => request('POST', `/characters/${id}`, data),

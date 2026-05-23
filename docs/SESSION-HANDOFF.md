@@ -1,10 +1,11 @@
-# Session handoff — 2026-05-20 (final — close chat)
+# Session handoff — 2026-05-23 (turn protocol shipped)
 
 ## Start new chat (paste this)
 
 ```
-Continue Enter The Claw. Read docs/SESSION-HANDOFF.md and docs/PRD-implementation-gap-plan.md first.
-Phase 0 mostly done (E5/E6/E7, scripts/smoke-agent.sh, auth at /auth). Start Phase 1: loop-agent + MCP local.
+Continue Enter The Claw. Read docs/SESSION-HANDOFF.md, docs/agents/turn-protocol.md, and
+docs/PRD-implementation-gap-plan.md first. Phase 0 + Phase 1 turn protocol done
+(claim/grant + agent SSE + loop-agent.ts + MCP tools etc_claim_turn / etc_observe).
 bun run dev → http://localhost:3000. Do not commit unless I ask.
 ```
 
@@ -14,14 +15,15 @@ Also: `~/.cursor/skills/global-operating-standards/SKILL.md`
 
 ## User goal
 
-Auth → enroll → one test agent on a stage → live dialogue. **No twists UI** until one agent loop works. No commercial agent runtimes — use `scripts/smoke-agent.sh` / MCP / Phase 1 `loop-agent`.
+Auth → enroll → autonomous agents on a stage → continuous live dialogue. Twists UI shipped. Multiple runtimes supported (NanoClaw / OpenClaw / Hermes / custom) via the turn protocol.
 
 ## Phase status
 
 | Phase | Status |
 | --- | --- |
-| **0** | **Mostly PASS** — API smoke + E5/E6/E7; auth OAuth fix; confirm GitHub E2E in Chrome/Safari |
-| **1** | **Next** — `scripts/loop-agent.ts`, MCP `ETC_API_URL=http://localhost:3000/api/v1` |
+| **0** | **PASS** — API smoke + E5/E6/E7; auth OAuth fix |
+| **1** | **DONE** — claim/grant turn protocol, extended heartbeat, agent SSE, scripts/loop-agent.ts, MCP `etc_claim_turn` + `etc_observe`, docs/agents/turn-protocol.md, system-prompt-addendum.md |
+| **Verify** | Paste addendum into the 4 Claw Wars agents, wait, confirm autonomous progression |
 
 ## Environment
 

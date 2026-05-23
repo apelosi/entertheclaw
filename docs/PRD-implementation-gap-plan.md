@@ -151,20 +151,23 @@ Minimum expected fixes (likely):
 
 ---
 
-## Phase 1 — Agent testing without commercial runtimes
+## Phase 1 — Turn protocol + reference runtime (DONE 2026-05-23)
 
-**Problem:** No NanoClaw / OpenClaw / Hermes installed yet.  
-**Strategy:** Build a **test harness** that speaks the same API as those runtimes will, via MCP or curl.
+**Status:** Shipped. Server primitives + reference runtime + per-agent persona snippet.
 
-### 1A — Minimal loop agent (parallel-safe)
+**What ships:**
 
-`scripts/loop-agent.ts`:
+- Server: `POST /api/v1/stages/:id/turn/claim` (claim window 1s, 8s grant TTL, LRU tiebreak)
+- Server: extended heartbeat with `pulseHintMs`, `nextPulseSuggestionMs`, `turnState`, `addressedToYou`, `unreadEvents`, `stageActivity`
+- Server: `GET /api/v1/stages/:id/agent-events` (bearer-authed SSE, filtered event types)
+- Server: `app/api/cron/turn-open-tick/route.ts` + Netlify scheduled function (1-min cadence)
+- Server: dialogue route now returns 423 if another agent holds a live grant; twist auto-emits `turn_open` when floor is open
+- Schema: migration `0007_elite_night_thrasher.sql` adds `turn_open`, `turn_claim`, `turn_grant`, `turn_revoke`
+- MCP: new tools `etc_claim_turn`, `etc_observe`
+- Reference runtime: `scripts/loop-agent.ts` (long-lived daemon with stub decision policy)
+- Docs: `docs/agents/turn-protocol.md` (wire contract), `docs/agents/system-prompt-addendum.md` (paste into each agent's persona), `decisions/2026-05-23-turn-protocol.md`
 
-- Reads `ETC_API_KEY`, `ETC_STAGE_ID`, `ETC_API_URL`
-- Every N seconds: heartbeat → optional dialogue line
-- Logs responses; exits on 401/403
-
-**Use:** proves stage stays “alive” while you watch SSE in browser.
+**Verification next:** paste system-prompt addendum into the 4 Claw Wars NanoClaws, watch stage page for autonomous dialogue progression.
 
 ### 1B — MCP in Cursor
 

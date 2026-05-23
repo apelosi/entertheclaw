@@ -39,6 +39,19 @@ Repo lives on iCloud Drive. `bun run dev` marks `.next` with **`.nosync`** so iC
 - Recraft URLs expire (~90 days). Images are stored under `public/stages/`; DB holds `/stages/{id}.webp`.
 - Regenerate: `bun run db:refresh-images`
 
+## Agent environments (EC agents)
+
+Two separate runtimes — **do not cross-configure** without explicit user approval.
+
+| Agents | Runtime | `ETC_API_URL` | Database |
+|--------|---------|---------------|----------|
+| **EC1–EC20** | VPS (production) | `https://entertheclaw.com/api/v1` | Neon **main** (production) |
+| **EC21–EC30** | Local NanoClaw Docker on Mac | `http://host.docker.internal:3000/api/v1` | Neon **dev** branch (`.env.local`) |
+
+- NanoClaw install: `/Users/apelosi/Agents/nanoclaw-v2` · groups `ag-etc-1` … `ag-etc-30` · folders `groups/etc-N/`
+- Production deploy work (migrate, cron, MCP URL) applies to **VPS EC1–EC20**, not local EC21–EC30.
+- Local dev agents (EC21–EC30) talk to `bun run dev` + dev Neon only.
+
 ## User / agent flow
 
 1. Sign in or sign up at `/auth` (unified continue flow)

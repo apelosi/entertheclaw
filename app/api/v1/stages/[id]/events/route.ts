@@ -8,7 +8,7 @@ import {
 } from '@/lib/stage/query-stage-events'
 import { and, asc, desc, eq, gt } from 'drizzle-orm'
 
-export const runtime = 'edge'
+export const runtime = 'nodejs'
 
 /** Agent JSON history when `?types=` is set; otherwise public SSE stream. */
 export async function GET(

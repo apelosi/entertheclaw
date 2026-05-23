@@ -376,8 +376,9 @@ export default function StageCanvas({
 
   return (
     <main className="relative w-full bg-[#080808]">
-      {/* Stage band: backdrop + sprites + HUD overlays */}
-      <div className="relative aspect-[16/9] min-h-[200px] w-full overflow-hidden">
+      {/* Stage band: backdrop + sprites + HUD overlays. On lg, the height is capped
+          so the room doesn't dominate ultrawide viewports; the 3-column HUD grid sits over it. */}
+      <div className="relative aspect-[16/9] min-h-[200px] w-full overflow-hidden lg:aspect-auto lg:h-[min(78vh,820px)]">
         {/* Backdrop */}
         <div className="absolute inset-0">
           {stageImageUrl ? (
@@ -393,8 +394,10 @@ export default function StageCanvas({
             <div className="absolute inset-0 bg-gradient-to-br from-[#1a0a14] via-[#0e0e0e] to-[#080808]" />
           )}
           <div className="absolute inset-0 bg-gradient-to-b from-[#080808]/70 via-[#080808]/15 to-[#080808]/80" />
-          <div className="absolute inset-y-0 left-0 w-48 bg-gradient-to-r from-[#080808]/60 to-transparent" />
-          <div className="absolute inset-y-0 right-0 w-56 bg-gradient-to-l from-[#080808]/60 to-transparent" />
+          {/* Side vignettes — on mobile they fade out the stage edges; on desktop the HUD
+              columns provide their own contrast, so we lighten the vignette to expose more art. */}
+          <div className="absolute inset-y-0 left-0 w-48 bg-gradient-to-r from-[#080808]/60 to-transparent lg:w-32 lg:from-[#080808]/35" />
+          <div className="absolute inset-y-0 right-0 w-56 bg-gradient-to-l from-[#080808]/60 to-transparent lg:w-32 lg:from-[#080808]/35" />
         </div>
 
         {/* Character sprites */}
@@ -452,22 +455,25 @@ export default function StageCanvas({
           onClose={() => setAboutOpen(false)}
         />
 
-        {/* Desktop left HUD stack */}
-        <div className="pointer-events-none absolute left-5 top-[4.5rem] z-20 hidden w-[min(20rem,calc(100%-2.5rem))] flex-col gap-3 pb-2 lg:flex">
-          <CharactersRail
-            stageId={stageId}
-            mainCharacters={mainCharacters}
-            activeAgentId={activeAgentId}
-          />
-          <NarrativeTwist {...sharedNarrativeProps} />
-        </div>
-
-        {/* Desktop right HUD — dialogue */}
-        <div className="pointer-events-none absolute right-5 top-[4.5rem] z-20 hidden w-[min(20rem,calc(100%-2.5rem))] pb-4 lg:block">
-          <DialoguePanel
-            {...sharedDialogueProps}
-            recentItems={recentDialogueItems}
-          />
+        {/* Desktop HUD grid — overlays the stage band, leaving the center column for sprites */}
+        <div className="pointer-events-none absolute inset-0 z-20 hidden lg:grid lg:grid-cols-[22rem_1fr_22rem] lg:gap-5 lg:p-5 lg:pt-[4.5rem]">
+          <div className="pointer-events-auto flex flex-col gap-3 overflow-y-auto pr-1">
+            <CharactersRail
+              stageId={stageId}
+              mainCharacters={mainCharacters}
+              activeAgentId={activeAgentId}
+              collapsible
+              defaultOpen={false}
+            />
+            <NarrativeTwist {...sharedNarrativeProps} collapsible defaultOpen />
+          </div>
+          <div />
+          <div className="pointer-events-auto overflow-y-auto pl-1">
+            <DialoguePanel
+              {...sharedDialogueProps}
+              recentItems={recentDialogueItems}
+            />
+          </div>
         </div>
       </div>
 

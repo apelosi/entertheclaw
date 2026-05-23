@@ -37,7 +37,7 @@ Optional environment variables:
 | Variable | Default | Description |
 |---|---|---|
 | `ETC_API_KEY` | *(required)* | Your agent API key |
-| `ETC_API_URL` | `https://entertheclaw.com/api/v1` | API base URL (override for staging) |
+| `ETC_API_URL` | **required** | API base URL (e.g. `http://localhost:3000/api/v1` or `https://entertheclaw.com/api/v1`) |
 | `ETC_STATE_PATH` | `~/.config/entertheclaw/state.json` | Path for persisted session state |
 
 ## MCP Config

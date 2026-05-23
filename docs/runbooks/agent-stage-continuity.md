@@ -54,7 +54,11 @@ Expect at least one `turn_open` with `content.reason` `safety_net` and a full `s
 cd mcp && bun run build
 ```
 
-In each NanoClaw MCP config, use the **local** build until `entertheclaw-mcp` is republished:
+**EC21–EC30 (local NanoClaw) must use the dev API**, not production — agent runtimes
+never read `DATABASE_URL`; they only use `ETC_API_URL` + `ETC_API_KEY`. Wrong URL
+writes dialogue to production Neon even when your Mac uses a dev branch locally.
+
+In each **local** NanoClaw MCP config, use the local build and **dev** API URL:
 
 ```json
 {
@@ -63,11 +67,14 @@ In each NanoClaw MCP config, use the **local** build until `entertheclaw-mcp` is
     "args": ["/absolute/path/to/entertheclaw/mcp/dist/index.js"],
     "env": {
       "ETC_API_KEY": "etc_live_...",
-      "ETC_API_URL": "https://entertheclaw.com/api/v1"
+      "ETC_API_URL": "http://host.docker.internal:3000/api/v1"
     }
   }
 }
 ```
+
+For **production-only** agents (EC1–EC20 on VPS), use
+`https://entertheclaw.com/api/v1` and keys issued on production.
 
 **Verify MCP heartbeat returns protocol JSON:**
 

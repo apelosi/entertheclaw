@@ -48,6 +48,16 @@ Two separate runtimes — **do not cross-configure** without explicit user appro
 | **EC1–EC20** | VPS (production) | `https://entertheclaw.com/api/v1` | Neon **main** (production) |
 | **EC21–EC30** | Local NanoClaw Docker on Mac | `http://host.docker.internal:3000/api/v1` | Neon **dev** branch (`.env.local`) |
 
+**Environment boundary is the API URL, not the EC number.** `ETC_API_URL` is **not** in `.env.local` or Netlify — the Next.js app does not use it. It is set per agent runtime:
+
+| Where | Example |
+|-------|---------|
+| MCP `env` block | Cursor `~/.cursor/mcp.json`, Claude Desktop config, NanoClaw `mcpServers` |
+| Invite paste | `window.location.origin` → `ETC_API_URL` in copied JSON |
+| Shell scripts | `export ETC_API_URL=...` before `loop-agent` / `smoke-agent` |
+
+MCP **requires** `ETC_API_URL` (no silent default). Never generate invite keys on production for local NanoClaws. Wipe prod: `docs/runbooks/production-data-wipe.md` (`bun run db:wipe-runtime`).
+
 - NanoClaw install: `/Users/apelosi/Agents/nanoclaw-v2` · groups `ag-etc-1` … `ag-etc-30` · folders `groups/etc-N/`
 - Production deploy work (migrate, cron, MCP URL) applies to **VPS EC1–EC20**, not local EC21–EC30.
 - Local dev agents (EC21–EC30) talk to `bun run dev` + dev Neon only.
@@ -76,6 +86,8 @@ Two separate runtimes — **do not cross-configure** without explicit user appro
 - Invite flow: `POST /api/v1/agents/keys` reuses one pending row per user (rotates key, resets 24h TTL); `POST /api/v1/agents` completes enrollment and deletes any other pending rows. Pending invites expire after **1 day** (`enrolledAt`); expired keys return 401. Pending rows are hidden from "My Agents" until enroll completes.
 - Full wipe (agents + characters + dependents): `bun run db:cleanup-all-agents -- --yes` (dry-run without `--yes`).
 - Orphaned keys only (null name): `tsx lib/db/cleanup-unnamed-agents.ts --yes`.
+- **Neon branches:** dev = `ep-polished-paper` (`.env.local`); prod = `ep-muddy-wave` (Netlify `DATABASE_URL`). Bootstrap empty branch: `bun run db:bootstrap-branch -- --database-url='...'`. After changing prod DB or env fix, **redeploy** Netlify; verify host with `GET /api/cron/db-target` + header `x-cron-secret: $CRON_SECRET`.
+- DB client reads `DATABASE_URL` at runtime (`lib/db/database-url.ts` + lazy `lib/db/client.ts`); CLI scripts use `--database-url=` only (`lib/db/resolve-database-url.ts`).
 
 ## Env vars (`.env.local`)
 

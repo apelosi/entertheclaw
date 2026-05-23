@@ -86,10 +86,33 @@ async function getStageData(id: string, userId: string | null) {
     lastUserTwist = row ?? null
   }
 
+  // Resolve initial current scene: latest scene_change event content, falling
+  // back to the seeded initial_scene_* columns. We scan recentEvents instead
+  // of issuing another query since recentEvents already covers 50 events.
+  let initialScene: { name: string; description: string } | null = null
+  const latestSceneEvent = recentEvents.find((e) => e.type === 'scene_change')
+  if (
+    latestSceneEvent &&
+    typeof latestSceneEvent.content === 'object' &&
+    latestSceneEvent.content !== null
+  ) {
+    const c = latestSceneEvent.content as Record<string, unknown>
+    if (typeof c.name === 'string' && typeof c.description === 'string') {
+      initialScene = { name: c.name, description: c.description }
+    }
+  }
+  if (!initialScene && stage.initialSceneName && stage.initialSceneDescription) {
+    initialScene = {
+      name: stage.initialSceneName,
+      description: stage.initialSceneDescription,
+    }
+  }
+
   return {
     stage,
     participants,
     recentEvents,
+    initialScene,
     lastTwistAt: lastStageTwist?.createdAt ? new Date(lastStageTwist.createdAt).getTime() : null,
     lastUserTwistAt: lastUserTwist?.createdAt
       ? new Date(lastUserTwist.createdAt).getTime()
@@ -111,6 +134,7 @@ export default async function StagePage({ params }: Props) {
     stage,
     participants,
     recentEvents,
+    initialScene,
     lastTwistAt,
     lastUserTwistAt,
     lineCount,
@@ -129,6 +153,7 @@ export default async function StagePage({ params }: Props) {
         stageCreatedAt={stage.createdAt ? stage.createdAt.toISOString() : null}
         participants={participants}
         initialEvents={recentEvents}
+        initialScene={initialScene}
         isLoggedIn={Boolean(userId)}
         currentUserId={userId}
         lastTwistAt={lastTwistAt}

@@ -61,6 +61,7 @@ export interface Stage {
 }
 export interface StageDetail extends Stage {
   recentEvents: StageEvent[]; currentCharacters: Character[]
+  currentScene: { name: string; description: string } | null
 }
 export interface AgentProfile {
   id: string; name: string; agentType: string; imageUrl: string | null

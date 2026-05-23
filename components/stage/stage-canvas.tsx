@@ -10,6 +10,8 @@ import { DialoguePanel, type CurrentDialogue } from './dialogue-panel'
 import { CharacterOnStage, layoutPositions, type OnStageCharacter } from './character-on-stage'
 import { type ActiveTwist } from './active-twist'
 import { StageAboutPanel } from './stage-about-panel'
+import { SceneChangeOverlay } from './scene-change-overlay'
+import type { CurrentScene } from './scene-banner'
 import { useStageEvents } from './use-stage-events'
 import {
   feedItemsFromEvents,
@@ -47,6 +49,7 @@ interface StageCanvasProps {
   stageCreatedAt: string | null
   participants: Participant[]
   initialEvents: StageEvent[]
+  initialScene: CurrentScene | null
   isLoggedIn: boolean
   currentUserId: string | null
   lastTwistAt: number | null
@@ -86,6 +89,7 @@ export default function StageCanvas({
   stageCreatedAt,
   participants,
   initialEvents,
+  initialScene,
   isLoggedIn,
   currentUserId,
   lastTwistAt,
@@ -108,6 +112,8 @@ export default function StageCanvas({
   const [lineCount, setLineCount] = useState(initialLineCount)
   const [twistCount, setTwistCount] = useState(initialTwistCount)
   const [aboutOpen, setAboutOpen] = useState(false)
+  const [currentScene, setCurrentScene] = useState<CurrentScene | null>(initialScene)
+  const [pendingSceneOverlay, setPendingSceneOverlay] = useState<CurrentScene | null>(null)
   const typewriterRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const dialogueRef = useRef<CurrentDialogue | null>(null)
   dialogueRef.current = dialogue
@@ -295,6 +301,24 @@ export default function StageCanvas({
     onJoined: () => {
       router.refresh()
     },
+    onSceneChange: (data, raw) => {
+      if (!data?.name || !data?.description) return
+      const next: CurrentScene = { name: data.name, description: data.description }
+      setCurrentScene(next)
+      setPendingSceneOverlay(next)
+      if (!seenEventIdsRef.current.has(raw.id)) {
+        seenEventIdsRef.current.add(raw.id)
+        const createdAt = raw.createdAt ? new Date(raw.createdAt).getTime() : Date.now()
+        prependFeed({
+          kind: 'scene',
+          id: raw.id,
+          name: data.name,
+          description: data.description,
+          reason: data.reason,
+          createdAt,
+        })
+      }
+    },
   })
 
   useEffect(() => {
@@ -358,6 +382,7 @@ export default function StageCanvas({
     allHistoryItems: feedItems,
     feedBumpKey,
     lineCount,
+    currentScene,
   }
 
   const sharedNarrativeProps = {
@@ -451,6 +476,12 @@ export default function StageCanvas({
           createdAt={stageCreatedAt}
           open={aboutOpen}
           onClose={() => setAboutOpen(false)}
+        />
+
+        {/* Scene change announcement — 5s overlay over the stage band */}
+        <SceneChangeOverlay
+          scene={pendingSceneOverlay}
+          onDone={() => setPendingSceneOverlay(null)}
         />
       </div>
 

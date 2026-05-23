@@ -1,6 +1,7 @@
 import { db } from '@/lib/db/client'
 import { twists, stageEvents, stages } from '@/lib/db/schema'
 import { auth } from '@/lib/auth'
+import { applySceneClassifier } from '@/lib/stage/apply-scene-classifier'
 import { eq, and, desc } from 'drizzle-orm'
 
 export const runtime = 'nodejs'
@@ -119,15 +120,28 @@ export async function POST(
       (typeof user.email === 'string' && user.email.split('@')[0]) ||
       'Anonymous Director'
 
-    await db.insert(stageEvents).values({
-      stageId,
-      type: 'twist',
-      userId: user.id,
-      content: {
-        text: trimmedContent,
-        twistId: twist.id,
+    const [twistEvent] = await db
+      .insert(stageEvents)
+      .values({
+        stageId,
+        type: 'twist',
         userId: user.id,
-        userDisplayName,
+        content: {
+          text: trimmedContent,
+          twistId: twist.id,
+          userId: user.id,
+          userDisplayName,
+        },
+      })
+      .returning()
+
+    await applySceneClassifier({
+      stageId,
+      sourceEvent: {
+        id: twistEvent.id,
+        kind: 'twist',
+        speaker: userDisplayName,
+        text: trimmedContent,
       },
     })
 

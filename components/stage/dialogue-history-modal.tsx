@@ -124,7 +124,11 @@ export function DialogueHistoryModal({
                   key={item.id}
                   className={cn(
                     'border-l-2 pl-3',
-                    item.kind === 'twist' ? 'border-l-[#B8860B]/80' : 'border-l-[#C41E3A]/50',
+                    item.kind === 'twist'
+                      ? 'border-l-[#B8860B]/80'
+                      : item.kind === 'scene'
+                        ? 'border-l-[#2A8E8E]/80'
+                        : 'border-l-[#C41E3A]/50',
                   )}
                 >
                   {item.kind === 'dialogue' ? (
@@ -139,6 +143,20 @@ export function DialogueHistoryModal({
                           item.text
                         )}
                       </p>
+                    </>
+                  ) : item.kind === 'scene' ? (
+                    <>
+                      <p className="font-mono text-[10px] uppercase tracking-[0.15em] text-[#2A8E8E]">
+                        Scene · {item.name}
+                      </p>
+                      <p className="mt-1 font-mono text-[12px] italic leading-relaxed text-[#F0EDE8]/85">
+                        {item.description}
+                      </p>
+                      {item.reason && (
+                        <p className="mt-1 font-mono text-[10px] text-[#888880]">
+                          {item.reason}
+                        </p>
+                      )}
                     </>
                   ) : (
                     <>

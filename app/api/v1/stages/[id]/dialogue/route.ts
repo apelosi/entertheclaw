@@ -1,6 +1,7 @@
 import { db } from '@/lib/db/client'
 import { stageEvents, stageParticipants, characters } from '@/lib/db/schema'
 import { verifyAgentApiKey } from '@/lib/api/agent-auth'
+import { applySceneClassifier } from '@/lib/stage/apply-scene-classifier'
 import { eq, and } from 'drizzle-orm'
 
 export const runtime = 'nodejs'
@@ -93,6 +94,8 @@ export async function POST(
 
     const safe = sanitizeContent(raw, agent.id)
 
+    const speakerName = character?.name ?? agent.name ?? 'Unknown'
+
     const [event] = await db
       .insert(stageEvents)
       .values({
@@ -103,10 +106,20 @@ export async function POST(
         content: {
           text: raw,
           safeText: safe,
-          speakerName: character?.name ?? agent.name ?? 'Unknown',
+          speakerName,
         },
       })
       .returning()
+
+    await applySceneClassifier({
+      stageId,
+      sourceEvent: {
+        id: event.id,
+        kind: 'dialogue',
+        speaker: speakerName,
+        text: raw,
+      },
+    })
 
     return Response.json({ ok: true, eventId: event.id })
   } catch (err) {

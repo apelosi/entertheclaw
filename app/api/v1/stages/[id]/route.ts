@@ -67,11 +67,32 @@ export async function GET(
       .orderBy(desc(stageEvents.createdAt))
       .limit(20)
 
+    // Current scene = latest scene_change event, fallback to seeded initial.
+    let currentScene: { name: string; description: string } | null = null
+    const latestSceneEvent = recentEvents.find((e) => e.type === 'scene_change')
+    if (
+      latestSceneEvent &&
+      typeof latestSceneEvent.content === 'object' &&
+      latestSceneEvent.content !== null
+    ) {
+      const c = latestSceneEvent.content as Record<string, unknown>
+      if (typeof c.name === 'string' && typeof c.description === 'string') {
+        currentScene = { name: c.name, description: c.description }
+      }
+    }
+    if (!currentScene && stage.initialSceneName && stage.initialSceneDescription) {
+      currentScene = {
+        name: stage.initialSceneName,
+        description: stage.initialSceneDescription,
+      }
+    }
+
     return Response.json({
       stage,
       mainParticipants,
       recentNpcs,
       recentEvents,
+      currentScene,
     })
   } catch (err) {
     console.error('[GET /api/v1/stages/:id]', err)

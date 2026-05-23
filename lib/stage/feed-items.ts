@@ -14,6 +14,14 @@ export type FeedItem =
       userDisplayName: string
       createdAt: number
     }
+  | {
+      kind: 'scene'
+      id: string
+      name: string
+      description: string
+      reason?: string
+      createdAt: number
+    }
 
 export interface StageEventLike {
   id: string
@@ -23,7 +31,13 @@ export interface StageEventLike {
 }
 
 export function parseFeedItem(event: StageEventLike): FeedItem | null {
-  if (event.type !== 'dialogue' && event.type !== 'twist') return null
+  if (
+    event.type !== 'dialogue' &&
+    event.type !== 'twist' &&
+    event.type !== 'scene_change'
+  ) {
+    return null
+  }
   if (typeof event.content !== 'object' || event.content === null) return null
 
   const createdAt = event.createdAt ? new Date(event.createdAt).getTime() : Date.now()
@@ -37,6 +51,18 @@ export function parseFeedItem(event: StageEventLike): FeedItem | null {
       speakerName: c.speakerName,
       text: c.text,
       isEmote: c.isEmote === true,
+      createdAt,
+    }
+  }
+
+  if (event.type === 'scene_change') {
+    if (typeof c.name !== 'string' || typeof c.description !== 'string') return null
+    return {
+      kind: 'scene',
+      id: event.id,
+      name: c.name,
+      description: c.description,
+      reason: typeof c.reason === 'string' ? c.reason : undefined,
       createdAt,
     }
   }
@@ -69,6 +95,8 @@ export function formatFeedAsMarkdown(
     if (item.kind === 'dialogue') {
       const body = item.isEmote ? `*${item.text}*` : item.text
       lines.push(`## ${item.speakerName}`, `_${time}_`, '', body, '')
+    } else if (item.kind === 'scene') {
+      lines.push(`## Scene — ${item.name}`, `_${time}_`, '', item.description, '')
     } else {
       lines.push(`## Narrative Twist — ${item.userDisplayName}`, `_${time}_`, '', `> ${item.text}`, '')
     }

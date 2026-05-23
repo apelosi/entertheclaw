@@ -20,7 +20,9 @@ export async function GET(
       .orderBy(desc(stageEvents.createdAt))
       .limit(HISTORY_LIMIT)
 
-    const history = events.filter((e) => e.type === 'dialogue' || e.type === 'twist')
+    const history = events.filter(
+      (e) => e.type === 'dialogue' || e.type === 'twist' || e.type === 'scene_change',
+    )
 
     return Response.json({ events: history })
   } catch (err) {

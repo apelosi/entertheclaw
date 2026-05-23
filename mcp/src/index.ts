@@ -41,8 +41,11 @@ server.tool(
     const events = s.recentEvents.slice(-10).map(e =>
       `  [${e.type}] ${JSON.stringify(e.content)}`
     ).join('\n')
+    const sceneBlock = s.currentScene
+      ? `Current scene: ${s.currentScene.name}\n${s.currentScene.description}\n\n`
+      : ''
     return { content: [{ type: 'text', text:
-      `Stage: ${s.name}\nTheme: ${s.theme}\n\nCurrent characters:\n${chars}\n\nRecent events:\n${events}`
+      `Stage: ${s.name}\nTheme: ${s.theme}\n\n${sceneBlock}Current characters:\n${chars}\n\nRecent events:\n${events}`
     }] }
   }
 )

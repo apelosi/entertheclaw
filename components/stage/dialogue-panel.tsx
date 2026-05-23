@@ -5,6 +5,7 @@ import Image from 'next/image'
 import { cn } from '@/lib/utils'
 import type { FeedItem } from '@/lib/stage/feed-items'
 import { DialogueHistoryModal } from './dialogue-history-modal'
+import { SceneBanner, type CurrentScene } from './scene-banner'
 
 export interface CurrentDialogue {
   eventId: string
@@ -24,6 +25,7 @@ interface Props {
   allHistoryItems: FeedItem[]
   feedBumpKey: number
   lineCount: number
+  currentScene: CurrentScene | null
 }
 
 export function DialoguePanel({
@@ -34,6 +36,7 @@ export function DialoguePanel({
   allHistoryItems,
   feedBumpKey,
   lineCount,
+  currentScene,
 }: Props) {
   const [historyOpen, setHistoryOpen] = useState(false)
   const [recentOpen, setRecentOpen] = useState(false)
@@ -41,6 +44,9 @@ export function DialoguePanel({
   return (
     <>
       <section className="glass-hud pointer-events-auto w-full rounded-sm border-l-2 border-l-[#C41E3A]/70 shadow-[0_12px_40px_rgba(0,0,0,0.45)]">
+        {/* Scene context — always visible above the current line */}
+        <SceneBanner scene={currentScene} />
+
         {/* Current line — always visible */}
         <div className="flex items-start gap-3 p-3">
           <div className="h-12 w-12 shrink-0 overflow-hidden rounded-sm bg-[#0e0e0e]/70 ring-1 ring-[#242424]/60">

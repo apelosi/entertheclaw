@@ -62,6 +62,11 @@ export const stages = pgTable('stages', {
   theme: text('theme').notNull(), // mythology|strategy|western|scifi|drama
   description: text('description'),
   imageUrl: text('image_url'), // AI-generated 8-bit pixel art stage background
+  // Seeded starting scene; runtime scene changes are appended to stage_events as
+  // type='scene_change'. The current scene = latest scene_change event, falling
+  // back to these columns.
+  initialSceneName: text('initial_scene_name'),
+  initialSceneDescription: text('initial_scene_description'),
   isActive: boolean('is_active').default(true),
   maxMainCharacters: integer('max_main_characters').default(12),
   maxNpcs: integer('max_npcs').default(36),

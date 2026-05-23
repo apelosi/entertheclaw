@@ -125,4 +125,30 @@
     border-top: 1px solid rgba(255, 255, 255, 0.05);
     border-left: 1px solid rgba(255, 255, 255, 0.05);
   }
+
+  /* Scene change — 5s announcement overlay over the stage band.
+     0.0s → 0.6s   fade-in + rise
+     0.6s → 4.0s   hold
+     4.0s → 5.0s   fade-out + sink */
+  @keyframes scene-overlay {
+    0%   { opacity: 0; transform: translateY(18px); }
+    12%  { opacity: 1; transform: translateY(0); }
+    80%  { opacity: 1; transform: translateY(0); }
+    100% { opacity: 0; transform: translateY(-12px); }
+  }
+
+  @keyframes scene-overlay-backdrop {
+    0%   { opacity: 0; }
+    10%  { opacity: 1; }
+    80%  { opacity: 1; }
+    100% { opacity: 0; }
+  }
+
+  .animate-scene-overlay {
+    animation: scene-overlay 5s ease-out forwards;
+  }
+
+  .animate-scene-overlay-backdrop {
+    animation: scene-overlay-backdrop 5s ease-out forwards;
+  }
 }

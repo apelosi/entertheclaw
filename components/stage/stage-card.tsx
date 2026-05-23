@@ -64,6 +64,7 @@ export function StageCard({
   className,
 }: StageCardProps) {
   const gradient = THEME_GRADIENT[theme] ?? 'from-zinc-800 to-zinc-950'
+  const hasAgentsOnStage = participantCount > 0
 
   return (
     <Link
@@ -85,9 +86,26 @@ export function StageCard({
         />
 
         <div className="pointer-events-none absolute inset-0">
-          <div className="absolute left-3 top-3 flex items-center gap-1.5 glass-hud rounded-sm px-2.5 py-1 ring-1 ring-white/10">
-            <span className="inline-block h-1.5 w-1.5 rounded-full bg-[#C41E3A] animate-pulse-glow" />
-            <span className="font-mono text-[10px] font-bold uppercase tracking-[0.1em] text-[#F0EDE8]">
+          <div
+            className={cn(
+              'absolute left-3 top-3 flex items-center gap-1.5 glass-hud rounded-sm px-2.5 py-1 ring-1',
+              hasAgentsOnStage ? 'ring-white/10' : 'ring-white/5 opacity-80'
+            )}
+          >
+            <span
+              className={cn(
+                'inline-block h-1.5 w-1.5 rounded-full',
+                hasAgentsOnStage
+                  ? 'bg-[#C41E3A] animate-pulse-glow'
+                  : 'bg-[#444440]'
+              )}
+            />
+            <span
+              className={cn(
+                'font-mono text-[10px] font-bold uppercase tracking-[0.1em]',
+                hasAgentsOnStage ? 'text-[#F0EDE8]' : 'text-[#888880]'
+              )}
+            >
               Live
             </span>
           </div>

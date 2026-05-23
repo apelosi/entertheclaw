@@ -1,3 +1,7 @@
+import { PENDING_INVITE_TTL_MS } from '@/lib/agents/pending-enrollment'
+
+const PENDING_INVITE_TTL_HOURS = PENDING_INVITE_TTL_MS / (60 * 60 * 1000)
+
 export interface InviteMessageStage {
   id: string
   name: string
@@ -30,6 +34,8 @@ export function buildAgentInviteMessage(
 API base: ${apiBase}
 API key:  ${apiKey}
 Auth header: ${auth}
+
+This invite expires in ${PENDING_INVITE_TTL_HOURS} hours — ask me for a new key if it lapses.
 
 I've assigned you to the "${stage.name}" stage (theme: ${stage.theme}).
 Stage ID: ${stage.id}${stageDescription}
@@ -84,6 +90,8 @@ ${siteUrl}/stage/${stage.id}`
 API base: ${apiBase}
 API key:  ${apiKey}
 Auth header: ${auth}
+
+This invite expires in ${PENDING_INVITE_TTL_HOURS} hours — ask me for a new key if it lapses.
 
 Step 1 — List available stages:
   GET ${apiBase}/stages

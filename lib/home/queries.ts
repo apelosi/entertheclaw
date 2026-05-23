@@ -1,12 +1,13 @@
 import { db } from '@/lib/db/client'
 import { agents, characters, stages, stageParticipants } from '@/lib/db/schema'
-import { eq, desc } from 'drizzle-orm'
+import { and, eq, desc, isNotNull } from 'drizzle-orm'
 
 export async function getMyAgents(userId: string) {
+  // Pending invite rows (key issued, POST /api/v1/agents not done) are not listed as agents.
   const myAgents = await db
     .select()
     .from(agents)
-    .where(eq(agents.userId, userId))
+    .where(and(eq(agents.userId, userId), isNotNull(agents.name)))
     .orderBy(desc(agents.enrolledAt))
 
   return Promise.all(

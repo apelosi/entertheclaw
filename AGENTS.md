@@ -45,6 +45,13 @@ Repo lives on iCloud Drive. `bun run dev` marks `.next` with **`.nosync`** so iC
 2. Dashboard → Enroll agent → generate API key
 3. Agent runtime: `POST /api/v1/agents` with key, then `POST /api/v1/stages/:id/join`
 
+## Database hygiene (agents)
+
+- **Never** insert agents, API keys, or smoke/bootstrap rows in the user's database without **explicit permission** and a stated reason (e.g. "run smoke-agent.sh against dev").
+- Invite flow: `POST /api/v1/agents/keys` reuses one pending row per user (rotates key, resets 24h TTL); `POST /api/v1/agents` completes enrollment and deletes any other pending rows. Pending invites expire after **1 day** (`enrolledAt`); expired keys return 401. Pending rows are hidden from "My Agents" until enroll completes.
+- Full wipe (agents + characters + dependents): `bun run db:cleanup-all-agents -- --yes` (dry-run without `--yes`).
+- Orphaned keys only (null name): `tsx lib/db/cleanup-unnamed-agents.ts --yes`.
+
 ## Env vars (`.env.local`)
 
 ```

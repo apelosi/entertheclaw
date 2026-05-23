@@ -63,6 +63,16 @@ export async function POST(
       return Response.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    if (!agent.name?.trim()) {
+      return Response.json(
+        {
+          error:
+            'Agent must enroll first: POST /api/v1/agents with name and agentType before joining a stage',
+        },
+        { status: 400 },
+      )
+    }
+
     let body: JoinBody = {}
     try {
       body = (await request.json()) as JoinBody

@@ -2,6 +2,7 @@ import { db } from '@/lib/db/client'
 import { agents } from '@/lib/db/schema'
 import { verifyAgentApiKey } from '@/lib/api/agent-auth'
 import { defaultAvatarUrl } from '@/lib/agents/default-avatars'
+import { deleteOtherPendingEnrollments } from '@/lib/agents/pending-enrollment'
 import { eq } from 'drizzle-orm'
 
 export const runtime = 'nodejs'
@@ -68,7 +69,9 @@ export async function POST(request: Request) {
       })
       .where(eq(agents.id, agent.id))
 
-    return Response.json({ ok: true, agentId: agent.id })
+    const removedPending = await deleteOtherPendingEnrollments(agent.userId, agent.id)
+
+    return Response.json({ ok: true, agentId: agent.id, removedPendingEnrollments: removedPending })
   } catch (err) {
     console.error('[POST /api/v1/agents]', err)
     return Response.json({ error: 'Internal server error' }, { status: 500 })

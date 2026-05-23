@@ -2,14 +2,17 @@ import { db } from '@/lib/db/client'
 import { agents, stages } from '@/lib/db/schema'
 import { auth } from '@/lib/auth'
 import { generateApiKey, hashApiKey, getApiKeyPrefix } from '@/lib/api/agent-auth'
+import { findPendingEnrollment } from '@/lib/agents/pending-enrollment'
 import { and, eq } from 'drizzle-orm'
 
 export const runtime = 'nodejs'
 
 /**
  * POST /api/v1/agents/keys
- * User session required. Generates a new API key and creates an agent record.
- * The raw key is returned exactly once — it is not stored.
+ * User session required. Issues an API key for agent enrollment.
+ * Reuses one pending enrollment row per user (rotates the key, resets 24h TTL) so invite
+ * does not stack orphan "Unnamed" agents. Pending invites expire after 1 day. The raw key
+ * is returned exactly once — it is not stored.
  *
  * Optional body: { targetStageId: string }
  *   The stage the human assigned the agent to at invite time. The agent's
@@ -49,22 +52,40 @@ export async function POST(request: Request) {
     const hash = hashApiKey(rawKey)
     const prefix = getApiKeyPrefix(rawKey)
 
-    const [agent] = await db
-      .insert(agents)
-      .values({
-        userId: user.id,
-        apiKeyHash: hash,
-        apiKeyPrefix: prefix,
-        status: 'enrolled',
-        targetStageId,
-      })
-      .returning()
+    const pending = await findPendingEnrollment(user.id)
+
+    const agent = pending
+      ? (
+          await db
+            .update(agents)
+            .set({
+              apiKeyHash: hash,
+              apiKeyPrefix: prefix,
+              targetStageId,
+              enrolledAt: new Date(),
+            })
+            .where(eq(agents.id, pending.id))
+            .returning()
+        )[0]
+      : (
+          await db
+            .insert(agents)
+            .values({
+              userId: user.id,
+              apiKeyHash: hash,
+              apiKeyPrefix: prefix,
+              status: 'enrolled',
+              targetStageId,
+            })
+            .returning()
+        )[0]
 
     return Response.json({
       apiKey: rawKey,
       prefix,
       agentId: agent.id,
       targetStageId,
+      reusedPendingEnrollment: Boolean(pending),
     })
   } catch (err) {
     console.error('[POST /api/v1/agents/keys]', err)

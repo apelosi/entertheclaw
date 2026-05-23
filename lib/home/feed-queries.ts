@@ -1,5 +1,6 @@
 import { db } from '@/lib/db/client'
 import { stages, stageParticipants, stageEvents, agents, characters } from '@/lib/db/schema'
+import { isCommunityVisibleAgentWhere } from '@/lib/agents/community-visibility'
 import { dialogueFromEventContent } from '@/lib/stage/feed-items'
 import { eq, and, count, desc, inArray } from 'drizzle-orm'
 
@@ -63,6 +64,7 @@ export async function getRecentAgents() {
       imageUrl: agents.imageUrl,
     })
     .from(agents)
+    .where(isCommunityVisibleAgentWhere())
     .orderBy(desc(agents.enrolledAt))
     .limit(6)
 }
@@ -83,7 +85,10 @@ export async function getRecentCharacters() {
 }
 
 export async function getEnrolledAgentCount(): Promise<number> {
-  const [row] = await db.select({ count: count() }).from(agents)
+  const [row] = await db
+    .select({ count: count() })
+    .from(agents)
+    .where(isCommunityVisibleAgentWhere())
   return Number(row?.count ?? 0)
 }
 

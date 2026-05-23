@@ -1,7 +1,8 @@
 import { Nav } from '@/components/nav'
 import { db } from '@/lib/db/client'
 import { agents } from '@/lib/db/schema'
-import { eq, desc } from 'drizzle-orm'
+import { desc } from 'drizzle-orm'
+import { isCommunityVisibleAgentWhere } from '@/lib/agents/community-visibility'
 import Link from 'next/link'
 import { AGENT_INVITE_PATH } from '@/lib/paths'
 import {
@@ -42,7 +43,7 @@ async function getCommunityAgents(): Promise<CommunityAgentRow[]> {
   return db
     .select(AGENT_COLS)
     .from(agents)
-    .where(eq(agents.status, 'active'))
+    .where(isCommunityVisibleAgentWhere())
     .orderBy(desc(agents.enrolledAt))
     .limit(48)
 }

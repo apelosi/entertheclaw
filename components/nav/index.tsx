@@ -10,7 +10,7 @@ function Wordmark({ className }: { className?: string }) {
     <img
       src="/logo-wordmark.webp?v=15"
       alt="Enter The Claw"
-      className={className ?? 'h-[clamp(22px,2vw,32px)] w-auto'}
+      className={className ?? 'h-[clamp(16px,1.5vw,22px)] w-auto'}
     />
   )
 }
@@ -48,7 +48,7 @@ function NavBar({
           href="/"
           className="absolute left-1/2 z-10 flex -translate-x-1/2 items-center md:hidden"
         >
-          <Wordmark className="h-6 w-auto max-w-[min(47vw,198px)]" />
+          <Wordmark className="h-[18px] w-auto max-w-[min(40vw,156px)]" />
         </Link>
 
         <div className="pointer-events-none absolute inset-0 hidden items-center justify-center md:flex">

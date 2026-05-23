@@ -9,6 +9,7 @@ import {
   type StageEventLike,
 } from '@/lib/stage/feed-items'
 import { cn } from '@/lib/utils'
+import { SceneScriptMarker, TwistScriptMarker } from './script-timeline-markers'
 import {
   MODAL_BODY,
   MODAL_CLOSE_BTN,
@@ -18,7 +19,6 @@ import {
   MODAL_SUBTITLE,
   MODAL_TITLE,
   MONO_BODY,
-  MONO_BODY_SM,
   MONO_LABEL,
 } from './stage-mobile-classes'
 
@@ -135,12 +135,7 @@ export function DialogueHistoryModal({
                 <li
                   key={item.id}
                   className={cn(
-                    'border-l-2 pl-3 max-md:pl-2',
-                    item.kind === 'twist'
-                      ? 'border-l-[#B8860B]/80'
-                      : item.kind === 'scene'
-                        ? 'border-l-[#2A8E8E]/80'
-                        : 'border-l-[#C41E3A]/50',
+                    item.kind === 'dialogue' && 'border-l-2 border-l-[#C41E3A]/50 pl-3 max-md:pl-2',
                   )}
                 >
                   {item.kind === 'dialogue' ? (
@@ -157,31 +152,15 @@ export function DialogueHistoryModal({
                       </p>
                     </>
                   ) : item.kind === 'scene' ? (
-                    <>
-                      <p className={cn(MONO_LABEL, 'tracking-[0.15em] text-[#2A8E8E]')}>
-                        Scene · {item.name}
-                      </p>
-                      <p className={cn('mt-1 italic text-[#F0EDE8]/85', MONO_BODY_SM)}>
-                        {item.description}
-                      </p>
-                      {item.reason && (
-                        <p className={cn('mt-1 text-[#888880]', MONO_LABEL)}>
-                          {item.reason}
-                        </p>
-                      )}
-                    </>
+                    <SceneScriptMarker
+                      name={item.name}
+                      description={item.description}
+                    />
                   ) : (
-                    <>
-                      <p className={cn(MONO_LABEL, 'tracking-[0.15em] text-[#B8860B]')}>
-                        Twist · {item.userDisplayName}
-                      </p>
-                      <p
-                        className="mt-1 text-[15px] italic leading-snug text-[#F0EDE8] max-md:text-[13px]"
-                        style={{ fontFamily: 'var(--font-display)' }}
-                      >
-                        “{item.text}”
-                      </p>
-                    </>
+                    <TwistScriptMarker
+                      userDisplayName={item.userDisplayName}
+                      text={item.text}
+                    />
                   )}
                   <time className="mt-1 block font-mono text-[9px] uppercase tracking-[0.12em] text-[#444440] max-md:text-[8px]">
                     {new Date(item.createdAt).toLocaleString()}

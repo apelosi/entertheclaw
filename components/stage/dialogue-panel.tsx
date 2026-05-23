@@ -208,12 +208,10 @@ export function DialoguePanel({
                         className={enterClass}
                         style={{ animationDelay: `${index * 40}ms` }}
                       >
-                        <p className={cn(MONO_LABEL, 'tracking-[0.12em] text-[#2A8E8E]')}>
-                          Scene · {item.name}
-                        </p>
-                        <p className={cn('mt-0.5 italic text-[#888880]', MONO_BODY_SM)}>
-                          {item.description}
-                        </p>
+                        <SceneScriptMarker
+                          name={item.name}
+                          description={item.description}
+                        />
                       </li>
                     )
                   }
@@ -223,12 +221,10 @@ export function DialoguePanel({
                       className={enterClass}
                       style={{ animationDelay: `${index * 40}ms` }}
                     >
-                      <p className={cn('italic text-[#B8860B]/90', MONO_BODY_SM)}>
-                        <span className="not-italic text-[#888880]">
-                          {item.userDisplayName}:
-                        </span>{' '}
-                        &ldquo;{item.text}&rdquo;
-                      </p>
+                      <TwistScriptMarker
+                        userDisplayName={item.userDisplayName}
+                        text={item.text}
+                      />
                     </li>
                   )
                 })}

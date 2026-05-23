@@ -1,4 +1,4 @@
-import { PENDING_INVITE_TTL_MS } from '@/lib/agents/pending-enrollment'
+import { PENDING_INVITE_TTL_MS } from '@/lib/agents/pending-invite-constants'
 
 const PENDING_INVITE_TTL_HOURS = PENDING_INVITE_TTL_MS / (60 * 60 * 1000)
 

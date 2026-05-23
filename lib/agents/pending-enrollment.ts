@@ -1,9 +1,7 @@
 import { and, eq, isNull, lt, ne } from 'drizzle-orm'
+import { PENDING_INVITE_TTL_MS } from '@/lib/agents/pending-invite-constants'
 import { db } from '@/lib/db/client'
 import { agents } from '@/lib/db/schema'
-
-/** Pending invite keys expire after this window (key rotation resets the clock). */
-export const PENDING_INVITE_TTL_MS = 24 * 60 * 60 * 1000
 
 export function pendingInviteCutoff(): Date {
   return new Date(Date.now() - PENDING_INVITE_TTL_MS)

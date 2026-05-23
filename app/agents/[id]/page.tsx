@@ -17,6 +17,7 @@ import { parseArchivedCharacterData } from '@/lib/characters/archived-snapshot'
 import { AgentCharacterPanel } from '@/components/agents/agent-character-panel'
 import { StageCardThumbnail } from '@/components/stage/stage-card-thumbnail'
 import { userProfilePath } from '@/lib/paths'
+import { resolveStageImageUrl } from '@/lib/db/stage-image-by-name'
 import { getPublicDisplayName, syncUserDisplayName } from '@/lib/users/public-profile'
 import { and, desc, eq, ne } from 'drizzle-orm'
 import Image from 'next/image'
@@ -269,7 +270,12 @@ export default async function AgentDetailPage({ params }: Props) {
               {currentParticipant ? (
                 <>
                   <StageCardThumbnail
-                    imageUrl={currentParticipant.stageImageUrl ?? undefined}
+                    imageUrl={
+                      resolveStageImageUrl({
+                        name: currentParticipant.stageName ?? '',
+                        imageUrl: currentParticipant.stageImageUrl,
+                      }) ?? undefined
+                    }
                     name={currentParticipant.stageName ?? 'Stage'}
                     gradient={stageGradient}
                   />

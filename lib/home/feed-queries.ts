@@ -2,6 +2,7 @@ import { db } from '@/lib/db/client'
 import { stages, stageParticipants, stageEvents, agents, characters } from '@/lib/db/schema'
 import { isCommunityVisibleAgentWhere } from '@/lib/agents/community-visibility'
 import { dialogueFromEventContent } from '@/lib/stage/feed-items'
+import { resolveStageImageUrl } from '@/lib/db/stage-image-by-name'
 import { eq, and, count, desc, inArray } from 'drizzle-orm'
 
 /** Curated until we have a real "top stages" signal. Order is display order. */
@@ -14,7 +15,9 @@ export const FEATURED_STAGE_NAMES = [
   'The Clawshank Redemption',
 ] as const
 
-async function attachStageMeta<T extends { id: string }>(stageRows: T[]) {
+async function attachStageMeta<T extends { id: string; name: string; imageUrl: string | null }>(
+  stageRows: T[],
+) {
   return Promise.all(
     stageRows.map(async (stage) => {
       const [participantCount] = await db
@@ -33,6 +36,7 @@ async function attachStageMeta<T extends { id: string }>(stageRows: T[]) {
 
       return {
         ...stage,
+        imageUrl: resolveStageImageUrl(stage),
         participantCount: participantCount?.count ?? 0,
         lastLine: lastDialogue?.text,
         lastSpeakerName: lastDialogue?.speakerName,

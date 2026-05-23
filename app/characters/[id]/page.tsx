@@ -8,6 +8,7 @@ import { StageCardThumbnail } from '@/components/stage/stage-card-thumbnail'
 import { db } from '@/lib/db/client'
 import { agents, characters, stageEvents, stageParticipants, stages } from '@/lib/db/schema'
 import { agentDetailPath, userProfilePath } from '@/lib/paths'
+import { resolveStageImageUrl } from '@/lib/db/stage-image-by-name'
 import { resolveInternalBackFallback } from '@/lib/navigation/resolve-back-fallback'
 import { getPublicDisplayName, syncUserDisplayName } from '@/lib/users/public-profile'
 import { and, desc, eq } from 'drizzle-orm'
@@ -237,7 +238,10 @@ export default async function CharacterDetailPage({ params }: Props) {
                 </Link>
               </div>
               <StageCardThumbnail
-                imageUrl={stageImageUrl ?? undefined}
+                imageUrl={
+                  resolveStageImageUrl({ name: stageName ?? '', imageUrl: stageImageUrl }) ??
+                  undefined
+                }
                 name={stageName ?? 'Stage'}
                 gradient={stageGradient}
               />

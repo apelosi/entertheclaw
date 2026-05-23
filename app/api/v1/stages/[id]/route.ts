@@ -6,6 +6,7 @@ import {
   stageEvents,
   npcPersonas,
 } from '@/lib/db/schema'
+import { resolveStageImageUrl } from '@/lib/db/stage-image-by-name'
 import { eq, and, desc } from 'drizzle-orm'
 
 export const runtime = 'nodejs'
@@ -88,7 +89,7 @@ export async function GET(
     }
 
     return Response.json({
-      stage,
+      stage: { ...stage, imageUrl: resolveStageImageUrl(stage) },
       mainParticipants,
       recentNpcs,
       recentEvents,

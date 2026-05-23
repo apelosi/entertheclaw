@@ -12,6 +12,7 @@ import { eq, desc, and } from 'drizzle-orm'
 import type { Metadata } from 'next'
 import StageViewClient from '@/components/stage/stage-view-client'
 import { Nav } from '@/components/nav'
+import { resolveStageImageUrl } from '@/lib/db/stage-image-by-name'
 import { getServerSession } from '@/lib/auth/get-server-session'
 
 interface Props {
@@ -146,7 +147,7 @@ export default async function StagePage({ params }: Props) {
         stageName={stage.name}
         stageTheme={stage.theme}
         stageDescription={stage.description ?? null}
-        stageImageUrl={stage.imageUrl ?? null}
+        stageImageUrl={resolveStageImageUrl(stage)}
         stageCreatedAt={stage.createdAt ? stage.createdAt.toISOString() : null}
         participants={participants}
         initialEvents={recentEvents}

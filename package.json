@@ -28,6 +28,8 @@
     "logo:generate:claw-c": "tsx lib/db/generate-claw-letter-c.ts",
     "wordmark:refresh": "tsx lib/db/refresh-wordmark.ts",
     "hero:generate": "tsx lib/db/generate-hero.ts",
+    "stage:bootstrap-turn-open": "tsx scripts/bootstrap-stale-turn-open.ts",
+    "test:mcp-heartbeat": "tsx scripts/test-mcp-heartbeat.ts",
     "hero:generate:stage": "tsx lib/db/generate-hero.ts",
     "hero:from-stage": "tsx lib/db/hero-from-featured-stage.ts",
     "hero:generate:agent": "tsx lib/db/generate-hero-agent.ts",

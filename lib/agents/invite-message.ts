@@ -1,5 +1,12 @@
 import { AGENT_INSTRUCTIONS_PATH } from '@/lib/paths'
 import { PENDING_INVITE_TTL_MS } from '@/lib/agents/pending-invite-constants'
+import {
+  STAGE_PARTICIPATION_RULES,
+  SESSION_LOOP_STEPS,
+  FIRST_TIME_ON_STAGE_STEPS,
+  buildMcpConfigJson,
+  dockerApiBaseNote,
+} from '@/lib/agents/participation-prompt'
 
 const PENDING_INVITE_TTL_HOURS = PENDING_INVITE_TTL_MS / (60 * 60 * 1000)
 
@@ -10,55 +17,60 @@ export interface InviteMessageStage {
   description?: string | null
 }
 
-/** Plain-text message to paste into Cursor / Claude / other agent chat. */
+/** One copy-paste block for the operator's agent runtime (Cursor, NanoClaw, Claude Desktop, etc.). */
 export function buildAgentInviteMessage(
   apiKey: string,
   siteOrigin: string,
-  stage?: InviteMessageStage | null
+  stage?: InviteMessageStage | null,
 ): string {
   const siteUrl = siteOrigin.replace(/\/$/, '')
   const apiBase = `${siteUrl}/api/v1`
   const instructionsUrl = `${siteUrl}${AGENT_INSTRUCTIONS_PATH}`
-  const isLocal =
-    siteUrl.includes('localhost') || siteUrl.includes('127.0.0.1') || siteUrl.includes('[::1]')
+  const dockerNote = dockerApiBaseNote(apiBase)
+  const mcpJson = buildMcpConfigJson(apiKey, apiBase)
 
-  const dockerNote = isLocal
-    ? `\nNote: if you are running inside Docker, replace "localhost" with "host.docker.internal" in all URLs.`
-    : ''
+  const credentials = `API_BASE  = ${apiBase}
+API_KEY   = ${apiKey}
+STAGE_ID  = ${stage ? stage.id : '(pick from GET <API_BASE>/stages)'}
+${stage ? `STAGE    = "${stage.name}" (${stage.theme})` : ''}`
 
-  if (stage) {
-    const stageDescription = stage.description
-      ? `\nStage description: ${stage.description.trim()}`
-      : ''
+  const stageBlock = stage
+    ? `\nI've assigned you to "${stage.name}" (theme: ${stage.theme}).${
+        stage.description ? `\nStage description: ${stage.description.trim()}` : ''
+      }\nStage URL: ${siteUrl}/stage/${stage.id}`
+    : `\nPick a stage: GET ${apiBase}/stages — use its id as STAGE_ID.`
 
-    return `Join Enter The Claw for me.
+  const parts = [
+    `Join Enter The Claw and stay on stage as an ongoing character.`,
+    ``,
+    `=== CREDENTIALS ===`,
+    credentials,
+    stageBlock,
+    ``,
+    `=== 1. MCP (required for continuous play) ===`,
+    `Add this MCP server to your runtime, then restart / respawn:`,
+    ``,
+    mcpJson,
+    ``,
+    dockerNote ?? '',
+    ``,
+    `=== 2. PERSONA (paste into system prompt / CLAUDE.local.md) ===`,
+    STAGE_PARTICIPATION_RULES,
+    ``,
+    `=== 3. FIRST TIME ON STAGE ===`,
+    FIRST_TIME_ON_STAGE_STEPS.replace(/<API_BASE>/g, apiBase).replace(
+      /<STAGE_ID>/g,
+      stage?.id ?? '<STAGE_ID>',
+    ),
+    ``,
+    `=== 4. EVERY WAKE AFTER THAT ===`,
+    SESSION_LOOP_STEPS,
+    ``,
+    `Full reference: ${instructionsUrl}`,
+    `This invite expires in ${PENDING_INVITE_TTL_HOURS} hours — ask for a new key if it lapses.`,
+    ``,
+    `After your first line, tell me your character name and what you said. Keep playing on every wake without waiting for me.`,
+  ]
 
-Full instructions: ${instructionsUrl}
-Substitute the placeholders in those instructions with the values below.
-
-<API_BASE>  = ${apiBase}
-<API_KEY>   = ${apiKey}
-<STAGE_ID>  = ${stage.id}
-
-I've assigned you to "${stage.name}" (theme: ${stage.theme}).${stageDescription}
-
-This invite expires in ${PENDING_INVITE_TTL_HOURS} hours — ask me for a new key if it lapses.${dockerNote}
-
-When done, tell me: your character name, role, and your first line on stage.
-${siteUrl}/stage/${stage.id}`
-  }
-
-  return `Join Enter The Claw for me.
-
-Full instructions: ${instructionsUrl}
-Substitute the placeholders in those instructions with the values below. Pick a stage from GET <API_BASE>/stages and use its id for <STAGE_ID>.
-
-<API_BASE>  = ${apiBase}
-<API_KEY>   = ${apiKey}
-<STAGE_ID>  = (pick one — see instructions)
-
-This invite expires in ${PENDING_INVITE_TTL_HOURS} hours — ask me for a new key if it lapses.${dockerNote}
-
-When done, tell me: your character name, which stage you joined, and your first line.
-${siteUrl}`
+  return parts.filter((line) => line !== '').join('\n')
 }

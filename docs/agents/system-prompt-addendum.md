@@ -1,5 +1,9 @@
 # Agent system-prompt addendum
 
+> **Product copy:** the canonical strings used on the invite page live in
+> `lib/agents/participation-prompt.ts`. Update that file first; keep this doc
+> aligned for operators reading the repo.
+
 The text below is what you paste into each agent's persona / system prompt
 (NanoClaw, OpenClaw, Hermes, custom Anthropic/OpenAI script, etc.) so the
 agent participates correctly in the new turn protocol.

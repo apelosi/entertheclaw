@@ -1,6 +1,7 @@
 /**
- * Backfill `stages.initial_scene_name` and `stages.initial_scene_description`
- * for the 20 seeded stages. Safe to re-run; updates rows matched by name.
+ * Backfill `stages.initial_scene_name` / `initial_scene_description` and insert
+ * an opening `scene_change` stage_event for any stage that lacks one.
+ * Safe to re-run; skips stages that already have scene history.
  *
  * Run with: `bun run db:seed-scenes`
  */
@@ -9,8 +10,8 @@ dotenv.config({ path: '.env.local' })
 
 import { neon } from '@neondatabase/serverless'
 import { drizzle } from 'drizzle-orm/neon-http'
-import { eq } from 'drizzle-orm'
-import { stages } from '../lib/db/schema'
+import { and, count, eq } from 'drizzle-orm'
+import { stageEvents, stages } from '../lib/db/schema'
 
 interface SceneSeed {
   name: string
@@ -149,10 +150,10 @@ async function main() {
   const sql = neon(process.env.DATABASE_URL)
   const db = drizzle(sql)
 
-  console.log(`Backfilling initial scenes for ${SCENES.length} stages…`)
+  console.log(`Backfilling initial scene columns for ${SCENES.length} stages…`)
 
-  let updated = 0
-  let missing = 0
+  let columnsUpdated = 0
+  let columnsMissing = 0
   for (const s of SCENES) {
     const result = await db
       .update(stages)
@@ -164,15 +165,80 @@ async function main() {
       .returning({ id: stages.id })
 
     if (result.length === 0) {
-      console.log(`  · ${s.name} — not in DB (skip)`)
-      missing++
+      console.log(`  · ${s.name} — not in DB (skip columns)`)
+      columnsMissing++
     } else {
-      console.log(`  ✓ ${s.name}`)
-      updated += result.length
+      console.log(`  ✓ ${s.name} (columns)`)
+      columnsUpdated += result.length
     }
   }
 
-  console.log(`\nDone. Updated ${updated} row(s); ${missing} stage(s) not present.`)
+  console.log(`\nSeeding opening scene_change events where missing…`)
+
+  const allStages = await db
+    .select({
+      id: stages.id,
+      name: stages.name,
+      createdAt: stages.createdAt,
+      initialSceneName: stages.initialSceneName,
+      initialSceneDescription: stages.initialSceneDescription,
+    })
+    .from(stages)
+
+  let eventsInserted = 0
+  let eventsSkipped = 0
+  let eventsNoScene = 0
+  const sceneCounts: { name: string; count: number }[] = []
+
+  for (const stage of allStages) {
+    const [row] = await db
+      .select({ count: count() })
+      .from(stageEvents)
+      .where(
+        and(eq(stageEvents.stageId, stage.id), eq(stageEvents.type, 'scene_change')),
+      )
+
+    const existing = Number(row?.count ?? 0)
+    sceneCounts.push({ name: stage.name, count: existing })
+
+    if (existing > 0) {
+      console.log(`  · ${stage.name} — already has ${existing} scene(s)`)
+      eventsSkipped++
+      continue
+    }
+
+    if (!stage.initialSceneName || !stage.initialSceneDescription) {
+      console.log(`  · ${stage.name} — no initial scene columns (skip event)`)
+      eventsNoScene++
+      continue
+    }
+
+    await db.insert(stageEvents).values({
+      stageId: stage.id,
+      type: 'scene_change',
+      createdAt: stage.createdAt ?? new Date(),
+      content: {
+        name: stage.initialSceneName,
+        description: stage.initialSceneDescription,
+        reason: 'Opening scene',
+      },
+    })
+    console.log(`  ✓ ${stage.name} — inserted opening scene_change`)
+    eventsInserted++
+    sceneCounts[sceneCounts.length - 1] = { name: stage.name, count: 1 }
+  }
+
+  const clawWars = sceneCounts.find((s) => s.name === 'Claw Wars')
+  const stagesWithScenes = sceneCounts.filter((s) => s.count > 0).length
+
+  console.log(`\nDone.`)
+  console.log(`  Columns updated: ${columnsUpdated}; ${columnsMissing} stage(s) not in seed list.`)
+  console.log(`  scene_change inserted: ${eventsInserted}; skipped (already had scenes): ${eventsSkipped}`)
+  console.log(`  Stages with ≥1 scene in history: ${stagesWithScenes} / ${allStages.length}`)
+  if (clawWars) {
+    console.log(`  Claw Wars scene count: ${clawWars.count}`)
+  }
+
   process.exit(0)
 }
 

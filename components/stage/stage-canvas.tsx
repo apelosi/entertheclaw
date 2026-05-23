@@ -52,6 +52,7 @@ interface StageCanvasProps {
   initialScene: CurrentScene | null
   isLoggedIn: boolean
   currentUserId: string | null
+  twistsEnabled: boolean
   lastTwistAt: number | null
   lastUserTwistAt: number | null
   initialLineCount: number
@@ -92,6 +93,7 @@ export default function StageCanvas({
   initialScene,
   isLoggedIn,
   currentUserId,
+  twistsEnabled,
   lastTwistAt,
   lastUserTwistAt,
   initialLineCount,
@@ -169,6 +171,7 @@ export default function StageCanvas({
       text,
       isEmote: current.isEmote,
       createdAt: current.createdAt,
+      speakerImageUrl: current.speakerImageUrl ?? null,
     })
   }, [prependFeed])
 
@@ -372,6 +375,14 @@ export default function StageCanvas({
     [participants, isMine],
   )
 
+  const speakerImageByName = useMemo(() => {
+    const map = new Map<string, string | null>()
+    for (const p of participants) {
+      if (p.characterName) map.set(p.characterName, p.characterImageUrl)
+    }
+    return map
+  }, [participants])
+
   const themeLabel = THEME_LABELS[stageTheme] ?? stageTheme
 
   // Shared panel props
@@ -383,12 +394,14 @@ export default function StageCanvas({
     feedBumpKey,
     lineCount,
     currentScene,
+    speakerImageByName,
   }
 
   const sharedNarrativeProps = {
     stageId,
     stageName,
     isLoggedIn,
+    twistsEnabled,
     lastTwistAt,
     lastUserTwistAt,
     liveLastTwistAt,
@@ -436,36 +449,43 @@ export default function StageCanvas({
           ))}
         </div>
 
-        {/* Slim title bar: ← | Stage Name | About — z-30 so it renders above dialogue overlay */}
+        {/* Slim title bar: ← LIVE | Stage Name | About — z-30 so it renders above dialogue overlay */}
         <div className="pointer-events-none absolute inset-x-0 top-0 z-30 px-4 pt-3">
-          <div className="pointer-events-auto flex items-center gap-3">
-            {/* Back — icon only on mobile, label on desktop */}
-            <Link
-              href="/"
-              aria-label="Exit stage"
-              className="inline-flex shrink-0 items-center gap-1.5 font-mono text-[11px] uppercase tracking-[0.18em] text-[#F0EDE8]/70 drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)] transition-colors hover:text-[#F0EDE8]"
-            >
-              <span>←</span>
-              <span className="hidden sm:inline">Exit Stage</span>
-            </Link>
+          <div className="pointer-events-auto grid grid-cols-[1fr_auto_1fr] items-center gap-3">
+            <div className="flex min-w-0 items-center gap-3">
+              {/* Back — icon only on mobile, label on desktop */}
+              <Link
+                href="/"
+                aria-label="Exit stage"
+                className="inline-flex shrink-0 items-center gap-1.5 font-mono text-[11px] uppercase tracking-[0.18em] text-[#F0EDE8]/70 drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)] transition-colors hover:text-[#F0EDE8]"
+              >
+                <span>←</span>
+                <span className="hidden sm:inline">Exit Stage</span>
+              </Link>
 
-            {/* Stage name */}
+              <LiveBadge isLive={Boolean(dialogue)} />
+            </div>
+
+            {/* Stage name — centered between equal-width side columns */}
             <h1
-              className="flex-1 text-center text-[22px] font-light italic leading-none tracking-[-0.02em] text-[#F0EDE8] drop-shadow-[0_2px_12px_rgba(0,0,0,0.85)] sm:text-[28px]"
+              className="min-w-0 truncate text-center text-[22px] font-light italic leading-none tracking-[-0.02em] text-[#F0EDE8] drop-shadow-[0_2px_12px_rgba(0,0,0,0.85)] sm:text-[28px]"
               style={{ fontFamily: 'var(--font-display)' }}
+              title={stageName}
             >
               {stageName}
             </h1>
 
             {/* About */}
-            <button
-              type="button"
-              onClick={() => setAboutOpen((v) => !v)}
-              aria-expanded={aboutOpen}
-              className="shrink-0 font-mono text-[10px] uppercase tracking-[0.18em] text-[#F0EDE8]/70 drop-shadow-[0_1px_3px_rgba(0,0,0,0.85)] transition-colors hover:text-[#F0EDE8]"
-            >
-              About
-            </button>
+            <div className="flex min-w-0 justify-end">
+              <button
+                type="button"
+                onClick={() => setAboutOpen((v) => !v)}
+                aria-expanded={aboutOpen}
+                className="shrink-0 font-mono text-[10px] uppercase tracking-[0.18em] text-[#F0EDE8]/70 drop-shadow-[0_1px_3px_rgba(0,0,0,0.85)] transition-colors hover:text-[#F0EDE8]"
+              >
+                About
+              </button>
+            </div>
           </div>
         </div>
 
@@ -503,5 +523,32 @@ export default function StageCanvas({
         </div>
       </div>
     </main>
+  )
+}
+
+function LiveBadge({ isLive }: { isLive: boolean }) {
+  return (
+    <span
+      aria-label={isLive ? 'Stage is live' : 'Stage is idle'}
+      className={
+        'inline-flex shrink-0 items-center gap-1.5 rounded-sm border px-2 py-1 font-mono text-[10px] uppercase tracking-[0.18em] drop-shadow-[0_1px_3px_rgba(0,0,0,0.85)] ' +
+        (isLive
+          ? 'border-[#C41E3A]/50 bg-[#C41E3A]/15 text-[#C41E3A]'
+          : 'border-[#444440]/40 bg-[#080808]/40 text-[#888880]')
+      }
+    >
+      <span className="relative flex h-1.5 w-1.5">
+        {isLive && (
+          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#C41E3A] opacity-60" />
+        )}
+        <span
+          className={
+            'relative inline-flex h-1.5 w-1.5 rounded-full ' +
+            (isLive ? 'bg-[#C41E3A] shadow-[0_0_6px_#C41E3A]' : 'bg-[#888880]')
+          }
+        />
+      </span>
+      {isLive ? 'Live' : 'Idle'}
+    </span>
   )
 }

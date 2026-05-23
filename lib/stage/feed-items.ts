@@ -5,6 +5,7 @@ export type FeedItem =
       speakerName: string
       text: string
       isEmote?: boolean
+      speakerImageUrl?: string | null
       createdAt: number
     }
   | {
@@ -98,7 +99,7 @@ export function formatFeedAsMarkdown(
   items: FeedItem[],
   stageName: string,
 ): string {
-  const lines = [`# ${stageName} — Dialogue History`, '']
+  const lines = [`# ${stageName} — Script History`, '']
   for (const item of items) {
     const time = new Date(item.createdAt).toISOString()
     if (item.kind === 'dialogue') {

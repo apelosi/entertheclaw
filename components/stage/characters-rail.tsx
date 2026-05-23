@@ -124,7 +124,7 @@ export function CharactersRail({
           </div>
           <span
             className={cn(
-              'text-[10px] text-[#444440] transition-transform',
+              'shrink-0 text-base leading-none text-[#444440] transition-transform',
               panelOpen && 'rotate-180',
             )}
           >

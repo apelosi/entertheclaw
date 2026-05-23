@@ -1,8 +1,8 @@
 import { db } from '@/lib/db/client'
-import { twists, stageEvents, stages } from '@/lib/db/schema'
+import { twists, stageEvents, stages, characters } from '@/lib/db/schema'
 import { auth } from '@/lib/auth'
 import { applySceneClassifier } from '@/lib/stage/apply-scene-classifier'
-import { eq, and, desc } from 'drizzle-orm'
+import { eq, and, desc, isNotNull } from 'drizzle-orm'
 
 export const runtime = 'nodejs'
 
@@ -32,6 +32,19 @@ export async function POST(
 
     if (!stage) {
       return Response.json({ error: 'Stage not found' }, { status: 404 })
+    }
+
+    const castOnStage = await db
+      .select({ id: characters.id })
+      .from(characters)
+      .where(and(eq(characters.stageId, stageId), isNotNull(characters.name)))
+      .limit(1)
+
+    if (castOnStage.length === 0) {
+      return Response.json(
+        { error: 'Twists are unavailable until characters join this stage' },
+        { status: 403 },
+      )
     }
 
     const now = Date.now()

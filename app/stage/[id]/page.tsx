@@ -108,11 +108,17 @@ async function getStageData(id: string, userId: string | null) {
     }
   }
 
+  const hasCastOnStage = participants.some(
+    (p) => typeof p.characterName === 'string' && p.characterName.trim().length > 0,
+  )
+
   return {
     stage,
     participants,
     recentEvents,
     initialScene,
+    stageIsActive: stage.isActive ?? true,
+    hasCastOnStage,
     lastTwistAt: lastStageTwist?.createdAt ? new Date(lastStageTwist.createdAt).getTime() : null,
     lastUserTwistAt: lastUserTwist?.createdAt
       ? new Date(lastUserTwist.createdAt).getTime()
@@ -139,7 +145,11 @@ export default async function StagePage({ params }: Props) {
     lastUserTwistAt,
     lineCount,
     twistCount,
+    stageIsActive,
+    hasCastOnStage,
   } = data
+
+  const twistsEnabled = stageIsActive && hasCastOnStage
 
   return (
     <>
@@ -156,8 +166,9 @@ export default async function StagePage({ params }: Props) {
         initialScene={initialScene}
         isLoggedIn={Boolean(userId)}
         currentUserId={userId}
-        lastTwistAt={lastTwistAt}
-        lastUserTwistAt={lastUserTwistAt}
+        twistsEnabled={twistsEnabled}
+        lastTwistAt={twistsEnabled ? lastTwistAt : null}
+        lastUserTwistAt={twistsEnabled ? lastUserTwistAt : null}
         initialLineCount={lineCount}
         initialTwistCount={twistCount}
       />

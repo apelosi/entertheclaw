@@ -60,7 +60,7 @@ export function DialogueHistoryModal({
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `${stageName.replace(/\s+/g, '-').toLowerCase()}-dialogue.md`
+    a.download = `${stageName.replace(/\s+/g, '-').toLowerCase()}-script.md`
     a.click()
     URL.revokeObjectURL(url)
   }, [markdown, stageName])
@@ -72,7 +72,7 @@ export function DialogueHistoryModal({
       className="fixed inset-0 z-50 flex items-center justify-center bg-[#080808]/80 p-4 backdrop-blur-sm"
       role="dialog"
       aria-modal="true"
-      aria-labelledby="dialogue-history-title"
+      aria-labelledby="script-history-title"
       onClick={onClose}
     >
       <div
@@ -82,18 +82,18 @@ export function DialogueHistoryModal({
         <header className="flex items-start justify-between gap-4 border-b border-[#242424]/60 px-5 py-4">
           <div>
             <h2
-              id="dialogue-history-title"
+              id="script-history-title"
               className="text-[24px] font-light italic leading-none text-[#F0EDE8]"
               style={{ fontFamily: 'var(--font-display)' }}
             >
-              Dialogue History
+              Script History
             </h2>
             <p className="mt-1 font-mono text-[10px] uppercase tracking-[0.18em] text-[#888880]">
               {stageName} · newest first
             </p>
           </div>
           <div className="flex shrink-0 items-center gap-2">
-            <CopyButton text={markdown} label="Copy history" />
+            <CopyButton text={markdown} label="Copy script" />
             <button
               type="button"
               onClick={downloadMd}
@@ -116,7 +116,7 @@ export function DialogueHistoryModal({
           {loading && items.length === 0 ? (
             <p className="font-mono text-xs text-[#888880]">Loading history…</p>
           ) : items.length === 0 ? (
-            <p className="font-mono text-xs text-[#444440]">No dialogue or twists yet.</p>
+            <p className="font-mono text-xs text-[#444440]">No script entries yet.</p>
           ) : (
             <ul className="flex flex-col gap-4">
               {items.map((item) => (

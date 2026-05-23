@@ -15,10 +15,12 @@ function Wordmark({ className }: { className?: string }) {
   )
 }
 
-const navClass =
-  'relative sticky top-0 z-50 flex h-14 shrink-0 items-center px-6 ' +
-  'bg-[#080808]/90 backdrop-blur-md shadow-[0_4px_20px_rgba(196,30,58,0.12)] ' +
-  'border-b border-[#1a1a1a]'
+const navOuterClass =
+  'sticky top-0 z-50 h-14 shrink-0 bg-[#080808]/90 backdrop-blur-md ' +
+  'shadow-[0_4px_20px_rgba(196,30,58,0.12)] border-b border-[#1a1a1a]'
+
+const navInnerClass =
+  'relative mx-auto flex h-full w-full max-w-[1280px] items-center px-6'
 
 const accountBtnClass =
   'inline-flex h-8 shrink-0 items-center justify-center rounded bg-[#C41E3A] px-3 ' +
@@ -32,32 +34,34 @@ function NavBar({
   accountLabel: string
 }) {
   return (
-    <nav className={navClass}>
-      <div className="relative z-10 flex shrink-0 items-center md:hidden">
-        <MobileMenu accountHref={accountHref} accountLabel={accountLabel} />
-      </div>
-
-      <Link href="/" className="relative z-10 hidden shrink-0 items-center md:flex">
-        <Wordmark />
-      </Link>
-
-      <Link
-        href="/"
-        className="absolute left-1/2 z-10 flex -translate-x-1/2 items-center md:hidden"
-      >
-        <Wordmark className="h-7 w-auto max-w-[min(52vw,220px)]" />
-      </Link>
-
-      <div className="pointer-events-none absolute inset-0 hidden items-center justify-center md:flex">
-        <div className="pointer-events-auto">
-          <NavLinks />
+    <nav className={navOuterClass}>
+      <div className={navInnerClass}>
+        <div className="relative z-10 flex shrink-0 items-center md:hidden">
+          <MobileMenu accountHref={accountHref} accountLabel={accountLabel} />
         </div>
-      </div>
 
-      <div className="relative z-10 ml-auto hidden md:block">
-        <Link href={accountHref} className={accountBtnClass}>
-          {accountLabel}
+        <Link href="/" className="relative z-10 hidden shrink-0 items-center md:flex">
+          <Wordmark />
         </Link>
+
+        <Link
+          href="/"
+          className="absolute left-1/2 z-10 flex -translate-x-1/2 items-center md:hidden"
+        >
+          <Wordmark className="h-7 w-auto max-w-[min(52vw,220px)]" />
+        </Link>
+
+        <div className="pointer-events-none absolute inset-0 hidden items-center justify-center md:flex">
+          <div className="pointer-events-auto">
+            <NavLinks />
+          </div>
+        </div>
+
+        <div className="relative z-10 ml-auto hidden md:block">
+          <Link href={accountHref} className={accountBtnClass}>
+            {accountLabel}
+          </Link>
+        </div>
       </div>
     </nav>
   )

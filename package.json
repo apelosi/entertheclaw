@@ -14,6 +14,8 @@
     "db:seed": "tsx lib/db/seed.ts",
     "db:seed-scenes": "tsx scripts/seed-initial-scenes.ts",
     "db:fix-script-history": "tsx scripts/fix-stage-script-history.ts",
+    "db:set-stage-created-at": "tsx scripts/set-stage-created-at.ts",
+    "db:set-stage-dates": "tsx scripts/set-stage-dates.ts",
     "db:reset-stages": "tsx lib/db/reset-stages.ts",
     "db:generate-images": "tsx lib/db/generate-stage-images.ts",
     "db:refresh-images": "tsx lib/db/generate-stage-images.ts --force",

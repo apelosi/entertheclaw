@@ -5,6 +5,7 @@ import { neon } from '@neondatabase/serverless'
 import { drizzle } from 'drizzle-orm/neon-http'
 import { sql } from 'drizzle-orm'
 import * as schema from './schema'
+import { STAGE_CREATED_AT } from './stage-created-at'
 
 const SEED_STAGES = [
   {
@@ -142,7 +143,7 @@ async function resetStages() {
 
   console.log('Inserting 20 stages...')
   for (const stage of SEED_STAGES) {
-    await db.insert(schema.stages).values(stage)
+    await db.insert(schema.stages).values({ ...stage, createdAt: STAGE_CREATED_AT })
     console.log(`  ✓ ${stage.name}`)
   }
 

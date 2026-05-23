@@ -11,6 +11,7 @@
  *   - VERIFY_ALLOW_DB_WRITES=1 (explicit approval — inserts test agents/stages)
  *   - dev server running on http://localhost:3000 (override via VERIFY_API_URL)
  *   - .env.local with DATABASE_URL (for setup/cleanup/asserts)
+ *   - local webhook listener on 127.0.0.1 (turn_open + turn_grant push checks)
  *
  * The script creates its own scratch stage + agents tagged with a unique
  * verifyRunId and cleans them up in a finally block. Orphans:
@@ -44,7 +45,9 @@ import {
 import { emitTurnOpen, stageNeedsSafetyNetTurnOpen } from '../lib/stage/emit-turn-open'
 import { buildTurnOpenSnapshot } from '../lib/stage/build-turn-open-snapshot'
 import type { TurnOpenContent } from '../lib/stage/emit-turn-open'
+import type { TurnWebhookPayload } from '../lib/stage/deliver-turn-webhooks'
 import crypto from 'node:crypto'
+import { createServer } from 'node:http'
 
 const API_BASE = process.env.VERIFY_API_URL ?? 'http://localhost:3000/api/v1'
 const VERIFY_TAG = `verify-turn-open-${Date.now()}`
@@ -118,8 +121,85 @@ interface HttpOpts {
   timeoutMs?: number
 }
 
+interface WebhookCapture {
+  payload: TurnWebhookPayload | null
+  rawBody: string
+  signature: string | null
+}
+
+/** Ephemeral POST target for deliverTurnWebhooks (127.0.0.1 only). */
+async function startWebhookListener(): Promise<{
+  url: string
+  close: () => Promise<void>
+  reset: () => void
+  waitFor: (timeoutMs?: number) => Promise<WebhookCapture>
+}> {
+  let pending: ((cap: WebhookCapture) => void) | null = null
+  let last: WebhookCapture = { payload: null, rawBody: '', signature: null }
+
+  const server = createServer((req, res) => {
+    if (req.method !== 'POST') {
+      res.writeHead(405)
+      res.end()
+      return
+    }
+    const chunks: Buffer[] = []
+    req.on('data', (chunk) => chunks.push(chunk))
+    req.on('end', () => {
+      const rawBody = Buffer.concat(chunks).toString('utf8')
+      let payload: TurnWebhookPayload | null = null
+      try {
+        payload = JSON.parse(rawBody) as TurnWebhookPayload
+      } catch {
+        payload = null
+      }
+      const signature =
+        typeof req.headers['x-etc-signature'] === 'string'
+          ? req.headers['x-etc-signature']
+          : null
+      const capture: WebhookCapture = { payload, rawBody, signature }
+      last = capture
+      pending?.(capture)
+      pending = null
+      res.writeHead(200, { 'Content-Type': 'text/plain' })
+      res.end('ok')
+    })
+  })
+
+  return new Promise((resolve) => {
+    server.listen(0, '127.0.0.1', () => {
+      const addr = server.address()
+      const port = typeof addr === 'object' && addr ? addr.port : 0
+      resolve({
+        url: `http://127.0.0.1:${port}/hook`,
+        close: () => new Promise<void>((done) => server.close(() => done())),
+        reset: () => {
+          last = { payload: null, rawBody: '', signature: null }
+        },
+        waitFor: (timeoutMs = 10_000) =>
+          new Promise<WebhookCapture>((res, rej) => {
+            if (last.payload) {
+              const cap = last
+              last = { payload: null, rawBody: '', signature: null }
+              res(cap)
+              return
+            }
+            const timer = setTimeout(() => {
+              pending = null
+              rej(new Error(`no webhook within ${timeoutMs}ms`))
+            }, timeoutMs)
+            pending = (cap) => {
+              clearTimeout(timer)
+              res(cap)
+            }
+          }),
+      })
+    })
+  })
+}
+
 async function http(
-  method: 'GET' | 'POST',
+  method: 'GET' | 'POST' | 'PATCH',
   path: string,
   opts: HttpOpts = {},
 ): Promise<{ status: number; body: unknown }> {
@@ -273,6 +353,7 @@ async function main() {
     await prewarm(`/stages/${stageId}/heartbeat`)
     await prewarm(`/stages/${stageId}/dialogue`)
     await prewarm(`/stages/${stageId}/turn/claim`)
+    await prewarm('/agents/me')
     console.log('  prewarm complete')
 
     // ── 1. Joins do NOT emit turn_open ────────────────────────────────
@@ -611,6 +692,140 @@ async function main() {
       status: cronRes.status,
       body: cronBody,
     })
+
+    // ── 11. Push webhooks (turn_open + turn_grant) — last, needs open floor ─
+    console.log('\n[11] push webhooks: turn_open on dialogue, turn_grant on claim')
+    const webhookSecret = 'verify-webhook-secret-16'
+    const listener = await startWebhookListener()
+    try {
+      const patchWebhook = await http('PATCH', '/agents/me', {
+        apiKey: agentA.apiKey,
+        body: {
+          webhookUrl: listener.url,
+          webhookSecret,
+        },
+      })
+      check(
+        'PATCH /agents/me registers webhookUrl',
+        patchWebhook.status === 200,
+        patchWebhook,
+      )
+
+      listener.reset()
+      const webhookDialogue = await http('POST', `/stages/${stageId}/dialogue`, {
+        apiKey: agentB.apiKey,
+        body: { content: 'Webhook probe line for push delivery.' },
+      })
+      check(
+        'webhook probe dialogue returns 200',
+        webhookDialogue.status === 200,
+        webhookDialogue,
+      )
+
+      let openCapture: WebhookCapture = {
+        payload: null,
+        rawBody: '',
+        signature: null,
+      }
+      try {
+        openCapture = await listener.waitFor(10_000)
+        check('turn_open webhook received within 10s', true)
+      } catch (err) {
+        check('turn_open webhook received within 10s', false, String(err))
+      }
+
+      check(
+        'webhook type is turn_open',
+        openCapture.payload?.type === 'turn_open',
+        openCapture.payload?.type,
+      )
+      check(
+        'webhook stageId matches scratch stage',
+        openCapture.payload?.stageId === stageId,
+        openCapture.payload?.stageId,
+      )
+      const openContent = openCapture.payload?.content as TurnOpenContent | undefined
+      check(
+        'webhook turn_open carries snapshot.recentDialogue',
+        Array.isArray(openContent?.snapshot?.recentDialogue) &&
+          openContent.snapshot.recentDialogue.length > 0,
+        openContent?.snapshot?.recentDialogue,
+      )
+      const expectedOpenSig = `sha256=${crypto
+        .createHmac('sha256', webhookSecret)
+        .update(openCapture.rawBody)
+        .digest('hex')}`
+      check(
+        'turn_open webhook X-ETC-Signature matches HMAC body',
+        openCapture.signature === expectedOpenSig,
+        { got: openCapture.signature, expected: expectedOpenSig },
+      )
+
+      listener.reset()
+      const claimWebhook = await http('POST', `/stages/${stageId}/turn/claim`, {
+        apiKey: agentB.apiKey,
+        body: { stake: 7, intent: 'webhook grant probe' },
+      })
+      check(
+        'webhook probe claim returns granted',
+        claimWebhook.status === 200 &&
+          (claimWebhook.body as { granted?: boolean }).granted === true,
+        claimWebhook,
+      )
+
+      let grantCapture: WebhookCapture = {
+        payload: null,
+        rawBody: '',
+        signature: null,
+      }
+      try {
+        grantCapture = await listener.waitFor(10_000)
+        check('turn_grant webhook received within 10s', true)
+      } catch (err) {
+        check('turn_grant webhook received within 10s', false, String(err))
+      }
+
+      check(
+        'webhook type is turn_grant',
+        grantCapture.payload?.type === 'turn_grant',
+        grantCapture.payload?.type,
+      )
+      const grantContent = grantCapture.payload?.content as {
+        agentId?: string
+        expiresAt?: string
+      }
+      check(
+        'turn_grant names winning agent',
+        grantContent?.agentId === agentB.id,
+        grantContent,
+      )
+      check(
+        'turn_grant includes expiresAt',
+        typeof grantContent?.expiresAt === 'string' && grantContent.expiresAt.length > 0,
+        grantContent?.expiresAt,
+      )
+      const expectedGrantSig = `sha256=${crypto
+        .createHmac('sha256', webhookSecret)
+        .update(grantCapture.rawBody)
+        .digest('hex')}`
+      check(
+        'turn_grant webhook X-ETC-Signature matches HMAC body',
+        grantCapture.signature === expectedGrantSig,
+        { got: grantCapture.signature, expected: expectedGrantSig },
+      )
+
+      // Consume grant so cleanup does not leave the stage mid-turn.
+      await http('POST', `/stages/${stageId}/dialogue`, {
+        apiKey: agentB.apiKey,
+        body: { content: 'Webhook probe grant consumed.' },
+      })
+    } finally {
+      await listener.close()
+      await db
+        .update(agents)
+        .set({ webhookUrl: null, webhookSecret: null })
+        .where(eq(agents.id, agentA.id))
+    }
   } finally {
     await cleanup(stageId, agentIds, VERIFY_TAG)
   }

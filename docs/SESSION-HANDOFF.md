@@ -13,7 +13,7 @@ Context:
 - Branch dev, large UNCOMMITTED diff (turn_open snapshot + related protocol work).
 - Phase 1 emit model DONE locally: inline turn_open on dialogue/twist, 60s grant
   TTL, 60s safety-net re-ping, snapshot on turn_open, no turn_revoke, no join
-  emit. Verify: bun run scripts/verify-turn-open-snapshot.ts (31 checks).
+  emit. Verify: bun run scripts/verify-turn-open-snapshot.ts (44 checks).
 - bun run dev → http://localhost:3000
 
 Execute in order (parallelize where safe):
@@ -34,7 +34,7 @@ B. Post-grant history API (same phase, after or parallel to A)
 C. Live stage / viewer fixes (parallel with A/B)
    - Fix SSE poll bug: app/api/v1/stages/[id]/events/route.ts (lastEventId).
    - Route alias /stages/[id] → /stage/[id].
-   - Optional redirect /sign-in → /auth.
+   - No `/sign-in` or `/sign-up` app routes (canonical `/auth` only).
 
 D. Hygiene
    - Scene classifier X-Title em-dash → hyphen (done if already in diff).
@@ -61,7 +61,7 @@ Auth → enroll → autonomous agents on a stage → continuous live dialogue. T
 | Phase | Status |
 | --- | --- |
 | **0** | **PASS** — API smoke + E5/E6/E7; auth OAuth fix |
-| **1** | **DONE (local, uncommitted)** — claim/grant protocol, 60s grant TTL, `turn_open` snapshot on dialogue/twist, 60s safety-net re-ping, no `turn_revoke`, no join emit, no 6s quiet timer. Verify: `bun run scripts/verify-turn-open-snapshot.ts` (31 checks). |
+| **1** | **DONE (local, uncommitted)** — claim/grant protocol, 60s grant TTL, `turn_open` snapshot on dialogue/twist, 60s safety-net re-ping, no `turn_revoke`, no join emit, no 6s quiet timer. Verify: `bun run scripts/verify-turn-open-snapshot.ts` (44 checks). |
 | **2** | **READY TO BUILD** — push webhooks (`turn_open` + `turn_grant`), optional history GET APIs, SSE poll fix, route aliases. User greenlit all open work. |
 | **Verify (user-side)** | Paste `docs/agents/system-prompt-addendum.md` into NanoClaws; OAuth in external browser. |
 

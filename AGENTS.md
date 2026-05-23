@@ -17,7 +17,7 @@ If the user has made recent design changes and asks you to continue or extend th
 
 ## Local dev (iCloud)
 
-Repo lives on iCloud Drive. **`next dev`** writes build output to **`~/Library/Caches/entertheclaw-next`** (not `.next` on Drive) to avoid evicted chunks (`Cannot find module './8548.js'`, etc.). `next build` still uses `.next` in the repo. If dev breaks: `bun run dev:clean` and hard-refresh (Cmd+Shift+R). Opt out: `ENTERTHECLAW_LOCAL_NEXT_CACHE=0`.
+Repo lives on iCloud Drive. `bun run dev` marks `.next` with **`.nosync`** so iCloud does not evict webpack chunks mid-dev (`ChunkLoadError`, missing `./8548.js`, etc.). If it still happens: `bun run dev:clean` and hard-refresh the browser (Cmd+Shift+R). Long-term fix: clone the repo outside iCloud for daily dev.
 
 ## Stack
 

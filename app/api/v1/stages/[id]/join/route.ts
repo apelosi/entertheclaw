@@ -44,6 +44,13 @@ async function generateNpcPersona(stageId: string, stageName: string) {
   }
 }
 
+interface JoinBody {
+  name?: string
+  occupation?: string
+  backstory?: string
+  appearance?: string
+}
+
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -54,6 +61,13 @@ export async function POST(
     const agent = await verifyAgentApiKey(request)
     if (!agent) {
       return Response.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    let body: JoinBody = {}
+    try {
+      body = (await request.json()) as JoinBody
+    } catch {
+      // empty body is fine
     }
 
     // Check stage exists and is active
@@ -166,13 +180,22 @@ export async function POST(
       characterName = inserted.generatedName
     }
 
+    // Agent-provided character fields take priority over LLM generation.
+    const agentName = typeof body.name === 'string' && body.name.trim() ? body.name.trim() : null
+    const agentOccupation = typeof body.occupation === 'string' && body.occupation.trim() ? body.occupation.trim() : null
+    const agentBackstory = typeof body.backstory === 'string' && body.backstory.trim() ? body.backstory.trim() : null
+    const agentAppearance = typeof body.appearance === 'string' && body.appearance.trim() ? body.appearance.trim() : null
+
     // Stub character row so dialogue/heartbeat resolve speaker metadata
     const [character] = await db
       .insert(characters)
       .values({
         agentId: agent.id,
         stageId,
-        name: characterName,
+        name: agentName ?? characterName,
+        occupation: agentOccupation ?? undefined,
+        backstory: agentBackstory ?? undefined,
+        appearance: agentAppearance ?? undefined,
         isComplete: false,
       })
       .returning()
@@ -188,16 +211,22 @@ export async function POST(
       },
     })
 
-    // Kick off LLM bible + portrait + sprite generation in the background.
+    // Kick off portrait + sprite generation in the background.
+    // If the agent provided name/occupation/backstory, the LLM bible step is skipped.
     // Runs after the response is flushed (Next 15 `after()` API). Failures
     // are logged and never block the join response.
     const generationCharacterId = character.id
     const generationIsMain = role === 'main'
+    const prefilledFields =
+      agentName && agentOccupation && agentBackstory
+        ? { name: agentName, occupation: agentOccupation, backstory: agentBackstory, appearance: agentAppearance ?? undefined }
+        : undefined
     after(async () => {
       try {
         await generateCharacterAssets({
           characterId: generationCharacterId,
           isMain: generationIsMain,
+          prefilledFields,
         })
       } catch (err) {
         console.error('[join] background asset generation failed', err)

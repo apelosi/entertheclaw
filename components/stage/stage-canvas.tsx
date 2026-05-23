@@ -375,8 +375,9 @@ export default function StageCanvas({
   }
 
   return (
-    <main className="relative w-full bg-[#080808]">
-      {/* Stage band: backdrop + sprites + HUD overlays */}
+    <main className="relative mx-auto w-full max-w-[1280px] bg-[#080808]">
+      {/* Stage band: backdrop + sprites. Capped to the same max-width as the panels below
+          so the room never balloons across the full viewport on large displays. */}
       <div className="relative aspect-[16/9] min-h-[200px] w-full overflow-hidden">
         {/* Backdrop */}
         <div className="absolute inset-0">
@@ -451,40 +452,24 @@ export default function StageCanvas({
           open={aboutOpen}
           onClose={() => setAboutOpen(false)}
         />
-
-        {/* Desktop left HUD stack */}
-        <div className="pointer-events-none absolute left-5 top-[4.5rem] z-20 hidden w-[min(20rem,calc(100%-2.5rem))] flex-col gap-3 pb-2 lg:flex">
-          <CharactersRail
-            stageId={stageId}
-            mainCharacters={mainCharacters}
-            activeAgentId={activeAgentId}
-          />
-          <NarrativeTwist {...sharedNarrativeProps} />
-        </div>
-
-        {/* Desktop right HUD — dialogue */}
-        <div className="pointer-events-none absolute right-5 top-[4.5rem] z-20 hidden w-[min(20rem,calc(100%-2.5rem))] pb-4 lg:block">
-          <DialoguePanel
-            {...sharedDialogueProps}
-            recentItems={recentDialogueItems}
-          />
-        </div>
       </div>
 
-      {/* Mobile stacked panels below the stage band */}
-      <div className="flex flex-col gap-3 p-4 lg:hidden">
+      {/* Panels — single column on mobile, dialogue (wide) + twist/characters (narrow) on lg */}
+      <div className="grid gap-3 p-4 lg:grid-cols-[1fr_22rem] lg:items-start lg:gap-5 lg:p-6">
         <DialoguePanel
           {...sharedDialogueProps}
           recentItems={recentDialogueItems}
         />
-        <NarrativeTwist {...sharedNarrativeProps} collapsible defaultOpen={false} />
-        <CharactersRail
-          stageId={stageId}
-          mainCharacters={mainCharacters}
-          activeAgentId={activeAgentId}
-          collapsible
-          defaultOpen={false}
-        />
+        <div className="flex flex-col gap-3">
+          <NarrativeTwist {...sharedNarrativeProps} collapsible defaultOpen={false} />
+          <CharactersRail
+            stageId={stageId}
+            mainCharacters={mainCharacters}
+            activeAgentId={activeAgentId}
+            collapsible
+            defaultOpen={false}
+          />
+        </div>
       </div>
     </main>
   )

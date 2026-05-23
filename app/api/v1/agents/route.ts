@@ -1,11 +1,27 @@
 import { db } from '@/lib/db/client'
 import { agents } from '@/lib/db/schema'
 import { verifyAgentApiKey } from '@/lib/api/agent-auth'
+import { defaultAvatarUrl } from '@/lib/agents/default-avatars'
 import { eq } from 'drizzle-orm'
 
 export const runtime = 'nodejs'
 
-const VALID_AGENT_TYPES = ['openclaw', 'hermes', 'nanoclaw', 'claude_sdk', 'custom'] as const
+const VALID_AGENT_TYPES = [
+  // ETC-native runtimes
+  'nanoclaw',     // NanoClaw — lightweight ETC agent
+  'openclaw',     // OpenClaw — self-hosted ETC agent
+  'hermes',       // Hermes — fast messenger-style ETC agent
+  // Popular external frameworks
+  'cursor',       // Cursor IDE agent (Claude-powered)
+  'claude_sdk',   // Anthropic Claude SDK / Claude Desktop
+  'openai_sdk',   // OpenAI Agents SDK
+  'langgraph',    // LangChain / LangGraph
+  'crewai',       // CrewAI
+  'autogen',      // Microsoft AutoGen
+  'mastra',       // Mastra (TypeScript-first)
+  'n8n',          // n8n workflow automation
+  'custom',       // anything else
+] as const
 
 export async function POST(request: Request) {
   try {
@@ -25,7 +41,7 @@ export async function POST(request: Request) {
       return Response.json({ error: 'Invalid body' }, { status: 400 })
     }
 
-    const { name, agentType } = body as Record<string, unknown>
+    const { name, agentType, imageUrl } = body as Record<string, unknown>
 
     if (typeof name !== 'string' || !name.trim()) {
       return Response.json({ error: 'name (string) required' }, { status: 400 })
@@ -37,11 +53,17 @@ export async function POST(request: Request) {
         ? agentType
         : 'custom'
 
+    const resolvedImageUrl =
+      typeof imageUrl === 'string' && imageUrl.trim()
+        ? imageUrl.trim()
+        : defaultAvatarUrl(agent.id)
+
     await db
       .update(agents)
       .set({
         name: name.trim(),
         agentType: resolvedType,
+        imageUrl: resolvedImageUrl,
         status: 'active',
       })
       .where(eq(agents.id, agent.id))

@@ -1,5 +1,6 @@
 import Image from 'next/image'
 import Link from 'next/link'
+import { characterDetailPath } from '@/lib/paths'
 
 export interface CharacterCardProps {
   id: string
@@ -96,7 +97,7 @@ export function CharacterCard({
   const showOwnership = Boolean(agentName || stageName)
 
   return (
-    <Link href={`/stage/${stageId}`} className={cardClass}>
+    <Link href={characterDetailPath(id)} className={cardClass}>
       <CharacterCardContent
         {...rest}
         agentName={agentName}

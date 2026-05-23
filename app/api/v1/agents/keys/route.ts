@@ -3,6 +3,7 @@ import { agents, stages } from '@/lib/db/schema'
 import { auth } from '@/lib/auth'
 import { generateApiKey, hashApiKey, getApiKeyPrefix } from '@/lib/api/agent-auth'
 import { findPendingEnrollment } from '@/lib/agents/pending-enrollment'
+import { syncUserDisplayName } from '@/lib/users/public-profile'
 import { and, eq } from 'drizzle-orm'
 
 export const runtime = 'nodejs'
@@ -79,6 +80,10 @@ export async function POST(request: Request) {
             })
             .returning()
         )[0]
+
+    const ownerLabel =
+      user.name?.trim() || user.email?.split('@')[0]?.trim() || 'User'
+    await syncUserDisplayName(user.id, ownerLabel)
 
     return Response.json({
       apiKey: rawKey,

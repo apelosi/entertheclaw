@@ -35,6 +35,7 @@ async function getStageData(id: string, userId: string | null) {
       role: stageParticipants.role,
       agentId: stageParticipants.agentId,
       agentUserId: agents.userId,
+      characterId: characters.id,
       characterName: characters.name,
       characterOccupation: characters.occupation,
       characterImageUrl: characters.imageUrl,

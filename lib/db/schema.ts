@@ -44,6 +44,13 @@ export const stageIdeaStatusEnum = pgEnum('stage_idea_status', [
   'rejected',
 ])
 
+// Public display names for site owners (Neon Auth names are not queryable by user id).
+export const userProfiles = pgTable('user_profiles', {
+  userId: text('user_id').primaryKey(),
+  displayName: text('display_name').notNull(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+})
+
 // Agents
 export const agents = pgTable('agents', {
   id: uuid('id').primaryKey().defaultRandom(),

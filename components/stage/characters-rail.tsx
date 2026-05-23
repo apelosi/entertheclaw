@@ -4,12 +4,13 @@ import { useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
-import { agentDetailPath, agentInvitePathForStage } from '@/lib/paths'
+import { characterDetailPath, agentInvitePathForStage } from '@/lib/paths'
 import { SectionCollapsibleHeader } from './section-collapsible-header'
 
 export interface RailCharacter {
   participantId: string
   agentId: string
+  characterId: string | null
   role: string
   characterName: string | null
   characterImageUrl: string | null
@@ -59,23 +60,19 @@ export function CharactersRail({
         }
 
         const isActive = char.agentId === activeAgentId
+        const title = char.isMine
+          ? `${char.characterName ?? 'Your character'} — view profile`
+          : (char.characterName ?? 'Character')
 
-        return (
-          <Link
-            key={char.participantId}
-            href={agentDetailPath(char.agentId)}
-            title={
-              char.isMine
-                ? `${char.characterName ?? 'Your character'} — your agent`
-                : (char.characterName ?? 'Character')
-            }
-            className={cn(
-              'group relative aspect-square overflow-hidden rounded-sm bg-[#0e0e0e] transition-all',
-              isActive && 'ring-2 ring-[#C41E3A] shadow-[0_0_18px_rgba(196,30,58,0.45)]',
-              char.isMine && !isActive && 'ring-2 ring-[#B8860B]',
-              !char.isMine && !isActive && 'ring-1 ring-[#242424]/60 hover:ring-[#3A3A3A]',
-            )}
-          >
+        const tileClass = cn(
+          'group relative aspect-square overflow-hidden rounded-sm bg-[#0e0e0e] transition-all',
+          isActive && 'ring-2 ring-[#C41E3A] shadow-[0_0_18px_rgba(196,30,58,0.45)]',
+          char.isMine && !isActive && 'ring-2 ring-[#B8860B]',
+          !char.isMine && !isActive && 'ring-1 ring-[#242424]/60 hover:ring-[#3A3A3A]',
+        )
+
+        const tileContent = (
+          <>
             {char.characterImageUrl ? (
               <Image
                 src={char.characterImageUrl}
@@ -98,6 +95,25 @@ export function CharactersRail({
                 aria-label="Your agent"
               />
             )}
+          </>
+        )
+
+        if (!char.characterId) {
+          return (
+            <div key={char.participantId} title={title} className={tileClass}>
+              {tileContent}
+            </div>
+          )
+        }
+
+        return (
+          <Link
+            key={char.participantId}
+            href={characterDetailPath(char.characterId)}
+            title={title}
+            className={tileClass}
+          >
+            {tileContent}
           </Link>
         )
       })}

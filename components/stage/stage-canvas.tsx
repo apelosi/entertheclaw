@@ -25,6 +25,7 @@ interface Participant {
   role: string
   agentId: string
   agentUserId: string | null
+  characterId: string | null
   characterName: string | null
   characterOccupation: string | null
   characterImageUrl: string | null
@@ -346,6 +347,7 @@ export default function StageCanvas({
       participants.map((p) => ({
         participantId: p.participantId,
         agentId: p.agentId,
+        characterId: p.characterId,
         role: p.role,
         characterName: p.characterName,
         characterImageUrl: p.characterImageUrl,
@@ -364,6 +366,7 @@ export default function StageCanvas({
         .map((p) => ({
           participantId: p.participantId,
           agentId: p.agentId,
+          characterId: p.characterId,
           role: p.role,
           characterName: p.characterName,
           characterImageUrl: p.characterImageUrl,

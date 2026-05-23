@@ -57,6 +57,13 @@
       "when": 1779515459121,
       "tag": "0007_elite_night_thrasher",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1779520000000,
+      "tag": "0008_user_profiles",
+      "breakpoints": true
     }
   ]
 }

@@ -143,9 +143,6 @@ export function StageCard({
 
         {lastLine && (
           <div className="mt-auto border-t border-[#242424] pt-3">
-            <p className="mb-1.5 text-[9px] font-semibold uppercase tracking-[0.15em] text-[#444440]">
-              Now Speaking
-            </p>
             <div className="border-l-2 border-[#C41E3A]/40 pl-2">
               {lastSpeakerName && (
                 <p className="mb-1 font-mono text-[10px] uppercase tracking-[0.12em] text-[#C41E3A]">

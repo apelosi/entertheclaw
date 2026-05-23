@@ -48,7 +48,7 @@ function NavBar({
           href="/"
           className="absolute left-1/2 z-10 flex -translate-x-1/2 items-center md:hidden"
         >
-          <Wordmark className="h-7 w-auto max-w-[min(52vw,220px)]" />
+          <Wordmark className="h-6 w-auto max-w-[min(47vw,198px)]" />
         </Link>
 
         <div className="pointer-events-none absolute inset-0 hidden items-center justify-center md:flex">

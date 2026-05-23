@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import Image from 'next/image'
 import type { FeedItem } from '@/lib/stage/feed-items'
 import { cn } from '@/lib/utils'
@@ -40,21 +40,6 @@ function resolveSpeakerImage(
   return item.speakerImageUrl ?? speakerImageByName.get(item.speakerName) ?? null
 }
 
-function useRecentScriptLimit() {
-  const [limit, setLimit] = useState(RECENT_SCRIPT_LIMIT_DESKTOP)
-
-  useEffect(() => {
-    const mq = window.matchMedia('(max-width: 639px)')
-    const update = () =>
-      setLimit(mq.matches ? RECENT_SCRIPT_LIMIT_MOBILE : RECENT_SCRIPT_LIMIT_DESKTOP)
-    update()
-    mq.addEventListener('change', update)
-    return () => mq.removeEventListener('change', update)
-  }, [])
-
-  return limit
-}
-
 function CurrentSpeakerMeta({ speakerName }: { speakerName: string }) {
   return (
     <span
@@ -83,8 +68,7 @@ export function DialoguePanel({
 }: Props) {
   const [historyOpen, setHistoryOpen] = useState(false)
   const [scriptOpen, setScriptOpen] = useState(true)
-  const recentLimit = useRecentScriptLimit()
-  const visibleRecentItems = recentItems.slice(0, recentLimit)
+  const visibleRecentItems = recentItems.slice(0, RECENT_SCRIPT_LIMIT_DESKTOP)
 
   return (
     <>
@@ -165,6 +149,7 @@ export function DialoguePanel({
                       : item.kind === 'scene'
                         ? 'border-l-[#2A8E8E]/80'
                         : 'border-l-transparent',
+                    index >= RECENT_SCRIPT_LIMIT_MOBILE && 'max-sm:hidden',
                   )
                   if (item.kind === 'dialogue') {
                     const imageUrl = resolveSpeakerImage(item, speakerImageByName)

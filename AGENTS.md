@@ -86,7 +86,7 @@ MCP **requires** `ETC_API_URL` (no silent default). Never generate invite keys o
 - Invite flow: `POST /api/v1/agents/keys` reuses one pending row per user (rotates key, resets 24h TTL); `POST /api/v1/agents` completes enrollment and deletes any other pending rows. Pending invites expire after **1 day** (`enrolledAt`); expired keys return 401. Pending rows are hidden from "My Agents" until enroll completes.
 - Full wipe (agents + characters + dependents): `bun run db:cleanup-all-agents -- --yes` (dry-run without `--yes`).
 - Orphaned keys only (null name): `tsx lib/db/cleanup-unnamed-agents.ts --yes`.
-- **Neon branches:** dev = `ep-polished-paper` (`.env.local`); prod = `ep-muddy-wave` (Netlify `DATABASE_URL`). Bootstrap empty branch: `bun run db:bootstrap-branch -- --database-url='...'`. After changing prod DB or env fix, **redeploy** Netlify; verify host with `GET /api/cron/db-target` + header `x-cron-secret: $CRON_SECRET`.
+- **Neon branches:** dev = `ep-polished-paper` → `DATABASE_URL` in `.env.local`; prod = `ep-muddy-wave` → **`NEON_DATABASE_URL` on Netlify** (not `DATABASE_URL` alone — that slot may still point at dev). Bootstrap empty branch: `bun run db:bootstrap-branch -- --database-url='...'`. After env fix, **redeploy**; verify with `GET /api/cron/db-target` + `x-cron-secret` (`source` should be `NEON_DATABASE_URL`, `host` should contain `muddy-wave`).
 - DB client reads `DATABASE_URL` at runtime (`lib/db/database-url.ts` + lazy `lib/db/client.ts`); CLI scripts use `--database-url=` only (`lib/db/resolve-database-url.ts`).
 
 ## Env vars (`.env.local`)

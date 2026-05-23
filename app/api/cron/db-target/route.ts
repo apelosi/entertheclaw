@@ -1,5 +1,11 @@
+import { connection } from 'next/server'
 import { neon } from '@neondatabase/serverless'
-import { readDatabaseHost, readDatabaseUrl } from '@/lib/db/database-url'
+import {
+  readDatabaseEnvHosts,
+  readDatabaseHost,
+  readDatabaseUrl,
+  readDatabaseUrlSource,
+} from '@/lib/db/database-url'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -14,7 +20,12 @@ export async function GET(request: Request) {
     }
   }
 
+  await connection()
+
   const host = readDatabaseHost()
+  const source = readDatabaseUrlSource()
+  const envHosts = readDatabaseEnvHosts()
+
   try {
     const sql = neon(readDatabaseUrl())
     const [stages] = await sql`SELECT count(*)::int AS n FROM stages`
@@ -27,12 +38,14 @@ export async function GET(request: Request) {
     `
     return Response.json({
       host,
+      source,
+      envHosts,
       stages: stages.n,
       agents: agents.n,
       originStories: openings.n,
     })
   } catch (err) {
     const code = (err as { code?: string })?.code
-    return Response.json({ host, error: 'Database query failed', code }, { status: 500 })
+    return Response.json({ host, source, envHosts, error: 'Database query failed', code }, { status: 500 })
   }
 }

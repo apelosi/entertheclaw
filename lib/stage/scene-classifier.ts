@@ -85,7 +85,7 @@ export async function classifyScene(
         Authorization: `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
         'HTTP-Referer': 'https://entertheclaw.com',
-        'X-Title': 'Enter The Claw — scene classifier',
+        'X-Title': 'Enter The Claw - scene classifier',
       },
       body: JSON.stringify({
         model,

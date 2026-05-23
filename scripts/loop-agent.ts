@@ -153,8 +153,8 @@ function decideAction(hb: HeartbeatResponse): ActionDecision {
     }
   }
 
-  // 4. Turn is open and I haven't spoken in a while → small chance to take it
-  if (hb.turnState.open && (hb.turnState.lastDialogueAgoMs ?? 0) > 8000) {
+  // 4. Turn is open → small chance to take it
+  if (hb.turnState.open) {
     if (Math.random() < 0.35) {
       return {
         act: true,

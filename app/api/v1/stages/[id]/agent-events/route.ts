@@ -16,7 +16,6 @@ type AgentEventType =
   | 'scene_change'
   | 'turn_open'
   | 'turn_grant'
-  | 'turn_revoke'
   | 'joined'
   | 'left'
   | 'character_ready'
@@ -29,7 +28,6 @@ const AGENT_EVENT_TYPES: AgentEventType[] = [
   'scene_change',
   'turn_open',
   'turn_grant',
-  'turn_revoke',
   'joined',
   'left',
   'character_ready',

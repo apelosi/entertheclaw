@@ -266,7 +266,10 @@ export async function POST(
       character = existing
     }
 
-    // Emit joined event
+    // Emit joined event. We intentionally do NOT emit a `turn_open` here:
+    // joins almost always follow (or precede) dialogue that emits its own
+    // turn_open, and listening agents can read the updated character list
+    // from the next snapshot they receive.
     await db.insert(stageEvents).values({
       stageId,
       type: 'joined',

@@ -13,7 +13,6 @@ import {
   getLastDialogueAt,
   PULSE_HINT_ACTIVE_MS,
   PULSE_HINT_IDLE_MS,
-  SCENE_QUIET_MS,
 } from '@/lib/stage/turn-state'
 import { eq, and, desc, gte } from 'drizzle-orm'
 
@@ -118,8 +117,9 @@ export async function POST(
 
     const lastDialogueAgoMs =
       lastDialogueAt === null ? null : Math.max(0, Date.now() - lastDialogueAt)
-    const turnIsOpen =
-      !activeGrant && (lastDialogueAgoMs === null || lastDialogueAgoMs >= SCENE_QUIET_MS)
+    // Floor is open whenever no live grant is held. No quiet timer — the
+    // claim collection window inside POST /turn/claim handles concurrency.
+    const turnIsOpen = !activeGrant
 
     // addressedToYou: scan last few dialogue events
     const charName = currentCharacter?.name ?? null

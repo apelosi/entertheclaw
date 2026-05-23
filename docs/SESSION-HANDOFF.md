@@ -1,14 +1,51 @@
-# Session handoff — 2026-05-23 (turn protocol shipped, push channel mid-design)
+# Session handoff — 2026-05-23 (turn_open snapshot done; push + live stage next)
 
 ## Start new chat (paste this)
 
 ```
-Continue Enter The Claw. Read docs/SESSION-HANDOFF.md, docs/agents/turn-protocol.md,
-and decisions/2026-05-23-turn-protocol.md first. Phase 1 (pull-based turn protocol)
-is shipped on dev (commit f157f49, pushed). Phase 2 push-channel design was open;
-I now have a different idea for it — wait for me to share it before designing or
-coding anything in that area. bun run dev → http://localhost:3000. Do not commit
+Continue Enter The Claw. Read docs/SESSION-HANDOFF.md first, then
+docs/agents/turn-protocol.md and decisions/2026-05-23-turn-open-snapshot.md.
+
+User wants ALL open work moved forward — build, test, verify. Do not commit
 unless I ask.
+
+Context:
+- Branch dev, large UNCOMMITTED diff (turn_open snapshot + related protocol work).
+- Phase 1 emit model DONE locally: inline turn_open on dialogue/twist, 60s grant
+  TTL, 60s safety-net re-ping, snapshot on turn_open, no turn_revoke, no join
+  emit. Verify: bun run scripts/verify-turn-open-snapshot.ts (31 checks).
+- bun run dev → http://localhost:3000
+
+Execute in order (parallelize where safe):
+
+A. Phase 2 push wakeups (priority — unblocks 30-min agents)
+   - Webhook delivery for turn_open + turn_grant ONLY (no other event types).
+   - Payload: turn_open carries full snapshot (build-turn-open-snapshot.ts);
+     turn_grant carries grant metadata + expiresAt.
+   - Per-agent webhook URL registration (schema + enroll/settings API).
+   - Best-effort POST on emit; heartbeat/SSE remain catch-up.
+   - Optional HMAC on outbound webhook body.
+
+B. Post-grant history API (same phase, after or parallel to A)
+   - GET .../context — current scene, active twist, characters, recent dialogue.
+   - GET .../events?types=dialogue,scene_change,twist&since=<id|iso>&limit=N
+   - Agent-authenticated; document in turn-protocol.md.
+
+C. Live stage / viewer fixes (parallel with A/B)
+   - Fix SSE poll bug: app/api/v1/stages/[id]/events/route.ts (lastEventId).
+   - Route alias /stages/[id] → /stage/[id].
+   - Optional redirect /sign-in → /auth.
+
+D. Hygiene
+   - Scene classifier X-Title em-dash → hyphen (done if already in diff).
+   - Update docs/PRD-implementation-gap-plan.md Phase 1 notes (60s grant, snapshot).
+   - Re-run verify-turn-open-snapshot.ts after any emit-path changes.
+
+Gate before calling Phase 2 done: webhook receives turn_open within seconds of
+dialogue POST; optional history GET works; SSE viewer shows new dialogue without
+refresh; verify script still passes.
+
+Follow ~/.cursor/skills/global-operating-standards/SKILL.md.
 ```
 
 Also: `~/.cursor/skills/global-operating-standards/SKILL.md`
@@ -24,26 +61,29 @@ Auth → enroll → autonomous agents on a stage → continuous live dialogue. T
 | Phase | Status |
 | --- | --- |
 | **0** | **PASS** — API smoke + E5/E6/E7; auth OAuth fix |
-| **1** | **DONE & PUSHED** — claim/grant turn protocol (commit `f157f49` on `dev`). Extended heartbeat (`pulseHintMs`, `turnState`, `addressedToYou`, `unreadEvents`), agent SSE, `scripts/loop-agent.ts`, MCP `etc_claim_turn` + `etc_observe`, `docs/agents/turn-protocol.md`, `docs/agents/system-prompt-addendum.md`, `decisions/2026-05-23-turn-protocol.md` |
-| **2** | **DESIGN PAUSED — user has a new idea.** Goal is dual-mode wakeups (push webhook + heartbeat). No code yet. Last conversation explored filtered push with per-agent `live` / `responsive` / `none` modes; user wants to revisit before any of this is built. **Do not start coding Phase 2 — wait for the user's new direction.** |
-| **Verify (user-side)** | Paste `docs/agents/system-prompt-addendum.md` into the 4 Claw Wars NanoClaws, watch the stage page for autonomous progression. 30-min cadence will limit liveness — that's expected and is the motivation for Phase 2. |
+| **1** | **DONE (local, uncommitted)** — claim/grant protocol, 60s grant TTL, `turn_open` snapshot on dialogue/twist, 60s safety-net re-ping, no `turn_revoke`, no join emit, no 6s quiet timer. Verify: `bun run scripts/verify-turn-open-snapshot.ts` (31 checks). |
+| **2** | **READY TO BUILD** — push webhooks (`turn_open` + `turn_grant`), optional history GET APIs, SSE poll fix, route aliases. User greenlit all open work. |
+| **Verify (user-side)** | Paste `docs/agents/system-prompt-addendum.md` into NanoClaws; OAuth in external browser. |
 
-## Phase 2 — context for whoever picks this up
+## Phase 2 — agreed shape (build next)
 
-**What's already decided / fixed:**
+- Push: `turn_open` (with snapshot) + `turn_grant` only.
+- Inline `turn_open` on every successful dialogue POST (already shipped).
+- 60 s re-ping via cron if no dialogue after last `turn_open` or `turn_grant`.
+- Optional `GET` history endpoints for post-grant depth (build in 2B).
+- Webhook: best-effort, per-agent URL, heartbeat backfill for misses.
 
-- Push and pull must coexist; webhook is opt-in per agent. Heartbeat stays as durable catch-up.
-- Webhook delivery model: best-effort (no retry queue in v1). Heartbeat's `unreadEvents` cursor backfills any missed deliveries.
-- Webhook payload mirrors the heartbeat response shape so the persona logic is push/pull-agnostic.
+## Uncommitted work summary (dev branch)
 
-**What is still open (user wants to redesign):**
+**Protocol / turn_open (this session):**
+- `lib/stage/build-turn-open-snapshot.ts`, `lib/stage/emit-turn-open.ts`
+- Wired: dialogue, twist, cron safety-net; join does NOT emit
+- `lib/stage/turn-state.ts` (60s grant, no SCENE_QUIET)
+- `scripts/verify-turn-open-snapshot.ts`, `decisions/2026-05-23-turn-open-snapshot.md`
+- Docs: turn-protocol.md, system-prompt-addendum.md, SESSION-HANDOFF.md
 
-- Which event types push, and to whom (filtered vs firehose)
-- Whether to ship multiple per-agent modes (`live` / `responsive` / `none`) or just one default
-- How registration flows — generic webhook URL with HMAC vs something else
-- Whether to layer a different mechanism entirely (the user said "I have a better idea")
-
-**Do not start any of this until the user shares the new idea.** Re-reading the previous chat is unnecessary — the open question is just "what's the new idea, and what does it imply".
+**Also in diff (review before commit):** agent/community pages, profile queries,
+scene-classifier hyphen fix, migration 0007 (turn_revoke removed from enum).
 
 ## Environment
 
@@ -118,14 +158,11 @@ rm -rf .next && bun run dev   # if ChunkLoadError
 | `app/api/v1/stages/[id]/emote/route.ts` | E7 |
 | `components/stage/stage-canvas.tsx` | Live view + SSE dialogue |
 
-## Still open (unrelated to Phase 2)
+## Still open (after Phase 2)
 
-- SSE poll fix in `app/api/v1/stages/[id]/events/route.ts`
-- `/stages/[id]` alias → `/stage/[id]`
-- Absence cron, Phaser v2
-- Optional: redirect `/sign-in` → `/auth` for old links
-- Pre-existing uncommitted edits in `components/stage/{active-twist,dialogue-history-modal,dialogue-panel,narrative-twist,twist-banner}.tsx` and `lib/stage/feed-items.ts` — not mine, left alone
+- Absence cron (6h/24h), Phaser v2 — later phases
+- Pre-existing twist UI component edits in `components/stage/*` — review separately
 
 ## New chat discipline
 
-Lean context: this file + `docs/agents/turn-protocol.md` + `decisions/2026-05-23-turn-protocol.md`. No extra MCPs unless needed. No commit without ask. **For Phase 2: wait for the user's new idea before designing anything — do not re-derive the previous webhook plan.**
+Lean context: this file + turn-protocol.md + turn-open-snapshot decision. User greenlit all open work — proceed without re-asking design questions already captured above. No commit without ask.

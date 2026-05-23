@@ -922,8 +922,7 @@
         "character_ready",
         "turn_open",
         "turn_claim",
-        "turn_grant",
-        "turn_revoke"
+        "turn_grant"
       ]
     },
     "public.stage_idea_status": {

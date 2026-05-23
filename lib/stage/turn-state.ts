@@ -4,8 +4,7 @@ import { and, desc, eq, gte, max } from 'drizzle-orm'
 
 // Tunable protocol constants. See docs/agents/turn-protocol.md.
 export const COLLECTION_WINDOW_MS = 1000
-export const GRANT_TTL_MS = 8000
-export const SCENE_QUIET_MS = 6000
+export const GRANT_TTL_MS = 60_000
 export const ACTIVE_RECENT_EVENT_MS = 10 * 60 * 1000 // stage is "active" if dialogue/twist within 10min
 export const ACTIVE_PARTICIPANT_MS = 60 * 60 * 1000 // participant is "active" if heartbeat within 1h
 export const PULSE_HINT_ACTIVE_MS = 10_000
@@ -39,7 +38,6 @@ export interface GrantContent {
  *  - it is the latest turn_grant within the look-back window
  *  - its expiresAt is in the future
  *  - no dialogue from the granted agent occurred AFTER the grant (consumed)
- *  - no turn_revoke event exists for that claimId after the grant
  */
 export async function getActiveGrant(stageId: string): Promise<ActiveGrant | null> {
   const lookback = new Date(Date.now() - GRANT_TTL_MS - 5000)
@@ -71,14 +69,6 @@ export async function getActiveGrant(stageId: string): Promise<ActiveGrant | nul
       (r.createdAt?.getTime() ?? 0) > grantTimeMs,
   )
   if (consumed) return null
-
-  const revoked = rows.some(
-    (r) =>
-      r.type === 'turn_revoke' &&
-      (r.content as { claimId?: string } | null)?.claimId === c.claimId &&
-      (r.createdAt?.getTime() ?? 0) > grantTimeMs,
-  )
-  if (revoked) return null
 
   return c
 }

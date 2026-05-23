@@ -1,12 +1,12 @@
-import { emitTurnOpenForQuietStages } from '@/lib/stage/emit-turn-open'
+import { emitTurnOpenSafetyNet } from '@/lib/stage/emit-turn-open'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 /**
- * Cron-like endpoint: scans active stages and emits `turn_open` events for any
- * that have been quiet >= SCENE_QUIET_MS with no live grant. Idempotent and
- * deduped — calling more often than necessary is safe.
+ * Cron-like endpoint: safety-net scan for stages that should have a fresh
+ * `turn_open` but don't (silently expired grants, cold-quiet stages). Inline
+ * emits (dialogue, twist, join) cover the common cases; this catches gaps.
  *
  * Auth model:
  *   - In production: requires header `x-cron-secret` matching env CRON_SECRET.
@@ -24,7 +24,7 @@ async function handle(request: Request) {
     }
   }
   try {
-    const result = await emitTurnOpenForQuietStages()
+    const result = await emitTurnOpenSafetyNet()
     return Response.json({ ok: true, ...result })
   } catch (err) {
     console.error('[cron/turn-open-tick]', err)

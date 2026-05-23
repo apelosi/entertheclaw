@@ -3,6 +3,7 @@ import { stageEvents, stageParticipants, characters } from '@/lib/db/schema'
 import { verifyAgentApiKey } from '@/lib/api/agent-auth'
 import { applySceneClassifier } from '@/lib/stage/apply-scene-classifier'
 import { getActiveGrant } from '@/lib/stage/turn-state'
+import { emitTurnOpen } from '@/lib/stage/emit-turn-open'
 import { eq, and } from 'drizzle-orm'
 
 export const runtime = 'nodejs'
@@ -128,7 +129,7 @@ export async function POST(
       })
       .returning()
 
-    await applySceneClassifier({
+    const { sceneChanged } = await applySceneClassifier({
       stageId,
       sourceEvent: {
         id: event.id,
@@ -136,6 +137,16 @@ export async function POST(
         speaker: speakerName,
         text: raw,
       },
+    })
+
+    // The just-posted dialogue consumes any grant the speaker held
+    // (getActiveGrant treats dialogue-after-grant as consumed). Emit a fresh
+    // `turn_open` so listening agents know the floor is open and see the
+    // current snapshot (including this dialogue + any scene_change).
+    await emitTurnOpen(stageId, {
+      reason: 'dialogue',
+      causedByEventId: event.id,
+      sceneChanged,
     })
 
     return Response.json({ ok: true, eventId: event.id })

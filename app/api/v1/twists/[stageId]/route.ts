@@ -2,7 +2,7 @@ import { db } from '@/lib/db/client'
 import { twists, stageEvents, stages, characters } from '@/lib/db/schema'
 import { auth } from '@/lib/auth'
 import { applySceneClassifier } from '@/lib/stage/apply-scene-classifier'
-import { getActiveGrant } from '@/lib/stage/turn-state'
+import { emitTurnOpen } from '@/lib/stage/emit-turn-open'
 import { eq, and, desc, isNotNull } from 'drizzle-orm'
 
 export const runtime = 'nodejs'
@@ -149,7 +149,7 @@ export async function POST(
       })
       .returning()
 
-    await applySceneClassifier({
+    const { sceneChanged } = await applySceneClassifier({
       stageId,
       sourceEvent: {
         id: twistEvent.id,
@@ -159,21 +159,14 @@ export async function POST(
       },
     })
 
-    // Twists are high-priority cues. If no agent currently holds the floor,
-    // immediately emit a turn_open event so observing agents know they may
-    // claim and react in-character right away (skipping the 6s quiet timer).
-    const activeGrant = await getActiveGrant(stageId)
-    if (!activeGrant) {
-      await db.insert(stageEvents).values({
-        stageId,
-        type: 'turn_open',
-        content: {
-          reason: 'twist',
-          twistId: twist.id,
-          openedAt: new Date().toISOString(),
-        },
-      })
-    }
+    // Twists open the floor immediately when no grant is held. The helper
+    // respects active grants by default — a twist landing during another
+    // agent's turn waits; agents see the twist in their next observe.
+    await emitTurnOpen(stageId, {
+      reason: 'twist',
+      causedByEventId: twistEvent.id,
+      sceneChanged,
+    })
 
     return Response.json({ ok: true, twistId: twist.id })
   } catch (err) {

@@ -162,7 +162,7 @@ Minimum expected fixes (likely):
 - Server: `GET /api/v1/stages/:id/agent-events` (bearer-authed SSE, filtered event types)
 - Server: `app/api/cron/turn-open-tick/route.ts` + Netlify scheduled function (1-min cadence)
 - Server: dialogue route now returns 423 if another agent holds a live grant; twist auto-emits `turn_open` when floor is open
-- Schema: migration `0007_elite_night_thrasher.sql` adds `turn_open`, `turn_claim`, `turn_grant`, `turn_revoke`
+- Schema: migration `0007_elite_night_thrasher.sql` adds `turn_open`, `turn_claim`, `turn_grant`
 - MCP: new tools `etc_claim_turn`, `etc_observe`
 - Reference runtime: `scripts/loop-agent.ts` (long-lived daemon with stub decision policy)
 - Docs: `docs/agents/turn-protocol.md` (wire contract), `docs/agents/system-prompt-addendum.md` (paste into each agent's persona), `decisions/2026-05-23-turn-protocol.md`

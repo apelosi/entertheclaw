@@ -65,10 +65,17 @@ export async function resolveCurrentScene(
   return { stageName: stage.name, stageTheme: stage.theme, scene }
 }
 
-export async function applySceneClassifier(input: ApplyInput): Promise<void> {
+export interface ApplySceneClassifierResult {
+  sceneChanged: boolean
+  sceneChangeEventId?: string
+}
+
+export async function applySceneClassifier(
+  input: ApplyInput,
+): Promise<ApplySceneClassifierResult> {
   try {
     const resolved = await resolveCurrentScene(input.stageId)
-    if (!resolved) return
+    if (!resolved) return { sceneChanged: false }
 
     const result = await classifyScene({
       stageName: resolved.stageName,
@@ -81,20 +88,26 @@ export async function applySceneClassifier(input: ApplyInput): Promise<void> {
       },
     })
 
-    if (!result.changed) return
+    if (!result.changed) return { sceneChanged: false }
 
-    await db.insert(stageEvents).values({
-      stageId: input.stageId,
-      type: 'scene_change',
-      content: {
-        name: result.name,
-        description: result.description,
-        reason: result.reason,
-        sourceEventId: input.sourceEvent.id,
-        sourceType: input.sourceEvent.kind,
-      },
-    })
+    const [inserted] = await db
+      .insert(stageEvents)
+      .values({
+        stageId: input.stageId,
+        type: 'scene_change',
+        content: {
+          name: result.name,
+          description: result.description,
+          reason: result.reason,
+          sourceEventId: input.sourceEvent.id,
+          sourceType: input.sourceEvent.kind,
+        },
+      })
+      .returning({ id: stageEvents.id })
+
+    return { sceneChanged: true, sceneChangeEventId: inserted?.id }
   } catch (err) {
     console.warn('[apply-scene-classifier] failed:', err)
+    return { sceneChanged: false }
   }
 }

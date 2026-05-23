@@ -52,6 +52,7 @@ export async function CommunityFeed({ discoverLabel = false }: { discoverLabel?:
                 description={stage.description ?? undefined}
                 participantCount={Number(stage.participantCount)}
                 lastLine={stage.lastLine}
+                lastSpeakerName={stage.lastSpeakerName}
                 imageUrl={stage.imageUrl ?? undefined}
               />
             ))}

@@ -47,6 +47,7 @@ interface StageCardProps {
   description?: string
   participantCount?: number
   lastLine?: string
+  lastSpeakerName?: string
   imageUrl?: string
   hero?: boolean
   className?: string
@@ -59,6 +60,7 @@ export function StageCard({
   description,
   participantCount = 0,
   lastLine,
+  lastSpeakerName,
   imageUrl,
   hero = false,
   className,
@@ -145,6 +147,11 @@ export function StageCard({
               Now Speaking
             </p>
             <div className="border-l-2 border-[#C41E3A]/40 pl-2">
+              {lastSpeakerName && (
+                <p className="mb-1 font-mono text-[10px] uppercase tracking-[0.12em] text-[#C41E3A]">
+                  {lastSpeakerName}
+                </p>
+              )}
               <p className="line-clamp-2 font-mono text-[11px] leading-relaxed text-[#888880]">
                 {lastLine}
               </p>

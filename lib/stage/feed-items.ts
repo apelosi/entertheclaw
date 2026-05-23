@@ -30,6 +30,15 @@ export interface StageEventLike {
   createdAt: Date | string | null
 }
 
+export function dialogueFromEventContent(
+  content: unknown,
+): { text: string; speakerName: string } | null {
+  if (typeof content !== 'object' || content === null) return null
+  const c = content as Record<string, unknown>
+  if (typeof c.text !== 'string' || typeof c.speakerName !== 'string') return null
+  return { text: c.text, speakerName: c.speakerName }
+}
+
 export function parseFeedItem(event: StageEventLike): FeedItem | null {
   if (
     event.type !== 'dialogue' &&

@@ -3,6 +3,7 @@ import { Nav } from '@/components/nav'
 import { StageCard } from '@/components/stage/stage-card'
 import { db } from '@/lib/db/client'
 import { stages, stageParticipants, stageEvents } from '@/lib/db/schema'
+import { dialogueFromEventContent } from '@/lib/stage/feed-items'
 import { eq, and, count, desc } from 'drizzle-orm'
 
 export const metadata = { title: 'Stages' }
@@ -25,14 +26,14 @@ async function getAllStages() {
         .orderBy(desc(stageEvents.createdAt))
         .limit(1)
 
-      const lastLine =
-        recentEvents[0] &&
-        typeof recentEvents[0].content === 'object' &&
-        recentEvents[0].content !== null
-          ? (recentEvents[0].content as Record<string, unknown>).text as string | undefined
-          : undefined
+      const lastDialogue = dialogueFromEventContent(recentEvents[0]?.content)
 
-      return { ...stage, participantCount: participantCount?.count ?? 0, lastLine }
+      return {
+        ...stage,
+        participantCount: participantCount?.count ?? 0,
+        lastLine: lastDialogue?.text,
+        lastSpeakerName: lastDialogue?.speakerName,
+      }
     })
   )
 }
@@ -70,6 +71,7 @@ export default async function StagesPage() {
                 description={stage.description ?? undefined}
                 participantCount={Number(stage.participantCount)}
                 lastLine={stage.lastLine}
+                lastSpeakerName={stage.lastSpeakerName}
                 imageUrl={stage.imageUrl ?? undefined}
               />
             ))}

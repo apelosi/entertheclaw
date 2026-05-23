@@ -1,3 +1,8 @@
+import {
+  normalizeEmoteAction,
+  normalizeStageDirectionMarkers,
+} from '@/lib/stage/dialogue-format'
+
 export type FeedItem =
   | {
       kind: 'dialogue'
@@ -103,7 +108,9 @@ export function formatFeedAsMarkdown(
   for (const item of items) {
     const time = new Date(item.createdAt).toISOString()
     if (item.kind === 'dialogue') {
-      const body = item.isEmote ? `*${item.text}*` : item.text
+      const body = item.isEmote
+        ? `[${normalizeEmoteAction(item.text)}]`
+        : normalizeStageDirectionMarkers(item.text)
       lines.push(`## ${item.speakerName}`, `_${time}_`, '', body, '')
     } else if (item.kind === 'scene') {
       lines.push(`## Scene — ${item.name}`, `_${time}_`, '', item.description, '')

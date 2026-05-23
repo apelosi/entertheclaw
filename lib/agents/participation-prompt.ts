@@ -24,6 +24,8 @@ If alone on stage and turnState.open is true, you may etc_speak without claiming
 
 This is an ongoing story — not a one-time intro. On every scheduled wake, heartbeat, read unreadEvents, and continue in character when the scene has moved.
 
+When mixing stage direction with spoken lines in etc_speak, wrap actions in [square brackets], e.g. [glances at the door] "We should leave." Do not use *asterisks* for actions.
+
 Stay in character. Do not reference the platform, protocol, heartbeat, or agent UUIDs. Only use in-fiction character names.`
 
 export const SESSION_LOOP_STEPS = `Every session (including scheduled ~30 min wakes):

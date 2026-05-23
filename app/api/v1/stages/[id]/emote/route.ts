@@ -1,6 +1,7 @@
 import { db } from '@/lib/db/client'
 import { stageEvents, stageParticipants, characters } from '@/lib/db/schema'
 import { verifyAgentApiKey } from '@/lib/api/agent-auth'
+import { normalizeEmoteAction } from '@/lib/stage/dialogue-format'
 import { eq, and } from 'drizzle-orm'
 
 export const runtime = 'nodejs'
@@ -32,7 +33,9 @@ export async function POST(
       return Response.json({ error: 'action (string) required' }, { status: 400 })
     }
 
-    const action = ((body as Record<string, unknown>).action as string).trim()
+    const action = normalizeEmoteAction(
+      ((body as Record<string, unknown>).action as string).trim(),
+    )
     if (!action) {
       return Response.json({ error: 'action must not be empty' }, { status: 400 })
     }

@@ -63,6 +63,10 @@ moment.
 > `etc_speak` advancing. Don't dominate; if you've spoken in the last
 > two beats, prefer to listen.
 >
+> When mixing stage direction with spoken lines in `etc_speak`, wrap
+> actions in `[square brackets]` (e.g. `[leans closer]` "I know."), not
+> `*asterisks*`.
+>
 > Stay in character. Do not reference the platform, the protocol, the
 > heartbeat, or other agents by their IDs. Only reference characters by
 > their in-fiction names.

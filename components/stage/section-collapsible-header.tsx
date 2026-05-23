@@ -2,12 +2,12 @@
 
 import type { ReactNode } from 'react'
 import { cn } from '@/lib/utils'
-
-const META_TEXT_CLASS =
-  'block truncate text-right font-mono text-[10px] uppercase tracking-[0.18em] text-[#888880]'
-
-const TITLE_CLASS =
-  'shrink-0 text-[20px] font-light italic leading-none tracking-[-0.02em] text-[#F0EDE8]'
+import {
+  SECTION_CHEVRON,
+  SECTION_HEADER_GAP,
+  SECTION_META,
+  SECTION_TITLE,
+} from './stage-mobile-classes'
 
 interface Props {
   title: ReactNode
@@ -37,7 +37,7 @@ export function SectionCollapsibleHeader({
 }: Props) {
   const metaNode =
     meta == null ? null : typeof meta === 'string' || typeof meta === 'number' ? (
-      <span className={META_TEXT_CLASS} title={metaTitle ?? String(meta)}>
+      <span className={SECTION_META} title={metaTitle ?? String(meta)}>
         {meta}
       </span>
     ) : (
@@ -49,14 +49,15 @@ export function SectionCollapsibleHeader({
       type="button"
       onClick={onClick}
       className={cn(
-        'grid w-full min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 overflow-hidden',
+        'grid w-full min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center overflow-hidden',
+        SECTION_HEADER_GAP,
         className,
       )}
       aria-expanded={open}
       aria-label={open ? ariaLabelExpanded : ariaLabelCollapsed}
     >
       <TitleTag
-        className={cn(TITLE_CLASS, titleClassName)}
+        className={cn(SECTION_TITLE, titleClassName)}
         style={{ fontFamily: 'var(--font-display)' }}
       >
         {title}
@@ -67,10 +68,7 @@ export function SectionCollapsibleHeader({
         <span className="min-w-0" aria-hidden />
       )}
       <span
-        className={cn(
-          'shrink-0 text-base leading-none text-[#444440] transition-transform',
-          open && 'rotate-180',
-        )}
+        className={cn(SECTION_CHEVRON, open && 'rotate-180')}
         aria-hidden
       >
         ▾

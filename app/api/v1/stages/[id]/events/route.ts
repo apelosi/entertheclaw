@@ -6,7 +6,7 @@ import {
   parseEventsLimit,
   queryFilteredStageEvents,
 } from '@/lib/stage/query-stage-events'
-import { and, asc, desc, eq, gt } from 'drizzle-orm'
+import { and, asc, desc, eq, gt, ne } from 'drizzle-orm'
 
 export const runtime = 'nodejs'
 
@@ -109,11 +109,14 @@ function handleStageEventsSse(request: Request, stageId: string) {
   }
 
   // Cursor by createdAt (not event id — UUID order ≠ chronological order).
+  // Also track lastSentEventId: JS Date is ms-precision, so gt(createdAt) can re-match
+  // the same row when Postgres stores sub-ms timestamps.
   let lastCreatedAt: Date | null = null
+  let lastSentEventId: string | null = null
 
   void (async () => {
     const [newest] = await db
-      .select({ createdAt: stageEvents.createdAt })
+      .select({ id: stageEvents.id, createdAt: stageEvents.createdAt })
       .from(stageEvents)
       .where(eq(stageEvents.stageId, stageId))
       .orderBy(desc(stageEvents.createdAt))
@@ -121,6 +124,9 @@ function handleStageEventsSse(request: Request, stageId: string) {
 
     if (newest?.createdAt) {
       lastCreatedAt = newest.createdAt
+    }
+    if (newest?.id) {
+      lastSentEventId = newest.id
     }
 
     await sendEvent('connected', {
@@ -133,6 +139,9 @@ function handleStageEventsSse(request: Request, stageId: string) {
         const conditions = [eq(stageEvents.stageId, stageId)]
         if (lastCreatedAt) {
           conditions.push(gt(stageEvents.createdAt, lastCreatedAt))
+        }
+        if (lastSentEventId) {
+          conditions.push(ne(stageEvents.id, lastSentEventId))
         }
 
         const newEvents = await db
@@ -155,6 +164,7 @@ function handleStageEventsSse(request: Request, stageId: string) {
           if (event.createdAt) {
             lastCreatedAt = event.createdAt
           }
+          lastSentEventId = event.id
         }
       } catch {
         // DB may be unavailable transiently

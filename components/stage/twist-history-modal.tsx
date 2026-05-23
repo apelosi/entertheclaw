@@ -6,6 +6,17 @@ import {
   type FeedItem,
   type StageEventLike,
 } from '@/lib/stage/feed-items'
+import { cn } from '@/lib/utils'
+import {
+  MODAL_BODY,
+  MODAL_CLOSE_BTN,
+  MODAL_HEADER,
+  MODAL_LIST_GAP,
+  MODAL_SHELL,
+  MODAL_SUBTITLE,
+  MODAL_TITLE,
+  MONO_LABEL,
+} from './stage-mobile-classes'
 
 interface Props {
   open: boolean
@@ -53,7 +64,7 @@ export function TwistHistoryModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-[#080808]/80 p-4 backdrop-blur-sm"
+      className={MODAL_SHELL}
       role="dialog"
       aria-modal="true"
       aria-labelledby="twist-history-title"
@@ -63,16 +74,16 @@ export function TwistHistoryModal({
         className="glass-hud flex max-h-[min(85vh,720px)] w-full max-w-2xl flex-col rounded-sm border border-[#242424]/80 shadow-[0_30px_80px_rgba(0,0,0,0.75)]"
         onClick={(e) => e.stopPropagation()}
       >
-        <header className="flex items-start justify-between gap-4 border-b border-[#242424]/60 px-5 py-4">
+        <header className={MODAL_HEADER}>
           <div>
             <h2
               id="twist-history-title"
-              className="text-[24px] font-light italic leading-none text-[#F0EDE8]"
+              className={MODAL_TITLE}
               style={{ fontFamily: 'var(--font-display)' }}
             >
               Twist History
             </h2>
-            <p className="mt-1 font-mono text-[10px] uppercase tracking-[0.18em] text-[#888880]">
+            <p className={MODAL_SUBTITLE}>
               {stageName} · newest first
             </p>
           </div>
@@ -80,33 +91,33 @@ export function TwistHistoryModal({
             type="button"
             onClick={onClose}
             aria-label="Close"
-            className="inline-flex h-8 w-8 items-center justify-center rounded border border-[#3A3A3A] font-mono text-sm text-[#888880] transition-colors hover:text-[#F0EDE8]"
+            className={MODAL_CLOSE_BTN}
           >
             ×
           </button>
         </header>
 
-        <div className="flex-1 overflow-y-auto px-5 py-4">
+        <div className={MODAL_BODY}>
           {loading && items.length === 0 ? (
-            <p className="font-mono text-xs text-[#888880]">Loading twists…</p>
+            <p className="font-mono text-xs text-[#888880] max-md:text-[11px]">Loading twists…</p>
           ) : items.length === 0 ? (
-            <p className="font-mono text-xs text-[#444440]">No twists yet.</p>
+            <p className="font-mono text-xs text-[#444440] max-md:text-[11px]">No twists yet.</p>
           ) : (
-            <ul className="flex flex-col gap-4">
+            <ul className={MODAL_LIST_GAP}>
               {items.map((item) => {
                 if (item.kind !== 'twist') return null
                 return (
-                  <li key={item.id} className="border-l-2 border-l-[#B8860B]/80 pl-3">
-                    <p className="font-mono text-[10px] uppercase tracking-[0.15em] text-[#B8860B]">
+                  <li key={item.id} className="border-l-2 border-l-[#B8860B]/80 pl-3 max-md:pl-2">
+                    <p className={cn(MONO_LABEL, 'tracking-[0.15em] text-[#B8860B]')}>
                       {item.userDisplayName}
                     </p>
                     <p
-                      className="mt-1 text-[15px] italic leading-snug text-[#F0EDE8]"
+                      className="mt-1 text-[15px] italic leading-snug text-[#F0EDE8] max-md:text-[13px]"
                       style={{ fontFamily: 'var(--font-display)' }}
                     >
                       "{item.text}"
                     </p>
-                    <time className="mt-1 block font-mono text-[9px] uppercase tracking-[0.12em] text-[#444440]">
+                    <time className="mt-1 block font-mono text-[9px] uppercase tracking-[0.12em] text-[#444440] max-md:text-[8px]">
                       {new Date(item.createdAt).toLocaleString()}
                     </time>
                   </li>

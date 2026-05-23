@@ -32,7 +32,7 @@ export function CharacterOnStage({ character, x, y, isActive }: Props) {
 
   const className = cn(
     'group pointer-events-auto absolute z-10 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center transition-transform duration-200',
-    isActive && 'scale-110',
+    isActive && 'scale-110 max-md:scale-105',
   )
   const style = { left: `${x * 100}%`, top: `${y * 100}%` }
 
@@ -40,12 +40,12 @@ export function CharacterOnStage({ character, x, y, isActive }: Props) {
     <>
       <div
         className={cn(
-          'relative h-16 w-16 overflow-hidden rounded-sm image-pixelated transition-all',
+          'relative h-16 w-16 max-md:h-8 max-md:w-8 overflow-hidden rounded-sm image-pixelated transition-all',
           isActive
-            ? 'ring-2 ring-[#C41E3A] shadow-[0_0_36px_rgba(196,30,58,0.55)]'
+            ? 'ring-2 max-md:ring-1 ring-[#C41E3A] shadow-[0_0_36px_rgba(196,30,58,0.55)] max-md:shadow-[0_0_18px_rgba(196,30,58,0.55)]'
             : character.isMine
-              ? 'ring-2 ring-[#B8860B] shadow-[0_4px_14px_rgba(0,0,0,0.6)]'
-              : 'shadow-[0_4px_14px_rgba(0,0,0,0.6)] group-hover:shadow-[0_4px_18px_rgba(0,0,0,0.8)]',
+              ? 'ring-2 max-md:ring-1 ring-[#B8860B] shadow-[0_4px_14px_rgba(0,0,0,0.6)] max-md:shadow-[0_2px_8px_rgba(0,0,0,0.6)]'
+              : 'shadow-[0_4px_14px_rgba(0,0,0,0.6)] max-md:shadow-[0_2px_8px_rgba(0,0,0,0.6)] group-hover:shadow-[0_4px_18px_rgba(0,0,0,0.8)]',
         )}
       >
         {sprite ? (
@@ -53,26 +53,26 @@ export function CharacterOnStage({ character, x, y, isActive }: Props) {
             src={sprite}
             alt={character.characterName ?? 'Character'}
             fill
-            sizes="64px"
+            sizes="(max-width: 768px) 32px, 64px"
             className="object-cover image-pixelated"
           />
         ) : (
           <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-[#1a1a1a] to-[#0a0a0a]">
-            <span className="text-3xl text-[#C41E3A]/60">◈</span>
+            <span className="text-3xl max-md:text-xl text-[#C41E3A]/60">◈</span>
           </div>
         )}
         {character.isMine && !isActive && (
           <span
-            className="absolute right-1 top-1 inline-block h-1.5 w-1.5 rounded-full bg-[#B8860B] shadow-[0_0_6px_#B8860B]"
+            className="absolute right-1 top-1 max-md:right-0.5 max-md:top-0.5 inline-block h-1.5 w-1.5 max-md:h-1 max-md:w-1 rounded-full bg-[#B8860B] shadow-[0_0_6px_#B8860B] max-md:shadow-[0_0_4px_#B8860B]"
             aria-label="Your agent"
           />
         )}
       </div>
       <div
         className={cn(
-          'mt-1 whitespace-nowrap px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.18em] transition-colors',
+          'mt-1 whitespace-nowrap px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.18em] transition-colors max-md:mt-0.5 max-md:px-1 max-md:py-0 max-md:text-[8px] max-md:tracking-[0.14em]',
           isActive
-            ? 'text-[#F0EDE8] [text-shadow:_0_0_8px_rgba(196,30,58,0.7)]'
+            ? 'text-[#F0EDE8] [text-shadow:_0_0_8px_rgba(196,30,58,0.7)] max-md:[text-shadow:_0_0_4px_rgba(196,30,58,0.7)]'
             : 'text-[#F0EDE8]/80 [text-shadow:_0_1px_3px_rgba(0,0,0,0.9)]',
         )}
       >

@@ -159,7 +159,7 @@ Minimum expected fixes (likely):
 
 - Server: `POST /api/v1/stages/:id/turn/claim` (claim window 1s, **60s grant TTL**, LRU tiebreak)
 - Server: inline `turn_open` on every successful dialogue/twist (when floor rules allow); full **snapshot** in `turn_open.content`; **60s** safety-net re-ping via cron; no `turn_revoke`, no join emit
-- Verify: `bun run scripts/verify-turn-open-snapshot.ts` (31 checks, `VERIFY_ALLOW_DB_WRITES=1`)
+- Verify: `bun run scripts/verify-turn-open-snapshot.ts` (44 checks incl. webhooks, `VERIFY_ALLOW_DB_WRITES=1`)
 - Server: extended heartbeat with `pulseHintMs`, `nextPulseSuggestionMs`, `turnState`, `addressedToYou`, `unreadEvents`, `stageActivity`
 - Server: `GET /api/v1/stages/:id/agent-events` (bearer-authed SSE, filtered event types)
 - Server: `app/api/cron/turn-open-tick/route.ts` + Netlify scheduled function (1-min cadence)

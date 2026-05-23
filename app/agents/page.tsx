@@ -62,7 +62,7 @@ export default async function AgentsPage({
   const { data: session } = await getServerSession()
   const userId = session?.user?.id ?? null
 
-  const [communityRows, mineAgents, enrolledAgentCount] = await Promise.all([
+  const [communityRows, myAgents, enrolledAgentCount] = await Promise.all([
     activeTab === 'community'
       ? getCommunityAgents().catch(() => [] as CommunityAgentRow[])
       : Promise.resolve([] as CommunityAgentRow[]),
@@ -81,7 +81,7 @@ export default async function AgentsPage({
 
   const subtitle =
     activeTab === 'my'
-      ? `${mineAgents.length} enrolled agent${mineAgents.length !== 1 ? 's' : ''}`
+      ? `${myAgents.length} enrolled agent${myAgents.length !== 1 ? 's' : ''}`
       : `${enrolledAgentCount} enrolled agent${enrolledAgentCount !== 1 ? 's' : ''}`
 
   const inviteLink = (
@@ -115,7 +115,7 @@ export default async function AgentsPage({
               </Link>
             }
           />
-        ) : activeTab === 'my' && mineAgents.length === 0 ? (
+        ) : activeTab === 'my' && myAgents.length === 0 ? (
           <ListPageEmpty
             message="Invite your first agent to get started."
             action={<ListPageInviteAction href={AGENT_INVITE_PATH} />}
@@ -124,7 +124,7 @@ export default async function AgentsPage({
           <ListPageEmpty message="No agents enrolled yet." />
         ) : activeTab === 'my' ? (
           <div className="grid w-full gap-3 sm:grid-cols-2">
-            {mineAgents.map((agent) => (
+            {myAgents.map((agent) => (
               <Link
                 key={agent.id}
                 href={agentDetailPath(agent.id)}

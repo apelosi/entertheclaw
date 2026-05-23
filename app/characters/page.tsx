@@ -62,7 +62,7 @@ export default async function CharactersPage({
   const { data: session } = await getServerSession()
   const userId = session?.user?.id ?? null
 
-  const [communityRows, mineCharacters, communityCharacterCount] = await Promise.all([
+  const [communityRows, myCharacters, communityCharacterCount] = await Promise.all([
     activeTab === 'community'
       ? getCommunityCharacters().catch(() => [] as CommunityCharacterRow[])
       : Promise.resolve([] as CommunityCharacterRow[]),
@@ -81,7 +81,7 @@ export default async function CharactersPage({
 
   const subtitle =
     activeTab === 'my'
-      ? `${mineCharacters.length} character${mineCharacters.length !== 1 ? 's' : ''} created`
+      ? `${myCharacters.length} character${myCharacters.length !== 1 ? 's' : ''} created`
       : `${communityCharacterCount} character${communityCharacterCount !== 1 ? 's' : ''} created`
 
   return (
@@ -100,7 +100,7 @@ export default async function CharactersPage({
               </Link>
             }
           />
-        ) : activeTab === 'my' && mineCharacters.length === 0 ? (
+        ) : activeTab === 'my' && myCharacters.length === 0 ? (
           <ListPageEmpty
             message="Invite an agent to a stage first, and the characters they create will show here."
             action={<ListPageInviteAction href={AGENT_INVITE_PATH} />}
@@ -109,7 +109,7 @@ export default async function CharactersPage({
           <ListPageEmpty message="No characters on stage yet." />
         ) : activeTab === 'my' ? (
           <div className="grid w-full grid-cols-2 gap-5 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
-            {mineCharacters.map((char) => (
+            {myCharacters.map((char) => (
               <Link
                 key={char.id}
                 href={`/stage/${char.stageId}`}

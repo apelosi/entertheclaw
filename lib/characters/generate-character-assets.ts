@@ -1,35 +1,42 @@
 /**
  * End-to-end character asset generation for a single (agent, stage) pair:
- *   1. Generate the 11-field character bible via LLM.
- *   2. Generate portrait + sprite images in parallel.
- *   3. Persist everything to the `characters` row.
- *   4. Emit a `character_ready` stage_event so the live stage view refreshes.
+ *   1. Generate the character fields via LLM (or use agent-provided prefill).
+ *   2. Generate one image (pixel-art sprite) and store it in imageUrl/portraitBytes.
+ *   3. Emit a `character_ready` stage_event so the live stage view refreshes.
  *
+ * One image is generated and used everywhere (stage canvas + character cards).
  * Designed to run AFTER the join response is sent (Next 15 `after()`).
- * Each step is best-effort: a failed image still leaves the bible populated
- * and we mark `assetsVersion` accordingly so the client can decide what to show.
  */
 import { db } from '@/lib/db/client'
 import { agents, characters, stages, stageEvents } from '@/lib/db/schema'
 import { and, eq } from 'drizzle-orm'
 import { generateCharacterBible } from './generate-bible'
-import { generatePortrait, generateSprite } from './generate-character-images'
+import { generateSprite } from './generate-character-images'
+
+export interface PrefilledCharacterFields {
+  name: string
+  occupation: string
+  backstory: string
+  appearance?: string
+}
 
 export interface GenerateAssetsArgs {
   characterId: string
   /** True for main-character role; false for NPC. NPCs still get a bible — shorter. */
   isMain: boolean
+  /**
+   * When the agent provided name/role/description at join time, pass them here.
+   * The LLM bible step is skipped and images are generated from these fields directly.
+   */
+  prefilledFields?: PrefilledCharacterFields
 }
 
-const PORTRAIT_KIND = 'portrait'
-const SPRITE_KIND = 'sprite'
-
-function publicAssetUrl(characterId: string, kind: 'portrait' | 'sprite', version: number): string {
-  return `/api/images/character/${characterId}/${kind}?v=${version}`
+function publicAssetUrl(characterId: string, version: number): string {
+  return `/api/images/character/${characterId}/portrait?v=${version}`
 }
 
 export async function generateCharacterAssets(args: GenerateAssetsArgs): Promise<void> {
-  const { characterId, isMain } = args
+  const { characterId, isMain, prefilledFields } = args
 
   const [row] = await db
     .select({
@@ -54,54 +61,87 @@ export async function generateCharacterAssets(args: GenerateAssetsArgs): Promise
     return
   }
 
-  // ─── 1. Bible ──────────────────────────────────────────────────────────
-  let bible
-  try {
-    bible = await generateCharacterBible({
-      stageName: stage.name,
-      stageTheme: stage.theme,
-      stageDescription: stage.description ?? null,
-      agentName: agent.name ?? 'Unnamed Agent',
-      isMain,
-    })
-  } catch (err) {
-    console.error('[character-assets] bible generation failed', characterId, err)
-    return
+  // ─── 1. Character fields ────────────────────────────────────────────────
+  // If the agent supplied name/role/description at join time, use them directly
+  // and skip the full LLM bible. Otherwise fall back to LLM generation.
+  let resolvedName: string
+  let resolvedOccupation: string
+  let resolvedAppearance: string
+
+  if (prefilledFields) {
+    resolvedName = prefilledFields.name
+    resolvedOccupation = prefilledFields.occupation
+
+    if (prefilledFields.appearance) {
+      resolvedAppearance = prefilledFields.appearance
+    } else {
+      // Derive a brief appearance from the agent-provided context via LLM.
+      try {
+        const { generateAppearance } = await import('./generate-bible')
+        resolvedAppearance = await generateAppearance({
+          name: prefilledFields.name,
+          occupation: prefilledFields.occupation,
+          backstory: prefilledFields.backstory,
+          stageName: stage.name,
+          stageTheme: stage.theme,
+        })
+      } catch {
+        resolvedAppearance = `${prefilledFields.occupation} of mysterious appearance`
+      }
+    }
+
+    // Persist agent-provided fields so dialogue resolves the right speaker name immediately.
+    await db
+      .update(characters)
+      .set({
+        name: resolvedName,
+        occupation: resolvedOccupation,
+        backstory: prefilledFields.backstory,
+        appearance: resolvedAppearance,
+        updatedAt: new Date(),
+      })
+      .where(eq(characters.id, characterId))
+  } else {
+    // ─── Full LLM bible ──────────────────────────────────────────────────
+    let bible
+    try {
+      bible = await generateCharacterBible({
+        stageName: stage.name,
+        stageTheme: stage.theme,
+        stageDescription: stage.description ?? null,
+        agentName: agent.name ?? 'Unnamed Agent',
+        isMain,
+      })
+    } catch (err) {
+      console.error('[character-assets] bible generation failed', characterId, err)
+      return
+    }
+
+    resolvedName = bible.name
+    resolvedOccupation = bible.occupation
+    resolvedAppearance = bible.appearance
+
+    // Persist bible immediately so dialogue gets the right speakerName ASAP.
+    await db
+      .update(characters)
+      .set({
+        name: bible.name,
+        occupation: bible.occupation,
+        appearance: bible.appearance,
+        personality: bible.personality,
+        backstory: bible.backstory,
+        relationships: bible.relationships,
+        secrets: bible.secrets,
+        fears: bible.fears,
+        goals: bible.goals,
+        speechPatterns: bible.speechPatterns,
+        socialStatus: bible.socialStatus,
+        updatedAt: new Date(),
+      })
+      .where(eq(characters.id, characterId))
   }
 
-  // Persist bible immediately so dialogue gets the right speakerName ASAP.
-  await db
-    .update(characters)
-    .set({
-      name: bible.name,
-      occupation: bible.occupation,
-      appearance: bible.appearance,
-      personality: bible.personality,
-      backstory: bible.backstory,
-      relationships: bible.relationships,
-      secrets: bible.secrets,
-      fears: bible.fears,
-      goals: bible.goals,
-      speechPatterns: bible.speechPatterns,
-      socialStatus: bible.socialStatus,
-      updatedAt: new Date(),
-    })
-    .where(eq(characters.id, characterId))
-
-  // ─── 2. Images (parallel) ──────────────────────────────────────────────
-  const imageInput = {
-    characterName: bible.name,
-    appearance: bible.appearance,
-    occupation: bible.occupation,
-    stageName: stage.name,
-    stageTheme: stage.theme,
-  }
-
-  const [portraitResult, spriteResult] = await Promise.allSettled([
-    generatePortrait(imageInput),
-    generateSprite(imageInput),
-  ])
-
+  // ─── 2. Image (single sprite, used everywhere) ─────────────────────────
   const nextVersion = (character.assetsVersion ?? 0) + 1
   const updates: Partial<typeof characters.$inferInsert> = {
     assetsVersion: nextVersion,
@@ -109,18 +149,18 @@ export async function generateCharacterAssets(args: GenerateAssetsArgs): Promise
     updatedAt: new Date(),
   }
 
-  if (portraitResult.status === 'fulfilled') {
-    updates.portraitBytes = portraitResult.value
-    updates.imageUrl = publicAssetUrl(characterId, PORTRAIT_KIND, nextVersion)
-  } else {
-    console.warn('[character-assets] portrait generation failed', characterId, portraitResult.reason)
-  }
-
-  if (spriteResult.status === 'fulfilled') {
-    updates.spriteBytes = spriteResult.value
-    updates.spriteUrl = publicAssetUrl(characterId, SPRITE_KIND, nextVersion)
-  } else {
-    console.warn('[character-assets] sprite generation failed', characterId, spriteResult.reason)
+  try {
+    const imageBytes = await generateSprite({
+      characterName: resolvedName,
+      appearance: resolvedAppearance,
+      occupation: resolvedOccupation,
+      stageName: stage.name,
+      stageTheme: stage.theme,
+    })
+    updates.portraitBytes = imageBytes
+    updates.imageUrl = publicAssetUrl(characterId, nextVersion)
+  } catch (err) {
+    console.warn('[character-assets] image generation failed', characterId, err)
   }
 
   await db.update(characters).set(updates).where(eq(characters.id, characterId))
@@ -134,9 +174,8 @@ export async function generateCharacterAssets(args: GenerateAssetsArgs): Promise
     content: {
       characterId,
       agentId: character.agentId,
-      characterName: bible.name,
+      characterName: resolvedName,
       imageUrl: updates.imageUrl ?? null,
-      spriteUrl: updates.spriteUrl ?? null,
     },
   })
 }

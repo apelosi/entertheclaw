@@ -1,6 +1,7 @@
 import Link from 'next/link'
-import Image from 'next/image'
 import { StageCard } from '@/components/stage/stage-card'
+import { AgentCard, AGENT_CARD_GRID_CLASS } from '@/components/agents/agent-card'
+import { CharacterCard, CHARACTER_CARD_GRID_CLASS } from '@/components/characters/character-card'
 import { HomeFeedSection, HomeSectionEmpty } from '@/components/home/feed-section'
 import {
   getFeaturedStages,
@@ -52,6 +53,7 @@ export async function CommunityFeed({ discoverLabel = false }: { discoverLabel?:
                 description={stage.description ?? undefined}
                 participantCount={Number(stage.participantCount)}
                 lastLine={stage.lastLine}
+                lastSpeakerName={stage.lastSpeakerName}
                 imageUrl={stage.imageUrl ?? undefined}
               />
             ))}
@@ -68,33 +70,15 @@ export async function CommunityFeed({ discoverLabel = false }: { discoverLabel?:
         {enrolledAgentCount === 0 ? (
           <HomeSectionEmpty message="No agents enrolled yet." />
         ) : (
-          <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
+          <div className={AGENT_CARD_GRID_CLASS}>
             {recentAgents.map((agent) => (
-              <div
+              <AgentCard
                 key={agent.id}
-                className="group flex flex-col items-center rounded-md border border-[#242424] bg-[#161616] p-4 text-center transition-colors hover:border-[#3A3A3A]"
-              >
-                <div className="relative mb-3 h-14 w-14 overflow-hidden rounded-full bg-[#111111]">
-                  {agent.imageUrl ? (
-                    <Image
-                      src={agent.imageUrl}
-                      alt={agent.name ?? 'Agent'}
-                      fill
-                      className="object-cover"
-                    />
-                  ) : (
-                    <div className="flex h-full w-full items-center justify-center text-2xl text-[#444440]">
-                      ◈
-                    </div>
-                  )}
-                </div>
-                <p className="truncate text-sm font-medium text-[#F0EDE8]">
-                  {agent.name ?? 'Unnamed'}
-                </p>
-                <p className="mt-0.5 font-mono text-[11px] text-[#444440]">
-                  {agent.agentType ?? 'custom'}
-                </p>
-              </div>
+                id={agent.id}
+                name={agent.name}
+                imageUrl={agent.imageUrl}
+                agentType={agent.agentType}
+              />
             ))}
           </div>
         )}
@@ -109,39 +93,16 @@ export async function CommunityFeed({ discoverLabel = false }: { discoverLabel?:
         {characterCount === 0 ? (
           <HomeSectionEmpty message="No characters on stage yet." />
         ) : (
-          <div className="grid grid-cols-2 gap-5 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-6">
+          <div className={CHARACTER_CARD_GRID_CLASS}>
             {recentCharacters.map((char) => (
-              <Link
+              <CharacterCard
                 key={char.id}
-                href={`/stage/${char.stageId}`}
-                className="group flex flex-col overflow-hidden rounded-md border border-[#242424] bg-[#161616] transition-all hover:border-[#3A3A3A] hover:shadow-[0_0_20px_rgba(196,30,58,0.08)]"
-              >
-                <div className="relative aspect-square w-full bg-[#111111]">
-                  {char.imageUrl ? (
-                    <Image
-                      src={char.imageUrl}
-                      alt={char.name ?? 'Character'}
-                      fill
-                      className="object-cover"
-                    />
-                  ) : (
-                    <div className="flex h-full w-full items-center justify-center text-4xl text-[#444440]">
-                      ◈
-                    </div>
-                  )}
-                </div>
-                <div className="p-3">
-                  <p
-                    className="truncate text-base font-semibold tracking-[-0.02em] text-[#F0EDE8]"
-                    style={{ fontFamily: 'var(--font-display)' }}
-                  >
-                    {char.name ?? 'Unknown'}
-                  </p>
-                  {char.occupation && (
-                    <p className="mt-0.5 truncate text-xs text-[#888880]">{char.occupation}</p>
-                  )}
-                </div>
-              </Link>
+                id={char.id}
+                name={char.name}
+                imageUrl={char.imageUrl}
+                occupation={char.occupation}
+                stageId={char.stageId}
+              />
             ))}
           </div>
         )}

@@ -36,11 +36,20 @@ export interface CharacterReadyContent {
   agentId: string
 }
 
+export interface SceneChangeContent {
+  name: string
+  description: string
+  reason?: string
+  sourceEventId?: string
+  sourceType?: 'dialogue' | 'twist'
+}
+
 interface Handlers {
   onDialogue?: (data: DialogueContent, raw: SSEEvent<DialogueContent>) => void
   onTwist?: (data: TwistContent, raw: SSEEvent<TwistContent>) => void
   onJoined?: (data: JoinedContent, raw: SSEEvent<JoinedContent>) => void
   onCharacterReady?: (data: CharacterReadyContent, raw: SSEEvent<CharacterReadyContent>) => void
+  onSceneChange?: (data: SceneChangeContent, raw: SSEEvent<SceneChangeContent>) => void
 }
 
 /** Subscribe to a stage's SSE stream. Handlers are read-via-ref so callers can swap closures freely. */
@@ -74,6 +83,9 @@ export function useStageEvents(stageId: string, handlers: Handlers) {
     )
     bind<CharacterReadyContent>('character_ready', (data, raw) =>
       handlersRef.current.onCharacterReady?.(data, raw)
+    )
+    bind<SceneChangeContent>('scene_change', (data, raw) =>
+      handlersRef.current.onSceneChange?.(data, raw)
     )
 
     es.onerror = () => {

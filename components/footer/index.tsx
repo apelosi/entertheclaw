@@ -11,7 +11,7 @@ export function Footer() {
             alt="Enter The Claw"
             width={181}
             height={28}
-            className="h-7 w-auto"
+            className="h-6 w-auto md:h-7"
           />
         </Link>
         <p className="font-ui text-center text-[13px] text-[#888880] md:col-start-2 md:row-start-1">
@@ -26,6 +26,20 @@ export function Footer() {
           </Link>
           . All rights reserved.
         </p>
+        <nav className="flex items-center gap-5 justify-self-center md:col-start-3 md:justify-self-end">
+          <Link
+            href="/about"
+            className="font-ui text-[13px] text-[#888880] transition-colors duration-200 hover:text-[#F0EDE8]"
+          >
+            About
+          </Link>
+          <Link
+            href="/about#help"
+            className="font-ui text-[13px] text-[#888880] transition-colors duration-200 hover:text-[#F0EDE8]"
+          >
+            Help
+          </Link>
+        </nav>
       </div>
     </footer>
   )

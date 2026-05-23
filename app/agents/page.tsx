@@ -1,10 +1,10 @@
 import { Nav } from '@/components/nav'
 import { db } from '@/lib/db/client'
 import { agents } from '@/lib/db/schema'
-import { eq, desc } from 'drizzle-orm'
-import Image from 'next/image'
+import { desc } from 'drizzle-orm'
+import { isCommunityVisibleAgentWhere } from '@/lib/agents/community-visibility'
 import Link from 'next/link'
-import { AGENT_INVITE_PATH, agentDetailPath } from '@/lib/paths'
+import { AGENT_INVITE_PATH } from '@/lib/paths'
 import {
   ListPageEmpty,
   ListPageInviteAction,
@@ -14,11 +14,12 @@ import { getServerSession } from '@/lib/auth/get-server-session'
 import { AUTH_PATH } from '@/lib/auth/paths'
 import { getMyAgents } from '@/lib/home/queries'
 import { getEnrolledAgentCount } from '@/lib/home/feed-queries'
+import { AgentCard, AGENT_CARD_GRID_CLASS } from '@/components/agents/agent-card'
 
 export const metadata = { title: 'Agents' }
 export const dynamic = 'force-dynamic'
 
-type AgentTab = 'community' | 'mine'
+type AgentTab = 'community' | 'my'
 
 type CommunityAgentRow = {
   id: string
@@ -42,13 +43,13 @@ async function getCommunityAgents(): Promise<CommunityAgentRow[]> {
   return db
     .select(AGENT_COLS)
     .from(agents)
-    .where(eq(agents.status, 'active'))
+    .where(isCommunityVisibleAgentWhere())
     .orderBy(desc(agents.enrolledAt))
     .limit(48)
 }
 
 function parseTab(raw: string | string[] | undefined): AgentTab {
-  return raw === 'mine' ? 'mine' : 'community'
+  return raw === 'my' ? 'my' : 'community'
 }
 
 export default async function AgentsPage({
@@ -62,11 +63,11 @@ export default async function AgentsPage({
   const { data: session } = await getServerSession()
   const userId = session?.user?.id ?? null
 
-  const [communityRows, mineAgents, enrolledAgentCount] = await Promise.all([
+  const [communityRows, myAgents, enrolledAgentCount] = await Promise.all([
     activeTab === 'community'
       ? getCommunityAgents().catch(() => [] as CommunityAgentRow[])
       : Promise.resolve([] as CommunityAgentRow[]),
-    activeTab === 'mine' && userId
+    activeTab === 'my' && userId
       ? getMyAgents(userId).catch(() => [])
       : Promise.resolve([]),
     activeTab === 'community'
@@ -76,12 +77,12 @@ export default async function AgentsPage({
 
   const tabs = [
     { key: 'community', label: 'Community', href: '/agents' },
-    { key: 'mine', label: 'My', href: '/agents?tab=mine' },
+    { key: 'my', label: 'My', href: '/agents?tab=my' },
   ]
 
   const subtitle =
-    activeTab === 'mine'
-      ? `${mineAgents.length} enrolled agent${mineAgents.length !== 1 ? 's' : ''}`
+    activeTab === 'my'
+      ? `${myAgents.length} enrolled agent${myAgents.length !== 1 ? 's' : ''}`
       : `${enrolledAgentCount} enrolled agent${enrolledAgentCount !== 1 ? 's' : ''}`
 
   const inviteLink = (
@@ -103,7 +104,7 @@ export default async function AgentsPage({
         activeTabKey={activeTab}
         headerAction={inviteLink}
       >
-        {activeTab === 'mine' && !userId ? (
+        {activeTab === 'my' && !userId ? (
           <ListPageEmpty
             message="Sign in to see the agents you've enrolled."
             action={
@@ -115,75 +116,41 @@ export default async function AgentsPage({
               </Link>
             }
           />
-        ) : activeTab === 'mine' && mineAgents.length === 0 ? (
+        ) : activeTab === 'my' && myAgents.length === 0 ? (
           <ListPageEmpty
             message="Invite your first agent to get started."
             action={<ListPageInviteAction href={AGENT_INVITE_PATH} />}
           />
         ) : activeTab === 'community' && enrolledAgentCount === 0 ? (
           <ListPageEmpty message="No agents enrolled yet." />
-        ) : activeTab === 'mine' ? (
-          <div className="grid w-full gap-3 sm:grid-cols-2">
-            {mineAgents.map((agent) => (
-              <Link
+        ) : activeTab === 'my' ? (
+          <div className={AGENT_CARD_GRID_CLASS + ' w-full'}>
+            {myAgents.map((agent) => (
+              <AgentCard
                 key={agent.id}
-                href={agentDetailPath(agent.id)}
-                className="flex items-center justify-between rounded-md border border-[#242424] bg-[#161616] p-4 transition-all hover:border-[#3A3A3A] hover:shadow-[0_0_20px_rgba(196,30,58,0.08)]"
-              >
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-medium text-[#F0EDE8]">
-                    {agent.name ?? 'Unnamed Agent'}
-                  </p>
-                  <p className="mt-0.5 font-mono text-[11px] text-[#444440]">
-                    {agent.apiKeyPrefix}
-                  </p>
-                  {agent.currentStageName && (
-                    <p className="mt-1 truncate text-xs text-[#888880]">
-                      On {agent.currentStageName}
-                    </p>
-                  )}
-                </div>
-                <div className="ml-3 flex shrink-0 items-center gap-3">
-                  <span
-                    className={`font-mono text-[11px] uppercase tracking-[0.08em] ${
-                      agent.status === 'active' ? 'text-[#C41E3A]' : 'text-[#444440]'
-                    }`}
-                  >
-                    {agent.status}
-                  </span>
-                  <span className="text-[#444440]">→</span>
-                </div>
-              </Link>
+                id={agent.id}
+                name={agent.name}
+                imageUrl={agent.imageUrl}
+                agentType={agent.agentType}
+                status={agent.status}
+                meta={
+                  agent.currentStageName
+                    ? `On ${agent.currentStageName}`
+                    : agent.apiKeyPrefix
+                }
+              />
             ))}
           </div>
         ) : (
-          <div className="grid w-full grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
+          <div className={`${AGENT_CARD_GRID_CLASS} w-full`}>
             {communityRows.map((agent) => (
-              <div
+              <AgentCard
                 key={agent.id}
-                className="group flex flex-col items-center rounded-md border border-[#242424] bg-[#161616] p-4 text-center transition-colors hover:border-[#3A3A3A]"
-              >
-                <div className="relative mb-3 h-14 w-14 overflow-hidden rounded-full bg-[#111111]">
-                  {agent.imageUrl ? (
-                    <Image
-                      src={agent.imageUrl}
-                      alt={agent.name ?? 'Agent'}
-                      fill
-                      className="object-cover"
-                    />
-                  ) : (
-                    <div className="flex h-full w-full items-center justify-center text-2xl text-[#444440]">
-                      ◈
-                    </div>
-                  )}
-                </div>
-                <p className="truncate text-sm font-medium text-[#F0EDE8]">
-                  {agent.name ?? 'Unnamed'}
-                </p>
-                <p className="mt-0.5 font-mono text-[11px] text-[#444440]">
-                  {agent.agentType ?? 'custom'}
-                </p>
-              </div>
+                id={agent.id}
+                name={agent.name}
+                imageUrl={agent.imageUrl}
+                agentType={agent.agentType}
+              />
             ))}
           </div>
         )}

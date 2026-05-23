@@ -1,4 +1,5 @@
 import { createHash, randomBytes } from 'crypto'
+import { isPendingInviteExpired } from '@/lib/agents/pending-enrollment'
 import { db } from '@/lib/db/client'
 import { agents } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
@@ -30,5 +31,8 @@ export async function verifyAgentApiKey(request: Request) {
     .where(eq(agents.apiKeyHash, hash))
     .limit(1)
 
-  return result[0] ?? null
+  const agent = result[0]
+  if (!agent) return null
+  if (isPendingInviteExpired(agent)) return null
+  return agent
 }

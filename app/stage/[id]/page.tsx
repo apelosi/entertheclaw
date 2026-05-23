@@ -8,7 +8,7 @@ import {
   twists,
   agents,
 } from '@/lib/db/schema'
-import { eq, desc, and, count } from 'drizzle-orm'
+import { eq, desc, and } from 'drizzle-orm'
 import type { Metadata } from 'next'
 import StageViewClient from '@/components/stage/stage-view-client'
 import { Nav } from '@/components/nav'
@@ -35,6 +35,7 @@ async function getStageData(id: string, userId: string | null) {
       role: stageParticipants.role,
       agentId: stageParticipants.agentId,
       agentUserId: agents.userId,
+      characterId: characters.id,
       characterName: characters.name,
       characterOccupation: characters.occupation,
       characterImageUrl: characters.imageUrl,
@@ -65,16 +66,6 @@ async function getStageData(id: string, userId: string | null) {
     .orderBy(desc(twists.createdAt))
     .limit(1)
 
-  const [lineCountRow] = await db
-    .select({ count: count() })
-    .from(stageEvents)
-    .where(and(eq(stageEvents.stageId, id), eq(stageEvents.type, 'dialogue')))
-
-  const [twistCountRow] = await db
-    .select({ count: count() })
-    .from(stageEvents)
-    .where(and(eq(stageEvents.stageId, id), eq(stageEvents.type, 'twist')))
-
   let lastUserTwist: { createdAt: Date | null } | null = null
   if (userId) {
     const [row] = await db
@@ -86,16 +77,43 @@ async function getStageData(id: string, userId: string | null) {
     lastUserTwist = row ?? null
   }
 
+  // Resolve initial current scene: latest scene_change event content, falling
+  // back to the seeded initial_scene_* columns. We scan recentEvents instead
+  // of issuing another query since recentEvents already covers 50 events.
+  let initialScene: { name: string; description: string } | null = null
+  const latestSceneEvent = recentEvents.find((e) => e.type === 'scene_change')
+  if (
+    latestSceneEvent &&
+    typeof latestSceneEvent.content === 'object' &&
+    latestSceneEvent.content !== null
+  ) {
+    const c = latestSceneEvent.content as Record<string, unknown>
+    if (typeof c.name === 'string' && typeof c.description === 'string') {
+      initialScene = { name: c.name, description: c.description }
+    }
+  }
+  if (!initialScene && stage.initialSceneName && stage.initialSceneDescription) {
+    initialScene = {
+      name: stage.initialSceneName,
+      description: stage.initialSceneDescription,
+    }
+  }
+
+  const hasCastOnStage = participants.some(
+    (p) => typeof p.characterName === 'string' && p.characterName.trim().length > 0,
+  )
+
   return {
     stage,
     participants,
     recentEvents,
+    initialScene,
+    stageIsActive: stage.isActive ?? true,
+    hasCastOnStage,
     lastTwistAt: lastStageTwist?.createdAt ? new Date(lastStageTwist.createdAt).getTime() : null,
     lastUserTwistAt: lastUserTwist?.createdAt
       ? new Date(lastUserTwist.createdAt).getTime()
       : null,
-    lineCount: Number(lineCountRow?.count ?? 0),
-    twistCount: Number(twistCountRow?.count ?? 0),
   }
 }
 
@@ -111,11 +129,14 @@ export default async function StagePage({ params }: Props) {
     stage,
     participants,
     recentEvents,
+    initialScene,
     lastTwistAt,
     lastUserTwistAt,
-    lineCount,
-    twistCount,
+    stageIsActive,
+    hasCastOnStage,
   } = data
+
+  const twistsEnabled = stageIsActive && hasCastOnStage
 
   return (
     <>
@@ -129,12 +150,12 @@ export default async function StagePage({ params }: Props) {
         stageCreatedAt={stage.createdAt ? stage.createdAt.toISOString() : null}
         participants={participants}
         initialEvents={recentEvents}
+        initialScene={initialScene}
         isLoggedIn={Boolean(userId)}
         currentUserId={userId}
-        lastTwistAt={lastTwistAt}
-        lastUserTwistAt={lastUserTwistAt}
-        initialLineCount={lineCount}
-        initialTwistCount={twistCount}
+        twistsEnabled={twistsEnabled}
+        lastTwistAt={twistsEnabled ? lastTwistAt : null}
+        lastUserTwistAt={twistsEnabled ? lastUserTwistAt : null}
       />
     </>
   )

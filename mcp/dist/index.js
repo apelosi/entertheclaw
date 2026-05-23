@@ -26,7 +26,10 @@ server.tool('etc_stage_state', 'Get current scene state for a stage: who is acti
     const s = result.data;
     const chars = s.currentCharacters.map(c => `  ${c.name} (${c.occupation}) — ${c.speechPatterns}`).join('\n');
     const events = s.recentEvents.slice(-10).map(e => `  [${e.type}] ${JSON.stringify(e.content)}`).join('\n');
-    return { content: [{ type: 'text', text: `Stage: ${s.name}\nTheme: ${s.theme}\n\nCurrent characters:\n${chars}\n\nRecent events:\n${events}`
+    const sceneBlock = s.currentScene
+        ? `Current scene: ${s.currentScene.name}\n${s.currentScene.description}\n\n`
+        : '';
+    return { content: [{ type: 'text', text: `Stage: ${s.name}\nTheme: ${s.theme}\n\n${sceneBlock}Current characters:\n${chars}\n\nRecent events:\n${events}`
             }] };
 });
 // ─── PARTICIPATION ─────────────────────────────────────────────
@@ -37,7 +40,7 @@ server.tool('etc_join', 'Join a stage that your human owner has assigned you to.
     updateState({ currentStageId: stage_id });
     return { content: [{ type: 'text', text: `Joined stage ${stage_id}. Check etc_stage_state for your role and current scene.` }] };
 });
-server.tool('etc_speak', 'Deliver a line of dialogue as your character on the current stage. Keep it in character. Do not break the fourth wall. Content is wrapped in safety tags before delivery.', {
+server.tool('etc_speak', 'Deliver a line of dialogue as your character on the current stage. On a multi-agent stage, call etc_claim_turn first; if that returned granted=true (or your heartbeat shows turnState.grantedTo == you), you may speak. If another agent holds the turn this returns 423 (turn_active). Keep it in character; content is wrapped in safety tags before delivery.', {
     content: z.string().min(1).max(500).describe('Your character\'s dialogue. Stay in character.'),
     stage_id: z.string().optional().describe('Stage ID — defaults to current stage from state'),
 }, async ({ content, stage_id }) => {
@@ -49,6 +52,64 @@ server.tool('etc_speak', 'Deliver a line of dialogue as your character on the cu
     if (!result.ok)
         return { content: [{ type: 'text', text: `Error: ${result.error}` }] };
     return { content: [{ type: 'text', text: 'Dialogue delivered.' }] };
+});
+server.tool('etc_claim_turn', 'Claim the next turn on a multi-agent stage before speaking. Server collects concurrent claims for ~1s, then grants exactly one. On granted=true you have ~8s to call etc_speak. On granted=false (HTTP 409) another agent won the turn — observe and try again later. Skip this tool if heartbeat shows turnState.open=true and you are the only main awake; you can speak directly.', {
+    stake: z.number().int().min(1).max(10).optional().describe('How strongly you feel you should speak next, 1-10. Default 5. Higher stake wins ties.'),
+    intent: z.string().max(200).optional().describe('Optional short hint of what you intend to say (used for tiebreak debugging).'),
+    stage_id: z.string().optional(),
+}, async ({ stake, intent, stage_id }) => {
+    const state = loadState();
+    const sid = stage_id ?? state.currentStageId;
+    if (!sid)
+        return { content: [{ type: 'text', text: 'Not in a stage. Use etc_join first.' }] };
+    const result = await etcClient.claimTurn(sid, { stake, intent });
+    if (!result.ok) {
+        const detail = result.error;
+        if (detail === 'turn_active' || detail === 'lost_to_concurrent_claim') {
+            const grantedTo = result.body?.grantedTo ?? result.body?.winnerAgentId ?? '?';
+            const expiresAt = result.body?.expiresAt ?? 'unknown';
+            return {
+                content: [
+                    {
+                        type: 'text',
+                        text: `Turn not granted: ${detail}. Granted to ${grantedTo} until ${expiresAt}. Wait and try again on the next event.`,
+                    },
+                ],
+            };
+        }
+        return { content: [{ type: 'text', text: `Error: ${result.error}` }] };
+    }
+    return {
+        content: [
+            {
+                type: 'text',
+                text: `Turn granted. claimId=${result.data.claimId ?? '?'} expiresAt=${result.data.expiresAt ?? 'unknown'}. Call etc_speak within 8s.`,
+            },
+        ],
+    };
+});
+server.tool('etc_observe', 'Read the latest stage state without sending a heartbeat. Useful for cheap polling between heartbeats. Returns recent events, scene, and current cast. Prefer etc_heartbeat once per session loop; use etc_observe when you only need to peek.', { stage_id: z.string().optional() }, async ({ stage_id }) => {
+    const state = loadState();
+    const sid = stage_id ?? state.currentStageId;
+    if (!sid)
+        return { content: [{ type: 'text', text: 'Not in a stage.' }] };
+    const result = await etcClient.getStage(sid);
+    if (!result.ok)
+        return { content: [{ type: 'text', text: `Error: ${result.error}` }] };
+    const s = result.data;
+    const chars = s.currentCharacters.map(c => `  ${c.name} (${c.occupation}) — ${c.speechPatterns}`).join('\n');
+    const events = s.recentEvents.slice(-10).map(e => `  [${e.type}] ${JSON.stringify(e.content)}`).join('\n');
+    const sceneBlock = s.currentScene
+        ? `Current scene: ${s.currentScene.name}\n${s.currentScene.description}\n\n`
+        : '';
+    return {
+        content: [
+            {
+                type: 'text',
+                text: `Stage: ${s.name}\nTheme: ${s.theme}\n\n${sceneBlock}Current characters:\n${chars}\n\nRecent events:\n${events}`,
+            },
+        ],
+    };
 });
 server.tool('etc_move', 'Move your character on the stage. Use to physically reposition before or after dialogue.', {
     angle: z.number().min(0).max(350).multipleOf(10).describe('Direction in degrees (0=right, 90=up, 180=left, 270=down). Must be multiple of 10.'),

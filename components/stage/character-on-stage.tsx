@@ -3,11 +3,12 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
-import { agentDetailPath } from '@/lib/paths'
+import { characterDetailPath } from '@/lib/paths'
 
 export interface OnStageCharacter {
   participantId: string
   agentId: string
+  characterId: string | null
   role: 'main' | 'npc' | string
   characterName: string | null
   characterSpriteUrl: string | null
@@ -26,19 +27,17 @@ interface Props {
 export function CharacterOnStage({ character, x, y, isActive }: Props) {
   const sprite = character.characterSpriteUrl ?? character.characterImageUrl
   const title = character.isMine
-    ? `${character.characterName ?? 'Your character'} — your agent`
+    ? `${character.characterName ?? 'Your character'} — view profile`
     : (character.characterName ?? 'Character')
 
-  return (
-    <Link
-      href={agentDetailPath(character.agentId)}
-      title={title}
-      className={cn(
-        'group pointer-events-auto absolute z-10 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center transition-transform duration-200',
-        isActive && 'scale-110',
-      )}
-      style={{ left: `${x * 100}%`, top: `${y * 100}%` }}
-    >
+  const className = cn(
+    'group pointer-events-auto absolute z-10 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center transition-transform duration-200',
+    isActive && 'scale-110',
+  )
+  const style = { left: `${x * 100}%`, top: `${y * 100}%` }
+
+  const inner = (
+    <>
       <div
         className={cn(
           'relative h-16 w-16 overflow-hidden rounded-sm image-pixelated transition-all',
@@ -79,6 +78,25 @@ export function CharacterOnStage({ character, x, y, isActive }: Props) {
       >
         {character.characterName ?? 'Unnamed'}
       </div>
+    </>
+  )
+
+  if (!character.characterId) {
+    return (
+      <div title={title} className={className} style={style}>
+        {inner}
+      </div>
+    )
+  }
+
+  return (
+    <Link
+      href={characterDetailPath(character.characterId)}
+      title={title}
+      className={className}
+      style={style}
+    >
+      {inner}
     </Link>
   )
 }

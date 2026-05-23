@@ -1,4 +1,6 @@
 import { getServerSession } from '@/lib/auth/get-server-session'
+import { needsDisplayName } from '@/lib/auth/display-name'
+import { syncUserDisplayName } from '@/lib/users/public-profile'
 import { redirect } from 'next/navigation'
 
 export const dynamic = 'force-dynamic'
@@ -16,6 +18,11 @@ export default async function AccountPage() {
   const { data: session } = await getServerSession()
   if (!session?.user) redirect('/auth')
   const user = session.user
+
+  if (!needsDisplayName(user)) {
+    const label = user.name?.trim() || user.email?.split('@')[0]
+    if (label) await syncUserDisplayName(user.id, label)
+  }
 
   return (
     <>

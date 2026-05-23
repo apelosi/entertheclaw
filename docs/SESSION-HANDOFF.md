@@ -1,11 +1,51 @@
-# Session handoff — 2026-05-20 (final — close chat)
+# Session handoff — 2026-05-23 (turn_open snapshot done; push + live stage next)
 
 ## Start new chat (paste this)
 
 ```
-Continue Enter The Claw. Read docs/SESSION-HANDOFF.md and docs/PRD-implementation-gap-plan.md first.
-Phase 0 mostly done (E5/E6/E7, scripts/smoke-agent.sh, auth at /auth). Start Phase 1: loop-agent + MCP local.
-bun run dev → http://localhost:3000. Do not commit unless I ask.
+Continue Enter The Claw. Read docs/SESSION-HANDOFF.md first, then
+docs/agents/turn-protocol.md and decisions/2026-05-23-turn-open-snapshot.md.
+
+User wants ALL open work moved forward — build, test, verify. Do not commit
+unless I ask.
+
+Context:
+- Branch dev, large UNCOMMITTED diff (turn_open snapshot + related protocol work).
+- Phase 1 emit model DONE locally: inline turn_open on dialogue/twist, 60s grant
+  TTL, 60s safety-net re-ping, snapshot on turn_open, no turn_revoke, no join
+  emit. Verify: bun run scripts/verify-turn-open-snapshot.ts (31 checks).
+- bun run dev → http://localhost:3000
+
+Execute in order (parallelize where safe):
+
+A. Phase 2 push wakeups (priority — unblocks 30-min agents)
+   - Webhook delivery for turn_open + turn_grant ONLY (no other event types).
+   - Payload: turn_open carries full snapshot (build-turn-open-snapshot.ts);
+     turn_grant carries grant metadata + expiresAt.
+   - Per-agent webhook URL registration (schema + enroll/settings API).
+   - Best-effort POST on emit; heartbeat/SSE remain catch-up.
+   - Optional HMAC on outbound webhook body.
+
+B. Post-grant history API (same phase, after or parallel to A)
+   - GET .../context — current scene, active twist, characters, recent dialogue.
+   - GET .../events?types=dialogue,scene_change,twist&since=<id|iso>&limit=N
+   - Agent-authenticated; document in turn-protocol.md.
+
+C. Live stage / viewer fixes (parallel with A/B)
+   - Fix SSE poll bug: app/api/v1/stages/[id]/events/route.ts (lastEventId).
+   - Route alias /stages/[id] → /stage/[id].
+   - Optional redirect /sign-in → /auth.
+
+D. Hygiene
+   - Scene classifier X-Title em-dash → hyphen (done if already in diff).
+   - Update docs/PRD-implementation-gap-plan.md Phase 1 notes (60s grant, snapshot).
+   - Re-run verify-turn-open-snapshot.ts after any emit-path changes.
+
+Gate before calling Phase 2 done: webhook receives turn_open within seconds of
+dialogue POST; optional history GET works; SSE viewer shows new dialogue without
+refresh; verify script still passes.
+
+Follow ~/.cursor/skills/global-operating-standards/SKILL.md.
 ```
 
 Also: `~/.cursor/skills/global-operating-standards/SKILL.md`
@@ -14,14 +54,36 @@ Also: `~/.cursor/skills/global-operating-standards/SKILL.md`
 
 ## User goal
 
-Auth → enroll → one test agent on a stage → live dialogue. **No twists UI** until one agent loop works. No commercial agent runtimes — use `scripts/smoke-agent.sh` / MCP / Phase 1 `loop-agent`.
+Auth → enroll → autonomous agents on a stage → continuous live dialogue. Twists UI shipped. Multiple runtimes supported (NanoClaw / OpenClaw / Hermes / custom) via the turn protocol.
 
 ## Phase status
 
 | Phase | Status |
 | --- | --- |
-| **0** | **Mostly PASS** — API smoke + E5/E6/E7; auth OAuth fix; confirm GitHub E2E in Chrome/Safari |
-| **1** | **Next** — `scripts/loop-agent.ts`, MCP `ETC_API_URL=http://localhost:3000/api/v1` |
+| **0** | **PASS** — API smoke + E5/E6/E7; auth OAuth fix |
+| **1** | **DONE (local, uncommitted)** — claim/grant protocol, 60s grant TTL, `turn_open` snapshot on dialogue/twist, 60s safety-net re-ping, no `turn_revoke`, no join emit, no 6s quiet timer. Verify: `bun run scripts/verify-turn-open-snapshot.ts` (31 checks). |
+| **2** | **READY TO BUILD** — push webhooks (`turn_open` + `turn_grant`), optional history GET APIs, SSE poll fix, route aliases. User greenlit all open work. |
+| **Verify (user-side)** | Paste `docs/agents/system-prompt-addendum.md` into NanoClaws; OAuth in external browser. |
+
+## Phase 2 — agreed shape (build next)
+
+- Push: `turn_open` (with snapshot) + `turn_grant` only.
+- Inline `turn_open` on every successful dialogue POST (already shipped).
+- 60 s re-ping via cron if no dialogue after last `turn_open` or `turn_grant`.
+- Optional `GET` history endpoints for post-grant depth (build in 2B).
+- Webhook: best-effort, per-agent URL, heartbeat backfill for misses.
+
+## Uncommitted work summary (dev branch)
+
+**Protocol / turn_open (this session):**
+- `lib/stage/build-turn-open-snapshot.ts`, `lib/stage/emit-turn-open.ts`
+- Wired: dialogue, twist, cron safety-net; join does NOT emit
+- `lib/stage/turn-state.ts` (60s grant, no SCENE_QUIET)
+- `scripts/verify-turn-open-snapshot.ts`, `decisions/2026-05-23-turn-open-snapshot.md`
+- Docs: turn-protocol.md, system-prompt-addendum.md, SESSION-HANDOFF.md
+
+**Also in diff (review before commit):** agent/community pages, profile queries,
+scene-classifier hyphen fix, migration 0007 (turn_revoke removed from enum).
 
 ## Environment
 
@@ -96,13 +158,11 @@ rm -rf .next && bun run dev   # if ChunkLoadError
 | `app/api/v1/stages/[id]/emote/route.ts` | E7 |
 | `components/stage/stage-canvas.tsx` | Live view + SSE dialogue |
 
-## Still open / Phase 2+
+## Still open (after Phase 2)
 
-- SSE poll fix in `app/api/v1/stages/[id]/events/route.ts`
-- `/stages/[id]` alias → `/stage/[id]`
-- Twist UI, absence cron, Phaser v2
-- Optional: redirect `/sign-in` → `/auth` for old links
+- Absence cron (6h/24h), Phaser v2 — later phases
+- Pre-existing twist UI component edits in `components/stage/*` — review separately
 
 ## New chat discipline
 
-Lean context: this file + gap plan. No extra MCPs unless needed. No commit without ask.
+Lean context: this file + turn-protocol.md + turn-open-snapshot decision. User greenlit all open work — proceed without re-asking design questions already captured above. No commit without ask.

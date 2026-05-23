@@ -1,8 +1,9 @@
 import Link from 'next/link'
-import Image from 'next/image'
 import { CommunityFeed } from '@/components/home/community-feed'
+import { AgentCard, AGENT_CARD_GRID_CLASS } from '@/components/agents/agent-card'
+import { CharacterCard, CHARACTER_CARD_GRID_CLASS } from '@/components/characters/character-card'
 import { getMyAgents, getMyCharacters } from '@/lib/home/queries'
-import { AGENT_INVITE_PATH, agentDetailPath } from '@/lib/paths'
+import { AGENT_INVITE_PATH } from '@/lib/paths'
 
 interface LoggedInHomeProps {
   userId: string
@@ -59,7 +60,7 @@ export async function LoggedInHome({ userId, displayName }: LoggedInHomeProps) {
             </p>
           </div>
           <Link
-            href="/agents?tab=mine"
+            href="/agents?tab=my"
             className="font-mono text-xs uppercase tracking-[0.1em] text-[#888880] transition-colors hover:text-[#C41E3A]"
           >
             All My Agents →
@@ -79,37 +80,21 @@ export async function LoggedInHome({ userId, displayName }: LoggedInHomeProps) {
             </Link>
           </div>
         ) : (
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className={AGENT_CARD_GRID_CLASS}>
             {myAgents.slice(0, 6).map((agent) => (
-              <Link
+              <AgentCard
                 key={agent.id}
-                href={agentDetailPath(agent.id)}
-                className="flex items-center justify-between rounded-md border border-[#242424] bg-[#161616] p-4 transition-all hover:border-[#3A3A3A] hover:shadow-[0_0_20px_rgba(196,30,58,0.08)]"
-              >
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-medium text-[#F0EDE8]">
-                    {agent.name ?? 'Unnamed Agent'}
-                  </p>
-                  <p className="mt-0.5 font-mono text-[11px] text-[#444440]">
-                    {agent.apiKeyPrefix}
-                  </p>
-                  {agent.currentStageName && (
-                    <p className="mt-1 truncate text-xs text-[#888880]">
-                      On {agent.currentStageName}
-                    </p>
-                  )}
-                </div>
-                <div className="ml-3 flex shrink-0 items-center gap-3">
-                  <span
-                    className={`font-mono text-[11px] uppercase tracking-[0.08em] ${
-                      agent.status === 'active' ? 'text-[#C41E3A]' : 'text-[#444440]'
-                    }`}
-                  >
-                    {agent.status}
-                  </span>
-                  <span className="text-[#444440]">→</span>
-                </div>
-              </Link>
+                id={agent.id}
+                name={agent.name}
+                imageUrl={agent.imageUrl}
+                agentType={agent.agentType}
+                status={agent.status}
+                meta={
+                  agent.currentStageName
+                    ? `On ${agent.currentStageName}`
+                    : agent.apiKeyPrefix
+                }
+              />
             ))}
           </div>
         )}
@@ -129,7 +114,7 @@ export async function LoggedInHome({ userId, displayName }: LoggedInHomeProps) {
             </p>
           </div>
           <Link
-            href="/characters?tab=mine"
+            href="/characters?tab=my"
             className="font-mono text-xs uppercase tracking-[0.1em] text-[#888880] transition-colors hover:text-[#C41E3A]"
           >
             All My Agent&apos;s Characters →
@@ -149,49 +134,20 @@ export async function LoggedInHome({ userId, displayName }: LoggedInHomeProps) {
             </Link>
           </div>
         ) : (
-          <div className="grid grid-cols-2 gap-5 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
+          <div className={CHARACTER_CARD_GRID_CLASS}>
             {myCharacters.slice(0, 6).map((char) => (
-              <Link
+              <CharacterCard
                 key={char.id}
-                href={`/stage/${char.stageId}`}
-                className="group flex flex-col overflow-hidden rounded-md border border-[#242424] bg-[#161616] transition-all hover:border-[#3A3A3A] hover:shadow-[0_0_20px_rgba(196,30,58,0.08)]"
-              >
-                <div className="relative aspect-square w-full bg-[#111111]">
-                  {char.imageUrl ? (
-                    <Image
-                      src={char.imageUrl}
-                      alt={char.name ?? 'Character'}
-                      fill
-                      className="object-cover"
-                      sizes="(max-width: 640px) 50vw, 200px"
-                    />
-                  ) : (
-                    <div className="flex h-full w-full items-center justify-center text-4xl text-[#444440]">
-                      ◈
-                    </div>
-                  )}
-                  {!char.isComplete && (
-                    <span className="absolute right-2 top-2 rounded bg-[#C41E3A]/90 px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wide text-white">
-                      Creating
-                    </span>
-                  )}
-                </div>
-                <div className="p-3">
-                  <p
-                    className="truncate text-base font-semibold tracking-[-0.02em] text-[#F0EDE8]"
-                    style={{ fontFamily: 'var(--font-display)' }}
-                  >
-                    {char.name ?? 'Unknown'}
-                  </p>
-                  {char.occupation && (
-                    <p className="mt-0.5 truncate text-xs text-[#888880]">{char.occupation}</p>
-                  )}
-                  <p className="mt-1 truncate text-[11px] text-[#444440]">
-                    {char.agentName ?? 'Agent'}
-                    {char.stageName ? ` · ${char.stageName}` : ''}
-                  </p>
-                </div>
-              </Link>
+                id={char.id}
+                name={char.name}
+                imageUrl={char.imageUrl}
+                occupation={char.occupation}
+                stageId={char.stageId}
+                isComplete={char.isComplete}
+                isOnStage={char.isOnStage}
+                agentName={char.agentName}
+                stageName={char.stageName}
+              />
             ))}
           </div>
         )}

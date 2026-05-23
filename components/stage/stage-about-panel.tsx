@@ -47,7 +47,7 @@ export function StageAboutPanel({ description, theme: _theme, themeLabel, create
       role="dialog"
       aria-modal="false"
       aria-label="About this stage"
-      className="glass-hud pointer-events-auto absolute left-1/2 top-[4rem] z-30 w-[min(36rem,calc(100%-2.5rem))] -translate-x-1/2 rounded-sm border-l-2 border-l-[#C41E3A]/70 p-4 shadow-[0_18px_60px_rgba(0,0,0,0.55)]"
+      className="glass-hud pointer-events-auto absolute left-1/2 top-[4rem] z-40 w-[min(36rem,calc(100%-2.5rem))] max-h-[min(70vh,calc(100dvh-5rem))] -translate-x-1/2 overflow-y-auto overscroll-contain rounded-sm border-l-2 border-l-[#C41E3A]/70 p-4 shadow-[0_18px_60px_rgba(0,0,0,0.55)]"
     >
       <header className="mb-3 flex items-center justify-between gap-3">
         <h3

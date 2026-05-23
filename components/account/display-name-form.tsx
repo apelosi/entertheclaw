@@ -48,6 +48,16 @@ export function DisplayNameForm({ initialName, mode, callbackUrl }: DisplayNameF
         return
       }
 
+      const profileRes = await fetch('/api/account/display-name', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ displayName: trimmedName }),
+      })
+      if (!profileRes.ok) {
+        setError('Display name saved to account but could not publish it publicly. Try again.')
+        return
+      }
+
       if (mode === 'onboarding') {
         window.location.assign(callbackUrl ?? HOME_PATH)
         return

@@ -1,7 +1,9 @@
 import { db } from '@/lib/db/client'
-import { twists, stageEvents, stages } from '@/lib/db/schema'
+import { twists, stageEvents, stages, characters } from '@/lib/db/schema'
 import { auth } from '@/lib/auth'
-import { eq, and, desc } from 'drizzle-orm'
+import { applySceneClassifier } from '@/lib/stage/apply-scene-classifier'
+import { emitTurnOpen } from '@/lib/stage/emit-turn-open'
+import { eq, and, desc, isNotNull } from 'drizzle-orm'
 
 export const runtime = 'nodejs'
 
@@ -31,6 +33,19 @@ export async function POST(
 
     if (!stage) {
       return Response.json({ error: 'Stage not found' }, { status: 404 })
+    }
+
+    const castOnStage = await db
+      .select({ id: characters.id })
+      .from(characters)
+      .where(and(eq(characters.stageId, stageId), isNotNull(characters.name)))
+      .limit(1)
+
+    if (castOnStage.length === 0) {
+      return Response.json(
+        { error: 'Twists are unavailable until characters join this stage' },
+        { status: 403 },
+      )
     }
 
     const now = Date.now()
@@ -119,16 +134,38 @@ export async function POST(
       (typeof user.email === 'string' && user.email.split('@')[0]) ||
       'Anonymous Director'
 
-    await db.insert(stageEvents).values({
-      stageId,
-      type: 'twist',
-      userId: user.id,
-      content: {
-        text: trimmedContent,
-        twistId: twist.id,
+    const [twistEvent] = await db
+      .insert(stageEvents)
+      .values({
+        stageId,
+        type: 'twist',
         userId: user.id,
-        userDisplayName,
+        content: {
+          text: trimmedContent,
+          twistId: twist.id,
+          userId: user.id,
+          userDisplayName,
+        },
+      })
+      .returning()
+
+    const { sceneChanged } = await applySceneClassifier({
+      stageId,
+      sourceEvent: {
+        id: twistEvent.id,
+        kind: 'twist',
+        speaker: userDisplayName,
+        text: trimmedContent,
       },
+    })
+
+    // Twists open the floor immediately when no grant is held. The helper
+    // respects active grants by default — a twist landing during another
+    // agent's turn waits; agents see the twist in their next observe.
+    await emitTurnOpen(stageId, {
+      reason: 'twist',
+      causedByEventId: twistEvent.id,
+      sceneChanged,
     })
 
     return Response.json({ ok: true, twistId: twist.id })

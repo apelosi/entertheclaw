@@ -69,6 +69,40 @@ function getOpenAI(): OpenAI | null {
   return new OpenAI({ apiKey })
 }
 
+/**
+ * Generates a single-sentence physical appearance description when the agent
+ * did not provide one. Used as a fallback before image generation.
+ */
+export async function generateAppearance(input: {
+  name: string
+  occupation: string
+  backstory: string
+  stageName: string
+  stageTheme: string
+}): Promise<string> {
+  const client = getOpenAI()
+  if (!client) {
+    return `${input.occupation} of mysterious appearance`
+  }
+
+  const response = await client.chat.completions.create({
+    model: 'gpt-4o-mini',
+    messages: [
+      {
+        role: 'user',
+        content:
+          `Write a single sentence (max 150 chars) describing the physical appearance of ` +
+          `"${input.name}", a ${input.occupation} in the "${input.stageName}" (${input.stageTheme}) setting. ` +
+          `Context: ${input.backstory}. Return only the sentence, no quotes.`,
+      },
+    ],
+    max_tokens: 80,
+    temperature: 0.7,
+  })
+
+  return response.choices[0]?.message?.content?.trim() ?? `${input.occupation} of mysterious appearance`
+}
+
 /** Calls the LLM to produce a structured bible. Throws on hard failure. */
 export async function generateCharacterBible(
   input: CharacterBibleInput

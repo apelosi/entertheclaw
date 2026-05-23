@@ -4,11 +4,13 @@ import { useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
-import { agentDetailPath, agentInvitePathForStage } from '@/lib/paths'
+import { characterDetailPath, agentInvitePathForStage } from '@/lib/paths'
+import { SectionCollapsibleHeader } from './section-collapsible-header'
 
 export interface RailCharacter {
   participantId: string
   agentId: string
+  characterId: string | null
   role: string
   characterName: string | null
   characterImageUrl: string | null
@@ -58,23 +60,19 @@ export function CharactersRail({
         }
 
         const isActive = char.agentId === activeAgentId
+        const title = char.isMine
+          ? `${char.characterName ?? 'Your character'} — view profile`
+          : (char.characterName ?? 'Character')
 
-        return (
-          <Link
-            key={char.participantId}
-            href={agentDetailPath(char.agentId)}
-            title={
-              char.isMine
-                ? `${char.characterName ?? 'Your character'} — your agent`
-                : (char.characterName ?? 'Character')
-            }
-            className={cn(
-              'group relative aspect-square overflow-hidden rounded-sm bg-[#0e0e0e] transition-all',
-              isActive && 'ring-2 ring-[#C41E3A] shadow-[0_0_18px_rgba(196,30,58,0.45)]',
-              char.isMine && !isActive && 'ring-2 ring-[#B8860B]',
-              !char.isMine && !isActive && 'ring-1 ring-[#242424]/60 hover:ring-[#3A3A3A]',
-            )}
-          >
+        const tileClass = cn(
+          'group relative aspect-square overflow-hidden rounded-sm bg-[#0e0e0e] transition-all',
+          isActive && 'ring-2 ring-[#C41E3A] shadow-[0_0_18px_rgba(196,30,58,0.45)]',
+          char.isMine && !isActive && 'ring-2 ring-[#B8860B]',
+          !char.isMine && !isActive && 'ring-1 ring-[#242424]/60 hover:ring-[#3A3A3A]',
+        )
+
+        const tileContent = (
+          <>
             {char.characterImageUrl ? (
               <Image
                 src={char.characterImageUrl}
@@ -97,6 +95,25 @@ export function CharactersRail({
                 aria-label="Your agent"
               />
             )}
+          </>
+        )
+
+        if (!char.characterId) {
+          return (
+            <div key={char.participantId} title={title} className={tileClass}>
+              {tileContent}
+            </div>
+          )
+        }
+
+        return (
+          <Link
+            key={char.participantId}
+            href={characterDetailPath(char.characterId)}
+            title={title}
+            className={tileClass}
+          >
+            {tileContent}
           </Link>
         )
       })}
@@ -106,31 +123,15 @@ export function CharactersRail({
   if (collapsible) {
     return (
       <aside className="glass-hud pointer-events-auto w-full rounded-sm border-l-2 border-l-[#C41E3A]/70 shadow-[0_12px_40px_rgba(0,0,0,0.45)]">
-        <button
-          type="button"
+        <SectionCollapsibleHeader
+          title="Characters"
+          meta={countLabel}
+          open={panelOpen}
           onClick={() => setPanelOpen((v) => !v)}
-          className="flex w-full items-center justify-between gap-3 p-3"
-        >
-          <div className="flex items-baseline gap-3">
-            <h2
-              className="text-[20px] font-light italic leading-none tracking-[-0.02em] text-[#F0EDE8]"
-              style={{ fontFamily: 'var(--font-display)' }}
-            >
-              Characters
-            </h2>
-            <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-[#888880]">
-              {countLabel}
-            </span>
-          </div>
-          <span
-            className={cn(
-              'text-[10px] text-[#444440] transition-transform',
-              panelOpen && 'rotate-180',
-            )}
-          >
-            ▾
-          </span>
-        </button>
+          ariaLabelExpanded="Collapse characters"
+          ariaLabelCollapsed="Expand characters"
+          className="p-3"
+        />
 
         {panelOpen && (
           <div className="flex flex-col gap-2.5 px-3 pb-3">
@@ -149,14 +150,14 @@ export function CharactersRail({
 
   return (
     <aside className="glass-hud pointer-events-auto flex w-full flex-col gap-2.5 rounded-sm border-l-2 border-l-[#C41E3A]/70 p-3 shadow-[0_12px_40px_rgba(0,0,0,0.45)]">
-      <header className="flex items-baseline justify-between gap-3">
+      <header className="flex items-center gap-3">
         <h2
-          className="text-[20px] font-light italic leading-none tracking-[-0.02em] text-[#F0EDE8]"
+          className="shrink-0 text-[20px] font-light italic leading-none tracking-[-0.02em] text-[#F0EDE8]"
           style={{ fontFamily: 'var(--font-display)' }}
         >
           Characters
         </h2>
-        <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-[#888880]">
+        <span className="min-w-0 flex-1 truncate text-right font-mono text-[10px] uppercase tracking-[0.18em] text-[#888880]">
           {countLabel}
         </span>
       </header>

@@ -1,12 +1,13 @@
 import { db } from '@/lib/db/client'
 import { agents, characters, stages, stageParticipants } from '@/lib/db/schema'
-import { eq, desc } from 'drizzle-orm'
+import { and, eq, desc, isNotNull } from 'drizzle-orm'
 
 export async function getMyAgents(userId: string) {
+  // Pending invite rows (key issued, POST /api/v1/agents not done) are not listed as agents.
   const myAgents = await db
     .select()
     .from(agents)
-    .where(eq(agents.userId, userId))
+    .where(and(eq(agents.userId, userId), isNotNull(agents.name)))
     .orderBy(desc(agents.enrolledAt))
 
   return Promise.all(
@@ -29,7 +30,7 @@ export async function getMyAgents(userId: string) {
 }
 
 export async function getMyCharacters(userId: string) {
-  return db
+  const rows = await db
     .select({
       id: characters.id,
       name: characters.name,
@@ -40,10 +41,23 @@ export async function getMyCharacters(userId: string) {
       agentId: characters.agentId,
       agentName: agents.name,
       stageName: stages.name,
+      participantId: stageParticipants.id,
     })
     .from(characters)
     .innerJoin(agents, eq(characters.agentId, agents.id))
     .leftJoin(stages, eq(characters.stageId, stages.id))
+    .leftJoin(
+      stageParticipants,
+      and(
+        eq(stageParticipants.agentId, characters.agentId),
+        eq(stageParticipants.stageId, characters.stageId),
+      ),
+    )
     .where(eq(agents.userId, userId))
     .orderBy(desc(characters.createdAt))
+
+  return rows.map(({ participantId, ...char }) => ({
+    ...char,
+    isOnStage: participantId != null,
+  }))
 }

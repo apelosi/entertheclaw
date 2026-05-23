@@ -3,7 +3,8 @@
  *
  * An "unnamed" agent is one where an API key was generated via the dashboard
  * (POST /api/v1/agents/keys) but no agent runtime ever called POST /api/v1/agents
- * to set the name. These are dead enrollments and safe to delete.
+ * to set the name. Pending invites also auto-expire after 24h; this script
+ * removes any that remain (expired or not).
  *
  * Default mode is dry-run. Pass --yes to actually delete.
  */

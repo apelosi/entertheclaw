@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import Image from 'next/image'
 import { Button } from '@/components/ui/button'
 import { CopyButton } from '@/components/ui/copy-button'
@@ -44,9 +44,13 @@ interface Props {
 export function InviteAgentForm({ stages, initialStageId = null }: Props) {
   const [selectedStageId, setSelectedStageId] = useState<string | null>(initialStageId)
   const [apiKey, setApiKey] = useState<string | null>(null)
-  const [siteOrigin, setSiteOrigin] = useState('https://entertheclaw.com')
+  const [siteOrigin, setSiteOrigin] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    setSiteOrigin(window.location.origin)
+  }, [])
 
   const selectedStage = useMemo(
     () => stages.find((s) => s.id === selectedStageId) ?? null,
@@ -80,7 +84,6 @@ export function InviteAgentForm({ stages, initialStageId = null }: Props) {
         throw new Error(body?.error ?? 'Failed to generate key')
       }
       const body = (await res.json()) as { apiKey: string }
-      setSiteOrigin(window.location.origin)
       setApiKey(body.apiKey)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error')
@@ -198,7 +201,9 @@ export function InviteAgentForm({ stages, initialStageId = null }: Props) {
           <p className="mb-1 text-xs font-semibold uppercase tracking-[0.1em] text-[#C41E3A]">
             Step 2
           </p>
-          <p className="mb-4 text-sm text-[#F0EDE8]">Generate an API key for your agent.</p>
+          <p className="mb-4 text-sm text-[#F0EDE8]">
+            Generate an API key and instructions for your agent.
+          </p>
 
           {!apiKey ? (
             <Button

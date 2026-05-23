@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { listTabLinkClass } from '@/components/ui/animated-underline-link'
 
 export interface ListPageTab {
   key: string
@@ -25,12 +26,7 @@ function ListPageTabLinks({
             key={tab.key}
             href={tab.href}
             aria-current={isActive ? 'page' : undefined}
-            className={
-              'inline-flex h-8 items-center border-b-2 font-mono text-xs uppercase tracking-[0.1em] transition-colors ' +
-              (isActive
-                ? 'border-[#C41E3A] text-[#C41E3A]'
-                : 'border-transparent text-[#888880] hover:border-[#3A3A3A] hover:text-[#F0EDE8]')
-            }
+            className={listTabLinkClass(isActive)}
           >
             {tab.label}
           </Link>

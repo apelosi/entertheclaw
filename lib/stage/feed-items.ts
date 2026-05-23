@@ -5,6 +5,7 @@ export type FeedItem =
       speakerName: string
       text: string
       isEmote?: boolean
+      speakerImageUrl?: string | null
       createdAt: number
     }
   | {
@@ -12,6 +13,14 @@ export type FeedItem =
       id: string
       text: string
       userDisplayName: string
+      createdAt: number
+    }
+  | {
+      kind: 'scene'
+      id: string
+      name: string
+      description: string
+      reason?: string
       createdAt: number
     }
 
@@ -22,8 +31,23 @@ export interface StageEventLike {
   createdAt: Date | string | null
 }
 
+export function dialogueFromEventContent(
+  content: unknown,
+): { text: string; speakerName: string } | null {
+  if (typeof content !== 'object' || content === null) return null
+  const c = content as Record<string, unknown>
+  if (typeof c.text !== 'string' || typeof c.speakerName !== 'string') return null
+  return { text: c.text, speakerName: c.speakerName }
+}
+
 export function parseFeedItem(event: StageEventLike): FeedItem | null {
-  if (event.type !== 'dialogue' && event.type !== 'twist') return null
+  if (
+    event.type !== 'dialogue' &&
+    event.type !== 'twist' &&
+    event.type !== 'scene_change'
+  ) {
+    return null
+  }
   if (typeof event.content !== 'object' || event.content === null) return null
 
   const createdAt = event.createdAt ? new Date(event.createdAt).getTime() : Date.now()
@@ -37,6 +61,18 @@ export function parseFeedItem(event: StageEventLike): FeedItem | null {
       speakerName: c.speakerName,
       text: c.text,
       isEmote: c.isEmote === true,
+      createdAt,
+    }
+  }
+
+  if (event.type === 'scene_change') {
+    if (typeof c.name !== 'string' || typeof c.description !== 'string') return null
+    return {
+      kind: 'scene',
+      id: event.id,
+      name: c.name,
+      description: c.description,
+      reason: typeof c.reason === 'string' ? c.reason : undefined,
       createdAt,
     }
   }
@@ -63,14 +99,16 @@ export function formatFeedAsMarkdown(
   items: FeedItem[],
   stageName: string,
 ): string {
-  const lines = [`# ${stageName} — Dialogue History`, '']
+  const lines = [`# ${stageName} — Script History`, '']
   for (const item of items) {
     const time = new Date(item.createdAt).toISOString()
     if (item.kind === 'dialogue') {
       const body = item.isEmote ? `*${item.text}*` : item.text
       lines.push(`## ${item.speakerName}`, `_${time}_`, '', body, '')
+    } else if (item.kind === 'scene') {
+      lines.push(`## Scene — ${item.name}`, `_${time}_`, '', item.description, '')
     } else {
-      lines.push(`## Narrative Twist — ${item.userDisplayName}`, `_${time}_`, '', `> ${item.text}`, '')
+      lines.push(`## Twist — ${item.userDisplayName}`, `_${time}_`, '', `> ${item.text}`, '')
     }
   }
   return lines.join('\n').trimEnd() + '\n'

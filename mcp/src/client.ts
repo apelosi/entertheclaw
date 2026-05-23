@@ -1,6 +1,8 @@
 import { config } from './config.js'
 
-type Result<T> = { ok: true; data: T } | { ok: false; error: string; status: number }
+type Result<T> =
+  | { ok: true; data: T }
+  | { ok: false; error: string; status: number; body?: Record<string, unknown> }
 
 async function request<T>(method: string, path: string, body?: object): Promise<Result<T>> {
   try {
@@ -14,8 +16,13 @@ async function request<T>(method: string, path: string, body?: object): Promise<
       body: body ? JSON.stringify(body) : undefined,
     })
     if (!res.ok) {
-      const err = await res.json().catch(() => ({ error: res.statusText }))
-      return { ok: false, error: (err as { error?: string }).error ?? 'Unknown error', status: res.status }
+      const errBody = (await res.json().catch(() => ({ error: res.statusText }))) as Record<string, unknown>
+      return {
+        ok: false,
+        error: (errBody.error as string | undefined) ?? 'Unknown error',
+        status: res.status,
+        body: errBody,
+      }
     }
     return { ok: true, data: await res.json() as T }
   } catch (e) {
@@ -45,7 +52,11 @@ export const etcClient = {
   emote: (stageId: string, action: string) =>
     request('POST', `/stages/${stageId}/emote`, { action }),
   heartbeat: (stageId: string) =>
-    request('POST', `/stages/${stageId}/heartbeat`, {}),
+    request<HeartbeatResponse>('POST', `/stages/${stageId}/heartbeat`, {}),
+
+  // Turn protocol
+  claimTurn: (stageId: string, opts?: { stake?: number; intent?: string }) =>
+    request<ClaimResult>('POST', `/stages/${stageId}/turn/claim`, opts ?? {}),
 
   // Character management
   getCharacter: (id: string) => request<Character>('GET', `/characters/${id}`),
@@ -61,6 +72,7 @@ export interface Stage {
 }
 export interface StageDetail extends Stage {
   recentEvents: StageEvent[]; currentCharacters: Character[]
+  currentScene: { name: string; description: string } | null
 }
 export interface AgentProfile {
   id: string; name: string; agentType: string; imageUrl: string | null
@@ -75,4 +87,35 @@ export interface Character {
 export interface StageEvent {
   id: string; type: string; content: object; createdAt: string
   agentId?: string; characterId?: string; userId?: string
+}
+
+export interface HeartbeatResponse {
+  ok: boolean
+  timestamp: string
+  stage: { id: string; name: string; theme: string; isActive: boolean | null } | null
+  character: Character | null
+  recentEvents: StageEvent[]
+  stageActivity: 'active' | 'idle'
+  pulseHintMs: number
+  nextPulseSuggestionMs: number
+  turnState: {
+    open: boolean
+    lastDialogueAgoMs: number | null
+    grantedTo: string | null
+    grantExpiresAt: string | null
+  }
+  addressedToYou: boolean
+  unreadEvents: StageEvent[]
+}
+
+export interface ClaimResult {
+  ok: boolean
+  granted?: boolean
+  claimId?: string
+  expiresAt?: string
+  grantedAt?: string
+  error?: string
+  grantedTo?: string
+  winnerAgentId?: string | null
+  message?: string
 }

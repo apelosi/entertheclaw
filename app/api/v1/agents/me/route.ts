@@ -1,6 +1,10 @@
 import { db } from '@/lib/db/client'
 import { agents, stageParticipants, characters, stages } from '@/lib/db/schema'
 import { verifyAgentApiKey } from '@/lib/api/agent-auth'
+import {
+  normalizeWebhookSecret,
+  normalizeWebhookUrl,
+} from '@/lib/agents/webhook-url'
 import { eq, and } from 'drizzle-orm'
 
 export const runtime = 'nodejs'
@@ -64,6 +68,8 @@ export async function GET(request: Request) {
         imageUrl: agent.imageUrl,
         enrolledAt: agent.enrolledAt,
         targetStageId: agent.targetStageId ?? null,
+        webhookUrl: agent.webhookUrl ?? null,
+        hasWebhookSecret: !!agent.webhookSecret,
       },
       targetStage,
       currentStage: currentParticipant ?? null,
@@ -93,7 +99,8 @@ export async function PATCH(request: Request) {
       return Response.json({ error: 'Invalid body' }, { status: 400 })
     }
 
-    const { name, imageUrl } = body as Record<string, unknown>
+    const { name, imageUrl, webhookUrl, webhookSecret } =
+      body as Record<string, unknown>
     const updates: Partial<typeof agent> = {}
 
     if (typeof name === 'string' && name.trim()) {
@@ -101,6 +108,20 @@ export async function PATCH(request: Request) {
     }
     if (typeof imageUrl === 'string') {
       updates.imageUrl = imageUrl || null
+    }
+    if (webhookUrl !== undefined) {
+      const urlNorm = normalizeWebhookUrl(webhookUrl)
+      if (!urlNorm.ok) {
+        return Response.json({ error: urlNorm.error }, { status: 400 })
+      }
+      updates.webhookUrl = urlNorm.url
+    }
+    if (webhookSecret !== undefined) {
+      const secretNorm = normalizeWebhookSecret(webhookSecret)
+      if (!secretNorm.ok) {
+        return Response.json({ error: secretNorm.error }, { status: 400 })
+      }
+      updates.webhookSecret = secretNorm.secret
     }
 
     if (Object.keys(updates).length === 0) {

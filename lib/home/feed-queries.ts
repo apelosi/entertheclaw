@@ -1,5 +1,7 @@
 import { db } from '@/lib/db/client'
 import { stages, stageParticipants, stageEvents, agents, characters } from '@/lib/db/schema'
+import { isCommunityVisibleAgentWhere } from '@/lib/agents/community-visibility'
+import { dialogueFromEventContent } from '@/lib/stage/feed-items'
 import { eq, and, count, desc, inArray } from 'drizzle-orm'
 
 /** Curated until we have a real "top stages" signal. Order is display order. */
@@ -27,16 +29,13 @@ async function attachStageMeta<T extends { id: string }>(stageRows: T[]) {
         .orderBy(desc(stageEvents.createdAt))
         .limit(1)
 
-      const lastDialogue = recentEvents[0]
-      const lastLine =
-        lastDialogue && typeof lastDialogue.content === 'object' && lastDialogue.content !== null
-          ? ((lastDialogue.content as Record<string, unknown>).text as string | undefined)
-          : undefined
+      const lastDialogue = dialogueFromEventContent(recentEvents[0]?.content)
 
       return {
         ...stage,
         participantCount: participantCount?.count ?? 0,
-        lastLine,
+        lastLine: lastDialogue?.text,
+        lastSpeakerName: lastDialogue?.speakerName,
       }
     })
   )
@@ -65,6 +64,7 @@ export async function getRecentAgents() {
       imageUrl: agents.imageUrl,
     })
     .from(agents)
+    .where(isCommunityVisibleAgentWhere())
     .orderBy(desc(agents.enrolledAt))
     .limit(6)
 }
@@ -85,7 +85,10 @@ export async function getRecentCharacters() {
 }
 
 export async function getEnrolledAgentCount(): Promise<number> {
-  const [row] = await db.select({ count: count() }).from(agents)
+  const [row] = await db
+    .select({ count: count() })
+    .from(agents)
+    .where(isCommunityVisibleAgentWhere())
   return Number(row?.count ?? 0)
 }
 

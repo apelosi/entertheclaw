@@ -10,6 +10,8 @@ import { DialoguePanel, type CurrentDialogue } from './dialogue-panel'
 import { CharacterOnStage, layoutPositions, type OnStageCharacter } from './character-on-stage'
 import { type ActiveTwist } from './active-twist'
 import { StageAboutPanel } from './stage-about-panel'
+import { SceneChangeOverlay } from './scene-change-overlay'
+import type { CurrentScene } from './scene-banner'
 import { useStageEvents } from './use-stage-events'
 import {
   feedItemsFromEvents,
@@ -23,6 +25,7 @@ interface Participant {
   role: string
   agentId: string
   agentUserId: string | null
+  characterId: string | null
   characterName: string | null
   characterOccupation: string | null
   characterImageUrl: string | null
@@ -47,12 +50,12 @@ interface StageCanvasProps {
   stageCreatedAt: string | null
   participants: Participant[]
   initialEvents: StageEvent[]
+  initialScene: CurrentScene | null
   isLoggedIn: boolean
   currentUserId: string | null
+  twistsEnabled: boolean
   lastTwistAt: number | null
   lastUserTwistAt: number | null
-  initialLineCount: number
-  initialTwistCount: number
 }
 
 const TYPEWRITER_INTERVAL_MS = 35
@@ -86,12 +89,12 @@ export default function StageCanvas({
   stageCreatedAt,
   participants,
   initialEvents,
+  initialScene,
   isLoggedIn,
   currentUserId,
+  twistsEnabled,
   lastTwistAt,
   lastUserTwistAt,
-  initialLineCount,
-  initialTwistCount,
 }: StageCanvasProps) {
   const router = useRouter()
   const [dialogue, setDialogue] = useState<CurrentDialogue | null>(null)
@@ -105,9 +108,9 @@ export default function StageCanvas({
   })
   const [feedBumpKey, setFeedBumpKey] = useState(0)
   const [liveLastTwistAt, setLiveLastTwistAt] = useState<number | null>(lastTwistAt)
-  const [lineCount, setLineCount] = useState(initialLineCount)
-  const [twistCount, setTwistCount] = useState(initialTwistCount)
   const [aboutOpen, setAboutOpen] = useState(false)
+  const [currentScene, setCurrentScene] = useState<CurrentScene | null>(initialScene)
+  const [pendingSceneOverlay, setPendingSceneOverlay] = useState<CurrentScene | null>(null)
   const typewriterRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const dialogueRef = useRef<CurrentDialogue | null>(null)
   dialogueRef.current = dialogue
@@ -163,6 +166,7 @@ export default function StageCanvas({
       text,
       isEmote: current.isEmote,
       createdAt: current.createdAt,
+      speakerImageUrl: current.speakerImageUrl ?? null,
     })
   }, [prependFeed])
 
@@ -263,7 +267,6 @@ export default function StageCanvas({
       if (!data?.text || !data?.speakerName) return
       if (!seenEventIdsRef.current.has(raw.id)) {
         seenEventIdsRef.current.add(raw.id)
-        setLineCount((n) => n + 1)
       }
       showDialogue(data.speakerName, data.text, {
         agentId: raw.agentId,
@@ -278,7 +281,6 @@ export default function StageCanvas({
       if (data?.text) {
         if (!seenEventIdsRef.current.has(raw.id)) {
           seenEventIdsRef.current.add(raw.id)
-          setTwistCount((n) => n + 1)
         }
         const item = parseFeedItem({
           id: raw.id,
@@ -295,6 +297,24 @@ export default function StageCanvas({
     onJoined: () => {
       router.refresh()
     },
+    onSceneChange: (data, raw) => {
+      if (!data?.name || !data?.description) return
+      const next: CurrentScene = { name: data.name, description: data.description }
+      setCurrentScene(next)
+      setPendingSceneOverlay(next)
+      if (!seenEventIdsRef.current.has(raw.id)) {
+        seenEventIdsRef.current.add(raw.id)
+        const createdAt = raw.createdAt ? new Date(raw.createdAt).getTime() : Date.now()
+        prependFeed({
+          kind: 'scene',
+          id: raw.id,
+          name: data.name,
+          description: data.description,
+          reason: data.reason,
+          createdAt,
+        })
+      }
+    },
   })
 
   useEffect(() => {
@@ -303,11 +323,11 @@ export default function StageCanvas({
     }
   }, [])
 
-  // Dialogue-only feed for the dialogue panel's recent lines
-  const recentDialogueItems = useMemo(() => {
+  // Mixed script feed (dialogue, scenes, twists) for the dialogue panel preview
+  const recentScriptItems = useMemo(() => {
     const activeId = dialogue?.eventId
     return feedItems
-      .filter((i) => i.kind === 'dialogue' && i.id !== activeId)
+      .filter((i) => i.id !== activeId)
       .slice(0, RECENT_FEED_LIMIT)
   }, [feedItems, dialogue?.eventId])
 
@@ -317,11 +337,17 @@ export default function StageCanvas({
     [feedItems],
   )
 
+  const recentSceneItems = useMemo(
+    () => feedItems.filter((i) => i.kind === 'scene').slice(0, RECENT_FEED_LIMIT),
+    [feedItems],
+  )
+
   const onStageChars: OnStageCharacter[] = useMemo(
     () =>
       participants.map((p) => ({
         participantId: p.participantId,
         agentId: p.agentId,
+        characterId: p.characterId,
         role: p.role,
         characterName: p.characterName,
         characterImageUrl: p.characterImageUrl,
@@ -340,6 +366,7 @@ export default function StageCanvas({
         .map((p) => ({
           participantId: p.participantId,
           agentId: p.agentId,
+          characterId: p.characterId,
           role: p.role,
           characterName: p.characterName,
           characterImageUrl: p.characterImageUrl,
@@ -347,6 +374,14 @@ export default function StageCanvas({
         })),
     [participants, isMine],
   )
+
+  const speakerImageByName = useMemo(() => {
+    const map = new Map<string, string | null>()
+    for (const p of participants) {
+      if (p.characterName) map.set(p.characterName, p.characterImageUrl)
+    }
+    return map
+  }, [participants])
 
   const themeLabel = THEME_LABELS[stageTheme] ?? stageTheme
 
@@ -357,26 +392,28 @@ export default function StageCanvas({
     dialogue,
     allHistoryItems: feedItems,
     feedBumpKey,
-    lineCount,
+    currentScene,
+    recentScenes: recentSceneItems,
+    speakerImageByName,
   }
 
   const sharedNarrativeProps = {
     stageId,
     stageName,
     isLoggedIn,
+    twistsEnabled,
     lastTwistAt,
     lastUserTwistAt,
     liveLastTwistAt,
     onLocalSubmitSuccess: () => setLiveLastTwistAt(Date.now()),
     activeTwist,
     recentTwists: recentTwistItems,
-    twistCount,
-    feedBumpKey,
   }
 
   return (
-    <main className="relative w-full bg-[#080808]">
-      {/* Stage band: backdrop + sprites + HUD overlays */}
+    <main className="relative mx-auto w-full max-w-[1280px] bg-[#080808]">
+      {/* Stage band: backdrop + sprites. Capped to the same max-width as the panels below
+          so the room never balloons across the full viewport on large displays. */}
       <div className="relative aspect-[16/9] min-h-[200px] w-full overflow-hidden">
         {/* Backdrop */}
         <div className="absolute inset-0">
@@ -410,82 +447,107 @@ export default function StageCanvas({
           ))}
         </div>
 
-        {/* Slim title bar: ← | Stage Name | About — z-30 so it renders above dialogue overlay */}
+        {/* Slim title bar: ← LIVE | Stage Name | About — z-30 so it renders above dialogue overlay */}
         <div className="pointer-events-none absolute inset-x-0 top-0 z-30 px-4 pt-3">
-          <div className="pointer-events-auto flex items-center gap-3">
-            {/* Back — icon only on mobile, label on desktop */}
-            <Link
-              href="/"
-              aria-label="Exit stage"
-              className="inline-flex shrink-0 items-center gap-1.5 font-mono text-[11px] uppercase tracking-[0.18em] text-[#F0EDE8]/70 drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)] transition-colors hover:text-[#F0EDE8]"
-            >
-              <span>←</span>
-              <span className="hidden sm:inline">Exit Stage</span>
-            </Link>
+          <div className="pointer-events-auto grid grid-cols-[1fr_auto_1fr] items-center gap-3">
+            <div className="flex min-w-0 items-center gap-3">
+              {/* Back — icon only on mobile, label on desktop */}
+              <Link
+                href="/"
+                aria-label="Exit stage"
+                className="inline-flex shrink-0 items-center gap-1.5 font-mono text-[11px] uppercase tracking-[0.18em] text-[#F0EDE8]/70 drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)] transition-colors hover:text-[#F0EDE8]"
+              >
+                <span>←</span>
+                <span className="hidden sm:inline">Exit Stage</span>
+              </Link>
 
-            {/* Stage name */}
+              <LiveBadge isLive={Boolean(dialogue)} />
+            </div>
+
+            {/* Stage name — centered between equal-width side columns */}
             <h1
-              className="flex-1 text-center text-[22px] font-light italic leading-none tracking-[-0.02em] text-[#F0EDE8] drop-shadow-[0_2px_12px_rgba(0,0,0,0.85)] sm:text-[28px]"
+              className="min-w-0 truncate text-center text-[22px] font-light italic leading-none tracking-[-0.02em] text-[#F0EDE8] drop-shadow-[0_2px_12px_rgba(0,0,0,0.85)] sm:text-[28px]"
               style={{ fontFamily: 'var(--font-display)' }}
+              title={stageName}
             >
               {stageName}
             </h1>
 
             {/* About */}
-            <button
-              type="button"
-              onClick={() => setAboutOpen((v) => !v)}
-              aria-expanded={aboutOpen}
-              className="shrink-0 font-mono text-[10px] uppercase tracking-[0.18em] text-[#F0EDE8]/70 drop-shadow-[0_1px_3px_rgba(0,0,0,0.85)] transition-colors hover:text-[#F0EDE8]"
-            >
-              About
-            </button>
+            <div className="flex min-w-0 justify-end">
+              <button
+                type="button"
+                onClick={() => setAboutOpen((v) => !v)}
+                aria-expanded={aboutOpen}
+                className="shrink-0 font-mono text-[10px] uppercase tracking-[0.18em] text-[#F0EDE8]/70 drop-shadow-[0_1px_3px_rgba(0,0,0,0.85)] transition-colors hover:text-[#F0EDE8]"
+              >
+                About
+              </button>
+            </div>
           </div>
         </div>
 
-        <StageAboutPanel
-          description={stageDescription}
-          theme={stageTheme}
-          themeLabel={themeLabel}
-          createdAt={stageCreatedAt}
-          open={aboutOpen}
-          onClose={() => setAboutOpen(false)}
+        {/* Scene change announcement — 5s overlay over the stage band */}
+        <SceneChangeOverlay
+          scene={pendingSceneOverlay}
+          onDone={() => setPendingSceneOverlay(null)}
         />
+      </div>
 
-        {/* Desktop left HUD stack */}
-        <div className="pointer-events-none absolute left-5 top-[4.5rem] z-20 hidden w-[min(20rem,calc(100%-2.5rem))] flex-col gap-3 pb-2 lg:flex">
+      {/* Outside overflow-hidden stage band so long copy can extend over panels below */}
+      <StageAboutPanel
+        description={stageDescription}
+        theme={stageTheme}
+        themeLabel={themeLabel}
+        createdAt={stageCreatedAt}
+        open={aboutOpen}
+        onClose={() => setAboutOpen(false)}
+      />
+
+      {/* Panels — single column on mobile, dialogue (wide) + twist/characters (narrow) on lg */}
+      <div className="grid gap-3 p-4 lg:grid-cols-[1fr_22rem] lg:items-start lg:gap-5 lg:p-6">
+        <DialoguePanel
+          {...sharedDialogueProps}
+          recentItems={recentScriptItems}
+        />
+        <div className="flex flex-col gap-3">
+          <NarrativeTwist {...sharedNarrativeProps} collapsible defaultOpen={false} />
           <CharactersRail
             stageId={stageId}
             mainCharacters={mainCharacters}
             activeAgentId={activeAgentId}
-          />
-          <NarrativeTwist {...sharedNarrativeProps} />
-        </div>
-
-        {/* Desktop right HUD — dialogue */}
-        <div className="pointer-events-none absolute right-5 top-[4.5rem] z-20 hidden w-[min(20rem,calc(100%-2.5rem))] pb-4 lg:block">
-          <DialoguePanel
-            {...sharedDialogueProps}
-            recentItems={recentDialogueItems}
+            collapsible
+            defaultOpen={false}
           />
         </div>
-      </div>
-
-      {/* Mobile stacked panels below the stage band */}
-      <div className="flex flex-col gap-3 p-4 lg:hidden">
-        <DialoguePanel
-          {...sharedDialogueProps}
-          recentItems={recentDialogueItems}
-        />
-        <NarrativeTwist {...sharedNarrativeProps} collapsible defaultOpen />
-        <CharactersRail
-          stageId={stageId}
-          mainCharacters={mainCharacters}
-          activeAgentId={activeAgentId}
-          collapsible
-          defaultOpen={false}
-        />
       </div>
     </main>
+  )
+}
+
+function LiveBadge({ isLive }: { isLive: boolean }) {
+  return (
+    <span
+      aria-label={isLive ? 'Stage is live' : 'Stage is idle'}
+      className={
+        'inline-flex shrink-0 items-center gap-1.5 rounded-sm border px-2 py-1 font-mono text-[10px] uppercase tracking-[0.18em] drop-shadow-[0_1px_3px_rgba(0,0,0,0.85)] ' +
+        (isLive
+          ? 'border-[#C41E3A]/50 bg-[#C41E3A]/15 text-[#C41E3A]'
+          : 'border-[#444440]/40 bg-[#080808]/40 text-[#888880]')
+      }
+    >
+      <span className="relative flex h-1.5 w-1.5">
+        {isLive && (
+          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#C41E3A] opacity-60" />
+        )}
+        <span
+          className={
+            'relative inline-flex h-1.5 w-1.5 rounded-full ' +
+            (isLive ? 'bg-[#C41E3A] shadow-[0_0_6px_#C41E3A]' : 'bg-[#888880]')
+          }
+        />
+      </span>
+      {isLive ? 'Live' : 'Idle'}
+    </span>
   )
 }

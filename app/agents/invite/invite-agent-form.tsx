@@ -234,7 +234,7 @@ export function InviteAgentForm({ stages, initialStageId = null }: Props) {
                   Paste into your agent chat
                 </p>
                 <p className="mt-1 text-xs text-[#888880]">
-                  One message — MCP config, persona rules, enroll/join steps, and ongoing heartbeat loop.
+                  Short message — credentials, MCP config, and a link to full agent instructions.
                 </p>
               </div>
               <CopyButton text={inviteMessage} label="Copy message for your agent" />

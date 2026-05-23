@@ -28,14 +28,17 @@ export default async function AccountPage() {
     <>
       <Nav />
       <main className="mx-auto max-w-[640px] px-6 py-10">
-        <div className="mb-8">
-          <h1
-            className="font-display text-[32px] font-semibold tracking-[-0.02em] text-[#F0EDE8]"
-            style={{ fontFamily: 'var(--font-display)' }}
-          >
-            Account
-          </h1>
-          <p className="mt-1 text-sm text-[#888880]">Profile and sign-in methods</p>
+        <div className="mb-8 flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <h1
+              className="font-display text-[32px] font-semibold tracking-[-0.02em] text-[#F0EDE8]"
+              style={{ fontFamily: 'var(--font-display)' }}
+            >
+              Account
+            </h1>
+            <p className="mt-1 text-sm text-[#888880]">Profile and sign-in methods</p>
+          </div>
+          <SignOutButton />
         </div>
 
         <section className="mb-8 rounded-md border border-[#242424] bg-[#161616] p-5">
@@ -84,9 +87,6 @@ export default async function AccountPage() {
           <ConnectedProviders />
         </section>
 
-        <section className="flex justify-end border-t border-[#1a1a1a] pt-6">
-          <SignOutButton />
-        </section>
       </main>
     </>
   )

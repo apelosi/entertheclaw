@@ -62,7 +62,6 @@ export default async function CharacterDetailPage({ params }: Props) {
       stageTheme: stages.theme,
       stageImageUrl: stages.imageUrl,
       participantId: stageParticipants.id,
-      participantRole: stageParticipants.role,
     })
     .from(characters)
     .innerJoin(agents, eq(characters.agentId, agents.id))
@@ -89,7 +88,6 @@ export default async function CharacterDetailPage({ params }: Props) {
     stageName,
     stageTheme,
     stageImageUrl,
-    participantRole,
   } = row
   const isOnStage = row.participantId != null
   const isOwner = Boolean(session?.user && session.user.id === agentUserId)
@@ -131,13 +129,6 @@ export default async function CharacterDetailPage({ params }: Props) {
     : isOnStage
       ? 'On stage'
       : 'Not on stage'
-
-  const stageRoleLabel =
-    participantRole === 'main'
-      ? 'Main'
-      : participantRole === 'npc'
-        ? 'NPC'
-        : '—'
 
   return (
     <>
@@ -186,12 +177,6 @@ export default async function CharacterDetailPage({ params }: Props) {
               </h2>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <p className="text-xs text-[#444440]">Role</p>
-                  <p className="mt-1 font-mono text-sm uppercase tracking-[0.05em] text-[#F0EDE8]">
-                    {stageRoleLabel}
-                  </p>
-                </div>
-                <div>
                   <p className="text-xs text-[#444440]">Status</p>
                   <p
                     className={`mt-1 font-mono text-sm uppercase tracking-[0.05em] ${
@@ -201,6 +186,12 @@ export default async function CharacterDetailPage({ params }: Props) {
                     }`}
                   >
                     {statusLabel}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-[#444440]">Updated</p>
+                  <p className="mt-1 text-sm text-[#888880]">
+                    {formatDate(character.updatedAt)}
                   </p>
                 </div>
                 <div>
@@ -229,7 +220,9 @@ export default async function CharacterDetailPage({ params }: Props) {
                 )}
               </div>
             </section>
+          </div>
 
+          <div className="space-y-6">
             <section className="overflow-hidden rounded-md border border-[#242424] bg-[#161616]">
               <div className="flex items-center justify-between gap-3 border-b border-[#242424] px-5 py-4">
                 <h2 className="shrink-0 text-xs font-semibold uppercase tracking-[0.1em] text-[#888880]">
@@ -249,9 +242,7 @@ export default async function CharacterDetailPage({ params }: Props) {
                 gradient={stageGradient}
               />
             </section>
-          </div>
 
-          <div className="space-y-6">
             <section className="rounded-md border border-[#242424] bg-[#161616] p-5">
               <h2 className="mb-4 text-xs font-semibold uppercase tracking-[0.1em] text-[#888880]">
                 Agent

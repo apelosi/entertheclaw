@@ -2,7 +2,6 @@ import { Nav } from '@/components/nav'
 import { db } from '@/lib/db/client'
 import { characters } from '@/lib/db/schema'
 import { eq, desc } from 'drizzle-orm'
-import Image from 'next/image'
 import Link from 'next/link'
 import {
   ListPageEmpty,
@@ -14,6 +13,7 @@ import { AUTH_PATH } from '@/lib/auth/paths'
 import { AGENT_INVITE_PATH } from '@/lib/paths'
 import { getMyCharacters } from '@/lib/home/queries'
 import { getCommunityCharacterCount } from '@/lib/home/feed-queries'
+import { CharacterCard, CHARACTER_CARD_GRID_CLASS } from '@/components/characters/character-card'
 
 export const metadata = { title: 'Characters' }
 export const dynamic = 'force-dynamic'
@@ -108,85 +108,34 @@ export default async function CharactersPage({
         ) : activeTab === 'community' && communityCharacterCount === 0 ? (
           <ListPageEmpty message="No characters on stage yet." />
         ) : activeTab === 'my' ? (
-          <div className="grid w-full grid-cols-2 gap-5 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
+          <div className={CHARACTER_CARD_GRID_CLASS + ' w-full'}>
             {myCharacters.map((char) => (
-              <Link
+              <CharacterCard
                 key={char.id}
-                href={`/stage/${char.stageId}`}
-                className="group flex flex-col overflow-hidden rounded-md border border-[#242424] bg-[#161616] transition-all hover:border-[#3A3A3A] hover:shadow-[0_0_20px_rgba(196,30,58,0.08)]"
-              >
-                <div className="relative aspect-square w-full bg-[#111111]">
-                  {char.imageUrl ? (
-                    <Image
-                      src={char.imageUrl}
-                      alt={char.name ?? 'Character'}
-                      fill
-                      className="object-cover"
-                      sizes="(max-width: 640px) 50vw, 200px"
-                    />
-                  ) : (
-                    <div className="flex h-full w-full items-center justify-center text-4xl text-[#444440]">
-                      ◈
-                    </div>
-                  )}
-                  {!char.isComplete && (
-                    <span className="absolute right-2 top-2 rounded bg-[#C41E3A]/90 px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wide text-white">
-                      Creating
-                    </span>
-                  )}
-                </div>
-                <div className="p-3">
-                  <p
-                    className="truncate text-base font-semibold tracking-[-0.02em] text-[#F0EDE8]"
-                    style={{ fontFamily: 'var(--font-display)' }}
-                  >
-                    {char.name ?? 'Unknown'}
-                  </p>
-                  {char.occupation && (
-                    <p className="mt-0.5 truncate text-xs text-[#888880]">{char.occupation}</p>
-                  )}
-                  <p className="mt-1 truncate text-[11px] text-[#444440]">
-                    {char.agentName ?? 'Agent'}
-                    {char.stageName ? ` · ${char.stageName}` : ''}
-                  </p>
-                </div>
-              </Link>
+                id={char.id}
+                name={char.name}
+                imageUrl={char.imageUrl}
+                occupation={char.occupation}
+                stageId={char.stageId}
+                isComplete={char.isComplete}
+                isOnStage={char.isOnStage}
+                agentName={char.agentName}
+                stageName={char.stageName}
+              />
             ))}
           </div>
         ) : (
-          <div className="grid w-full grid-cols-2 gap-5 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-6">
+          <div className={CHARACTER_CARD_GRID_CLASS + ' w-full'}>
             {communityRows.map((char) => (
-              <Link
+              <CharacterCard
                 key={char.id}
-                href={`/stage/${char.stageId}`}
-                className="group flex flex-col overflow-hidden rounded-md border border-[#242424] bg-[#161616] transition-all hover:border-[#3A3A3A] hover:shadow-[0_0_20px_rgba(196,30,58,0.08)]"
-              >
-                <div className="relative aspect-square w-full bg-[#111111]">
-                  {char.imageUrl ? (
-                    <Image
-                      src={char.imageUrl}
-                      alt={char.name ?? 'Character'}
-                      fill
-                      className="object-cover"
-                    />
-                  ) : (
-                    <div className="flex h-full w-full items-center justify-center text-4xl text-[#444440]">
-                      ◈
-                    </div>
-                  )}
-                </div>
-                <div className="p-3">
-                  <p
-                    className="truncate text-base font-semibold tracking-[-0.02em] text-[#F0EDE8]"
-                    style={{ fontFamily: 'var(--font-display)' }}
-                  >
-                    {char.name ?? 'Unknown'}
-                  </p>
-                  {char.occupation && (
-                    <p className="mt-0.5 truncate text-xs text-[#888880]">{char.occupation}</p>
-                  )}
-                </div>
-              </Link>
+                id={char.id}
+                name={char.name}
+                imageUrl={char.imageUrl}
+                occupation={char.occupation}
+                stageId={char.stageId}
+                isComplete={char.isComplete}
+              />
             ))}
           </div>
         )}

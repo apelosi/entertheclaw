@@ -2,9 +2,8 @@ import { Nav } from '@/components/nav'
 import { db } from '@/lib/db/client'
 import { agents } from '@/lib/db/schema'
 import { eq, desc } from 'drizzle-orm'
-import Image from 'next/image'
 import Link from 'next/link'
-import { AGENT_INVITE_PATH, agentDetailPath } from '@/lib/paths'
+import { AGENT_INVITE_PATH } from '@/lib/paths'
 import {
   ListPageEmpty,
   ListPageInviteAction,
@@ -14,6 +13,7 @@ import { getServerSession } from '@/lib/auth/get-server-session'
 import { AUTH_PATH } from '@/lib/auth/paths'
 import { getMyAgents } from '@/lib/home/queries'
 import { getEnrolledAgentCount } from '@/lib/home/feed-queries'
+import { AgentCard, AGENT_CARD_GRID_CLASS } from '@/components/agents/agent-card'
 
 export const metadata = { title: 'Agents' }
 export const dynamic = 'force-dynamic'
@@ -123,67 +123,33 @@ export default async function AgentsPage({
         ) : activeTab === 'community' && enrolledAgentCount === 0 ? (
           <ListPageEmpty message="No agents enrolled yet." />
         ) : activeTab === 'my' ? (
-          <div className="grid w-full gap-3 sm:grid-cols-2">
+          <div className={AGENT_CARD_GRID_CLASS + ' w-full'}>
             {myAgents.map((agent) => (
-              <Link
+              <AgentCard
                 key={agent.id}
-                href={agentDetailPath(agent.id)}
-                className="flex items-center justify-between rounded-md border border-[#242424] bg-[#161616] p-4 transition-all hover:border-[#3A3A3A] hover:shadow-[0_0_20px_rgba(196,30,58,0.08)]"
-              >
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-medium text-[#F0EDE8]">
-                    {agent.name ?? 'Unnamed Agent'}
-                  </p>
-                  <p className="mt-0.5 font-mono text-[11px] text-[#444440]">
-                    {agent.apiKeyPrefix}
-                  </p>
-                  {agent.currentStageName && (
-                    <p className="mt-1 truncate text-xs text-[#888880]">
-                      On {agent.currentStageName}
-                    </p>
-                  )}
-                </div>
-                <div className="ml-3 flex shrink-0 items-center gap-3">
-                  <span
-                    className={`font-mono text-[11px] uppercase tracking-[0.08em] ${
-                      agent.status === 'active' ? 'text-[#C41E3A]' : 'text-[#444440]'
-                    }`}
-                  >
-                    {agent.status}
-                  </span>
-                  <span className="text-[#444440]">→</span>
-                </div>
-              </Link>
+                id={agent.id}
+                name={agent.name}
+                imageUrl={agent.imageUrl}
+                agentType={agent.agentType}
+                status={agent.status}
+                meta={
+                  agent.currentStageName
+                    ? `On ${agent.currentStageName}`
+                    : agent.apiKeyPrefix
+                }
+              />
             ))}
           </div>
         ) : (
-          <div className="grid w-full grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
+          <div className={`${AGENT_CARD_GRID_CLASS} w-full`}>
             {communityRows.map((agent) => (
-              <div
+              <AgentCard
                 key={agent.id}
-                className="group flex flex-col items-center rounded-md border border-[#242424] bg-[#161616] p-4 text-center transition-colors hover:border-[#3A3A3A]"
-              >
-                <div className="relative mb-3 h-14 w-14 overflow-hidden rounded-full bg-[#111111]">
-                  {agent.imageUrl ? (
-                    <Image
-                      src={agent.imageUrl}
-                      alt={agent.name ?? 'Agent'}
-                      fill
-                      className="object-cover"
-                    />
-                  ) : (
-                    <div className="flex h-full w-full items-center justify-center text-2xl text-[#444440]">
-                      ◈
-                    </div>
-                  )}
-                </div>
-                <p className="truncate text-sm font-medium text-[#F0EDE8]">
-                  {agent.name ?? 'Unnamed'}
-                </p>
-                <p className="mt-0.5 font-mono text-[11px] text-[#444440]">
-                  {agent.agentType ?? 'custom'}
-                </p>
-              </div>
+                id={agent.id}
+                name={agent.name}
+                imageUrl={agent.imageUrl}
+                agentType={agent.agentType}
+              />
             ))}
           </div>
         )}

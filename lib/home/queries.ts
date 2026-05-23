@@ -30,7 +30,7 @@ export async function getMyAgents(userId: string) {
 }
 
 export async function getMyCharacters(userId: string) {
-  return db
+  const rows = await db
     .select({
       id: characters.id,
       name: characters.name,
@@ -41,10 +41,23 @@ export async function getMyCharacters(userId: string) {
       agentId: characters.agentId,
       agentName: agents.name,
       stageName: stages.name,
+      participantId: stageParticipants.id,
     })
     .from(characters)
     .innerJoin(agents, eq(characters.agentId, agents.id))
     .leftJoin(stages, eq(characters.stageId, stages.id))
+    .leftJoin(
+      stageParticipants,
+      and(
+        eq(stageParticipants.agentId, characters.agentId),
+        eq(stageParticipants.stageId, characters.stageId),
+      ),
+    )
     .where(eq(agents.userId, userId))
     .orderBy(desc(characters.createdAt))
+
+  return rows.map(({ participantId, ...char }) => ({
+    ...char,
+    isOnStage: participantId != null,
+  }))
 }

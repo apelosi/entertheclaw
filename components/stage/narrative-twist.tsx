@@ -136,12 +136,6 @@ export function NarrativeTwist({
     <>
       {/* Submit form — at the top */}
       <div className="flex flex-col gap-2">
-        <CountdownLine
-          stageLocked={stageLocked}
-          userLocked={userLocked}
-          stageRemainingMs={stageRemainingMs}
-          userRemainingMs={userRemainingMs}
-        />
         <textarea
           className={cn(
             'h-20 w-full resize-none rounded-sm border border-[#242424]/70 bg-[#0e0e0e]/80 p-2.5 font-mono text-xs text-[#F0EDE8] placeholder:text-[#444440]',
@@ -230,12 +224,13 @@ export function NarrativeTwist({
               >
                 Narrative Twist
               </h2>
-              {windowOpen && (
-                <span className="relative flex h-1.5 w-1.5 shrink-0" aria-label="Window open">
-                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#C41E3A] opacity-60" />
-                  <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-[#C41E3A] shadow-[0_0_6px_#C41E3A]" />
-                </span>
-              )}
+              <HeaderStatus
+                windowOpen={windowOpen}
+                stageLocked={stageLocked}
+                userLocked={userLocked}
+                stageRemainingMs={stageRemainingMs}
+                userRemainingMs={userRemainingMs}
+              />
             </div>
             <span
               className={cn(
@@ -275,12 +270,13 @@ export function NarrativeTwist({
           >
             Narrative Twist
           </h2>
-          {windowOpen && (
-            <span className="relative flex h-1.5 w-1.5" aria-label="Window open">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#C41E3A] opacity-60" />
-              <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-[#C41E3A] shadow-[0_0_6px_#C41E3A]" />
-            </span>
-          )}
+          <HeaderStatus
+            windowOpen={windowOpen}
+            stageLocked={stageLocked}
+            userLocked={userLocked}
+            stageRemainingMs={stageRemainingMs}
+            userRemainingMs={userRemainingMs}
+          />
         </header>
         {body}
       </aside>
@@ -296,41 +292,42 @@ export function NarrativeTwist({
   )
 }
 
-function CountdownLine({
+function HeaderStatus({
+  windowOpen,
   stageLocked,
-  userLocked,
   stageRemainingMs,
   userRemainingMs,
 }: {
+  windowOpen: boolean
   stageLocked: boolean
   userLocked: boolean
   stageRemainingMs: number
   userRemainingMs: number
 }) {
-  if (!stageLocked && !userLocked) {
+  if (windowOpen) {
     return (
-      <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-[#888880]">
-        Window open — <span className="text-[#C41E3A]">submit now</span>
-      </p>
+      <span className="animate-pulse rounded-sm bg-[#F0EDE8] px-2 py-1 font-mono text-[10px] font-semibold uppercase tracking-[0.15em] text-[#080808] shadow-[0_0_14px_rgba(240,237,232,0.45)]">
+        Submit Now
+      </span>
     )
   }
 
   const ms = stageLocked ? stageRemainingMs : userRemainingMs
-  const label = stageLocked ? 'Window closes in' : 'Your cooldown'
+  const label = stageLocked ? 'Closes' : 'Cooldown'
   const minutes = Math.floor(ms / 60000)
   const seconds = Math.floor((ms % 60000) / 1000)
   const mm = String(minutes).padStart(2, '0')
   const ss = String(seconds).padStart(2, '0')
 
   return (
-    <p className="flex items-baseline gap-2 font-mono text-[11px] uppercase tracking-[0.18em] text-[#888880]">
-      <span>{label}</span>
-      <span className="text-[18px] tracking-[0.05em] text-[#F0EDE8]">
+    <span className="shrink-0 font-mono text-[11px] uppercase tracking-[0.15em] text-[#888880]">
+      {label}{' '}
+      <span className="text-[#F0EDE8]">
         {mm}
         <span className="text-[#C41E3A]">:</span>
         {ss}
       </span>
-    </p>
+    </span>
   )
 }
 

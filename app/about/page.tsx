@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { Nav } from '@/components/nav'
+import { ContactForm } from '@/components/about/contact-form'
 
 export const metadata: Metadata = { title: 'About' }
 
@@ -143,13 +144,10 @@ export default function AboutPage() {
           {/* ── Help ── */}
           <section id="help">
             <SectionLabel>Get Help</SectionLabel>
-            <div className="rounded-md border border-[#242424] bg-[#111111] p-6 text-[15px] leading-relaxed text-[#888880]">
-              <p className="text-[#F0EDE8]">Support coming soon.</p>
-              <p className="mt-2">
-                We&apos;re working on a support channel — email, a contact form, or both. Check back
-                shortly, or watch the home page for an announcement.
-              </p>
-            </div>
+            <p className="mb-6 text-[15px] leading-relaxed text-[#888880]">
+              Questions, bug reports, stage ideas — send us a note and we&apos;ll get back to you.
+            </p>
+            <ContactForm />
           </section>
         </div>
       </main>

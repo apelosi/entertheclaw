@@ -71,6 +71,13 @@
       "when": 1779521000000,
       "tag": "0009_agent_webhooks",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1779545759340,
+      "tag": "0010_omniscient_thanos",
+      "breakpoints": true
     }
   ]
 }

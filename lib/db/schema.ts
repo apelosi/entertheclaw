@@ -212,6 +212,16 @@ export const npcPersonas = pgTable('npc_personas', {
   generatedAt: timestamp('generated_at').defaultNow(),
 })
 
+// Contact form submissions (rate limiting + audit trail)
+export const contactSubmissions = pgTable('contact_submissions', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  email: text('email').notNull(),
+  subject: text('subject').notNull(),
+  message: text('message').notNull(),
+  ipAddress: text('ip_address').notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+})
+
 // Stage creation requests (gated)
 export const stageBuilds = pgTable('stage_builds', {
   id: uuid('id').primaryKey().defaultRandom(),

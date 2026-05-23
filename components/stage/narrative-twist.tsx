@@ -231,8 +231,12 @@ export function NarrativeTwist({
                 Narrative Twist
               </h2>
               {windowOpen && (
-                <span className="shrink-0 font-mono text-[10px] uppercase tracking-[0.18em] text-[#C41E3A]">
-                  Open
+                <span className="flex shrink-0 items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.18em] text-[#C41E3A]">
+                  <span className="relative flex h-1.5 w-1.5">
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#C41E3A] opacity-60" />
+                    <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-[#C41E3A] shadow-[0_0_6px_#C41E3A]" />
+                  </span>
+                  Live
                 </span>
               )}
             </div>
@@ -275,8 +279,12 @@ export function NarrativeTwist({
             Narrative Twist
           </h2>
           {windowOpen && (
-            <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-[#C41E3A]">
-              Open
+            <span className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.18em] text-[#C41E3A]">
+              <span className="relative flex h-1.5 w-1.5">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#C41E3A] opacity-60" />
+                <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-[#C41E3A] shadow-[0_0_6px_#C41E3A]" />
+              </span>
+              Live
             </span>
           )}
         </header>

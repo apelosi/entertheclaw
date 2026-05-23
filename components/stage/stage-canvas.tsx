@@ -477,7 +477,7 @@ export default function StageCanvas({
           {...sharedDialogueProps}
           recentItems={recentDialogueItems}
         />
-        <NarrativeTwist {...sharedNarrativeProps} collapsible defaultOpen />
+        <NarrativeTwist {...sharedNarrativeProps} collapsible defaultOpen={false} />
         <CharactersRail
           stageId={stageId}
           mainCharacters={mainCharacters}

@@ -414,7 +414,7 @@ export default function StageCanvas({
     <main className="relative mx-auto w-full max-w-[1280px] bg-[#080808]">
       {/* Stage band: backdrop + sprites. Capped to the same max-width as the panels below
           so the room never balloons across the full viewport on large displays. */}
-      <div className="relative aspect-[16/9] min-h-[200px] w-full overflow-hidden">
+      <div className="relative aspect-[16/9] min-h-[200px] w-full overflow-hidden max-md:min-h-[160px]">
         {/* Backdrop */}
         <div className="absolute inset-0">
           {stageImageUrl ? (
@@ -448,14 +448,14 @@ export default function StageCanvas({
         </div>
 
         {/* Slim title bar: ← LIVE | Stage Name | About — z-30 so it renders above dialogue overlay */}
-        <div className="pointer-events-none absolute inset-x-0 top-0 z-30 px-4 pt-3">
-          <div className="pointer-events-auto grid grid-cols-[1fr_auto_1fr] items-center gap-3">
-            <div className="flex min-w-0 items-center gap-3">
+        <div className="pointer-events-none absolute inset-x-0 top-0 z-30 px-4 pt-3 max-md:px-3 max-md:pt-2">
+          <div className="pointer-events-auto grid grid-cols-[1fr_auto_1fr] items-center gap-3 max-md:gap-2">
+            <div className="flex min-w-0 items-center gap-3 max-md:gap-2">
               {/* Back — icon only on mobile, label on desktop */}
               <Link
                 href="/"
                 aria-label="Exit stage"
-                className="inline-flex shrink-0 items-center gap-1.5 font-mono text-[11px] uppercase tracking-[0.18em] text-[#F0EDE8]/70 drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)] transition-colors hover:text-[#F0EDE8]"
+                className="inline-flex shrink-0 items-center gap-1.5 font-mono text-[11px] uppercase tracking-[0.18em] text-[#F0EDE8]/70 drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)] transition-colors hover:text-[#F0EDE8] max-md:gap-1 max-md:text-[9px] max-md:tracking-[0.14em]"
               >
                 <span>←</span>
                 <span className="hidden sm:inline">Exit Stage</span>
@@ -466,7 +466,7 @@ export default function StageCanvas({
 
             {/* Stage name — centered between equal-width side columns */}
             <h1
-              className="min-w-0 truncate text-center text-[22px] font-light italic leading-none tracking-[-0.02em] text-[#F0EDE8] drop-shadow-[0_2px_12px_rgba(0,0,0,0.85)] sm:text-[28px]"
+              className="min-w-0 truncate text-center text-[22px] font-light italic leading-none tracking-[-0.02em] text-[#F0EDE8] drop-shadow-[0_2px_12px_rgba(0,0,0,0.85)] max-md:text-[17px] sm:text-[28px]"
               style={{ fontFamily: 'var(--font-display)' }}
               title={stageName}
             >
@@ -479,7 +479,7 @@ export default function StageCanvas({
                 type="button"
                 onClick={() => setAboutOpen((v) => !v)}
                 aria-expanded={aboutOpen}
-                className="shrink-0 font-mono text-[10px] uppercase tracking-[0.18em] text-[#F0EDE8]/70 drop-shadow-[0_1px_3px_rgba(0,0,0,0.85)] transition-colors hover:text-[#F0EDE8]"
+                className="shrink-0 font-mono text-[10px] uppercase tracking-[0.18em] text-[#F0EDE8]/70 drop-shadow-[0_1px_3px_rgba(0,0,0,0.85)] transition-colors hover:text-[#F0EDE8] max-md:text-[8px] max-md:tracking-[0.14em]"
               >
                 About
               </button>
@@ -505,12 +505,12 @@ export default function StageCanvas({
       />
 
       {/* Panels — single column on mobile, dialogue (wide) + twist/characters (narrow) on lg */}
-      <div className="grid gap-3 p-4 lg:grid-cols-[1fr_22rem] lg:items-start lg:gap-5 lg:p-6">
+      <div className="grid gap-3 p-4 max-md:gap-2 max-md:p-3 lg:grid-cols-[1fr_22rem] lg:items-start lg:gap-5 lg:p-6">
         <DialoguePanel
           {...sharedDialogueProps}
           recentItems={recentScriptItems}
         />
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-3 max-md:gap-2">
           <NarrativeTwist {...sharedNarrativeProps} collapsible defaultOpen={false} />
           <CharactersRail
             stageId={stageId}
@@ -530,13 +530,13 @@ function LiveBadge({ isLive }: { isLive: boolean }) {
     <span
       aria-label={isLive ? 'Stage is live' : 'Stage is idle'}
       className={
-        'inline-flex shrink-0 items-center gap-1.5 rounded-sm border px-2 py-1 font-mono text-[10px] uppercase tracking-[0.18em] drop-shadow-[0_1px_3px_rgba(0,0,0,0.85)] ' +
+        'inline-flex shrink-0 items-center gap-1.5 rounded-sm border px-2 py-1 font-mono text-[10px] uppercase tracking-[0.18em] drop-shadow-[0_1px_3px_rgba(0,0,0,0.85)] max-md:gap-1 max-md:px-1.5 max-md:py-0.5 max-md:text-[8px] max-md:tracking-[0.14em] ' +
         (isLive
           ? 'border-[#C41E3A]/50 bg-[#C41E3A]/15 text-[#C41E3A]'
           : 'border-[#444440]/40 bg-[#080808]/40 text-[#888880]')
       }
     >
-      <span className="relative flex h-1.5 w-1.5">
+      <span className="relative flex h-1.5 w-1.5 max-md:h-1 max-md:w-1">
         {isLive && (
           <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#C41E3A] opacity-60" />
         )}

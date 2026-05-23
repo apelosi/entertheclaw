@@ -6,6 +6,15 @@ import { AUTH_PATH } from '@/lib/auth/paths'
 import type { ActiveTwist } from './active-twist'
 import type { FeedItem } from '@/lib/stage/feed-items'
 import { SectionCollapsibleHeader } from './section-collapsible-header'
+import {
+  LINK_MICRO,
+  MONO_LABEL,
+  PANEL_COLLAPSIBLE_INSET,
+  PANEL_INSET,
+  PANEL_STACK_GAP,
+  SECTION_HEADER_GAP,
+  SECTION_TITLE,
+} from './stage-mobile-classes'
 import { TwistHistoryModal } from './twist-history-modal'
 
 const STAGE_COOLDOWN_MS = 6 * 60 * 1000
@@ -142,10 +151,10 @@ export function NarrativeTwist({
   const body = (
     <>
       {/* Submit form — at the top */}
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-col gap-2 max-md:gap-1.5">
         <textarea
           className={cn(
-            'h-20 w-full resize-none rounded-sm border border-[#242424]/70 bg-[#0e0e0e]/80 p-2.5 font-mono text-xs text-[#F0EDE8] placeholder:text-[#444440]',
+            'h-20 w-full resize-none rounded-sm border border-[#242424]/70 bg-[#0e0e0e]/80 p-2.5 font-mono text-xs text-[#F0EDE8] placeholder:text-[#444440] max-md:h-16 max-md:p-2 max-md:text-[11px]',
             'focus:border-[#C41E3A]/60 focus:outline-none focus:ring-1 focus:ring-[#C41E3A]/40',
             (!twistsEnabled || !canSubmit || stageLocked) && 'opacity-60',
           )}
@@ -172,7 +181,7 @@ export function NarrativeTwist({
             !twistsEnabled || (!isLoggedIn ? false : !canSubmit || draft.trim().length === 0)
           }
           className={cn(
-            'inline-flex h-10 w-full items-center justify-center gap-2 rounded-sm bg-[#C41E3A] px-4 font-mono text-xs font-medium uppercase tracking-[0.15em] text-[#F0EDE8] transition-all',
+            'inline-flex h-10 w-full items-center justify-center gap-2 rounded-sm bg-[#C41E3A] px-4 font-mono text-xs font-medium uppercase tracking-[0.15em] text-[#F0EDE8] transition-all max-md:h-8 max-md:px-3 max-md:text-[11px]',
             'hover:bg-[#9B1B30] hover:shadow-[0_0_18px_rgba(196,30,58,0.35)]',
             'disabled:cursor-not-allowed disabled:bg-[#161616] disabled:text-[#444440] disabled:shadow-none',
           )}
@@ -189,7 +198,10 @@ export function NarrativeTwist({
       <button
         type="button"
         onClick={() => setHistoryOpen(true)}
-        className="inline-flex w-fit font-mono text-[10px] uppercase tracking-[0.18em] text-[#888880] underline-offset-2 transition-colors hover:text-[#F0EDE8] hover:underline"
+        className={cn(
+          LINK_MICRO,
+          'inline-flex w-fit text-[#888880] underline-offset-2 transition-colors hover:text-[#F0EDE8] hover:underline',
+        )}
       >
         Twist History
       </button>
@@ -222,11 +234,11 @@ export function NarrativeTwist({
             onClick={() => setPanelOpen((v) => !v)}
             ariaLabelExpanded="Collapse twists"
             ariaLabelCollapsed="Expand twists"
-            className="p-3"
+            className={PANEL_COLLAPSIBLE_INSET}
           />
 
           {panelOpen && (
-            <div className="flex flex-col gap-2.5 px-3 pb-3">
+            <div className={cn('flex flex-col', PANEL_STACK_GAP, PANEL_INSET)}>
               {body}
             </div>
           )}
@@ -247,14 +259,16 @@ export function NarrativeTwist({
     <>
       <aside
         className={cn(
-          'glass-hud pointer-events-auto flex w-full flex-col gap-2.5 rounded-sm border-l-2 p-3 shadow-[0_12px_40px_rgba(0,0,0,0.45)]',
+          'glass-hud pointer-events-auto flex w-full flex-col rounded-sm border-l-2 shadow-[0_12px_40px_rgba(0,0,0,0.45)]',
+          PANEL_STACK_GAP,
+          PANEL_COLLAPSIBLE_INSET,
           twistsEnabled ? 'border-l-[#C41E3A]/70' : 'border-l-[#444440]/50 opacity-70',
         )}
       >
-        <header className="flex items-center gap-3">
+        <header className={cn('flex items-center', SECTION_HEADER_GAP)}>
           <h2
             className={cn(
-              'shrink-0 text-[20px] font-light italic leading-none tracking-[-0.02em]',
+              SECTION_TITLE,
               twistsEnabled ? 'text-[#F0EDE8]' : 'text-[#888880]',
             )}
             style={{ fontFamily: 'var(--font-display)' }}
@@ -302,7 +316,7 @@ function HeaderStatus({
 }) {
   if (!twistsEnabled) {
     return (
-      <span className="max-w-full truncate font-mono text-[10px] uppercase tracking-[0.18em] text-[#444440]">
+      <span className={cn('max-w-full truncate text-[#444440]', MONO_LABEL)}>
         Inactive
       </span>
     )
@@ -310,7 +324,12 @@ function HeaderStatus({
 
   if (windowOpen) {
     return (
-      <span className="shrink-0 animate-pulse rounded-sm bg-[#F0EDE8] px-2 py-1 font-mono text-[10px] font-semibold uppercase tracking-[0.15em] text-[#080808] shadow-[0_0_14px_rgba(240,237,232,0.45)]">
+      <span
+        className={cn(
+          MONO_LABEL,
+          'shrink-0 animate-pulse rounded-sm bg-[#F0EDE8] px-2 py-1 font-semibold tracking-[0.15em] text-[#080808] shadow-[0_0_14px_rgba(240,237,232,0.45)] max-md:px-1.5 max-md:py-0.5',
+        )}
+      >
         Submit Now
       </span>
     )
@@ -324,7 +343,7 @@ function HeaderStatus({
   const ss = String(seconds).padStart(2, '0')
 
   return (
-    <span className="max-w-full truncate font-mono text-[10px] uppercase tracking-[0.18em] text-[#888880]">
+    <span className={cn('max-w-full truncate text-[#888880]', MONO_LABEL)}>
       {label}{' '}
       <span className="text-[#F0EDE8]">
         {mm}
@@ -338,7 +357,7 @@ function HeaderStatus({
 function SubmissionStatus({ state }: { state: SubmissionState }) {
   if (state.kind === 'won') {
     return (
-      <p className="text-xs text-[#F0EDE8]">
+      <p className="text-xs text-[#F0EDE8] max-md:text-[11px]">
         <span
           className="italic text-[#C41E3A]"
           style={{ fontFamily: 'var(--font-display)' }}
@@ -350,10 +369,10 @@ function SubmissionStatus({ state }: { state: SubmissionState }) {
     )
   }
   if (state.kind === 'lost') {
-    return <p className="text-xs text-[#888880]">{state.reason}</p>
+    return <p className="text-xs text-[#888880] max-md:text-[11px]">{state.reason}</p>
   }
   if (state.kind === 'error') {
-    return <p className="text-xs text-[#E8405A]">{state.message}</p>
+    return <p className="text-xs text-[#E8405A] max-md:text-[11px]">{state.message}</p>
   }
   return null
 }

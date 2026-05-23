@@ -9,6 +9,18 @@ import {
   type StageEventLike,
 } from '@/lib/stage/feed-items'
 import { cn } from '@/lib/utils'
+import {
+  MODAL_BODY,
+  MODAL_CLOSE_BTN,
+  MODAL_HEADER,
+  MODAL_LIST_GAP,
+  MODAL_SHELL,
+  MODAL_SUBTITLE,
+  MODAL_TITLE,
+  MONO_BODY,
+  MONO_BODY_SM,
+  MONO_LABEL,
+} from './stage-mobile-classes'
 
 interface Props {
   open: boolean
@@ -69,7 +81,7 @@ export function DialogueHistoryModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-[#080808]/80 p-4 backdrop-blur-sm"
+      className={MODAL_SHELL}
       role="dialog"
       aria-modal="true"
       aria-labelledby="script-history-title"
@@ -79,25 +91,25 @@ export function DialogueHistoryModal({
         className="glass-hud flex max-h-[min(85vh,720px)] w-full max-w-2xl flex-col rounded-sm border border-[#242424]/80 shadow-[0_30px_80px_rgba(0,0,0,0.75)]"
         onClick={(e) => e.stopPropagation()}
       >
-        <header className="flex items-start justify-between gap-4 border-b border-[#242424]/60 px-5 py-4">
+        <header className={MODAL_HEADER}>
           <div>
             <h2
               id="script-history-title"
-              className="text-[24px] font-light italic leading-none text-[#F0EDE8]"
+              className={MODAL_TITLE}
               style={{ fontFamily: 'var(--font-display)' }}
             >
               Script History
             </h2>
-            <p className="mt-1 font-mono text-[10px] uppercase tracking-[0.18em] text-[#888880]">
+            <p className={MODAL_SUBTITLE}>
               {stageName} · newest first
             </p>
           </div>
-          <div className="flex shrink-0 items-center gap-2">
+          <div className="flex shrink-0 items-center gap-2 max-md:gap-1.5">
             <CopyButton text={markdown} label="Copy script" />
             <button
               type="button"
               onClick={downloadMd}
-              className="inline-flex h-8 items-center gap-1.5 rounded border border-[#3A3A3A] px-2.5 font-mono text-[10px] uppercase tracking-[0.12em] text-[#888880] transition-colors hover:border-[#444440] hover:bg-[#161616] hover:text-[#F0EDE8]"
+              className="inline-flex h-8 items-center gap-1.5 rounded border border-[#3A3A3A] px-2.5 font-mono text-[10px] uppercase tracking-[0.12em] text-[#888880] transition-colors hover:border-[#444440] hover:bg-[#161616] hover:text-[#F0EDE8] max-md:h-7 max-md:px-2 max-md:text-[8px]"
             >
               .md
             </button>
@@ -105,25 +117,25 @@ export function DialogueHistoryModal({
               type="button"
               onClick={onClose}
               aria-label="Close"
-              className="inline-flex h-8 w-8 items-center justify-center rounded border border-[#3A3A3A] font-mono text-sm text-[#888880] transition-colors hover:text-[#F0EDE8]"
+              className={MODAL_CLOSE_BTN}
             >
               ×
             </button>
           </div>
         </header>
 
-        <div className="flex-1 overflow-y-auto px-5 py-4">
+        <div className={MODAL_BODY}>
           {loading && items.length === 0 ? (
-            <p className="font-mono text-xs text-[#888880]">Loading history…</p>
+            <p className="font-mono text-xs text-[#888880] max-md:text-[11px]">Loading history…</p>
           ) : items.length === 0 ? (
-            <p className="font-mono text-xs text-[#444440]">No script entries yet.</p>
+            <p className="font-mono text-xs text-[#444440] max-md:text-[11px]">No script entries yet.</p>
           ) : (
-            <ul className="flex flex-col gap-4">
+            <ul className={MODAL_LIST_GAP}>
               {items.map((item) => (
                 <li
                   key={item.id}
                   className={cn(
-                    'border-l-2 pl-3',
+                    'border-l-2 pl-3 max-md:pl-2',
                     item.kind === 'twist'
                       ? 'border-l-[#B8860B]/80'
                       : item.kind === 'scene'
@@ -133,10 +145,10 @@ export function DialogueHistoryModal({
                 >
                   {item.kind === 'dialogue' ? (
                     <>
-                      <p className="font-mono text-[10px] uppercase tracking-[0.15em] text-[#C41E3A]">
+                      <p className={cn(MONO_LABEL, 'tracking-[0.15em] text-[#C41E3A]')}>
                         {item.speakerName}
                       </p>
-                      <p className="mt-1 font-mono text-[13px] leading-relaxed text-[#F0EDE8]">
+                      <p className={cn('mt-1 text-[#F0EDE8]', MONO_BODY)}>
                         {item.isEmote ? (
                           <em className="text-[#888880]">{item.text}</em>
                         ) : (
@@ -146,32 +158,32 @@ export function DialogueHistoryModal({
                     </>
                   ) : item.kind === 'scene' ? (
                     <>
-                      <p className="font-mono text-[10px] uppercase tracking-[0.15em] text-[#2A8E8E]">
+                      <p className={cn(MONO_LABEL, 'tracking-[0.15em] text-[#2A8E8E]')}>
                         Scene · {item.name}
                       </p>
-                      <p className="mt-1 font-mono text-[12px] italic leading-relaxed text-[#F0EDE8]/85">
+                      <p className={cn('mt-1 italic text-[#F0EDE8]/85', MONO_BODY_SM)}>
                         {item.description}
                       </p>
                       {item.reason && (
-                        <p className="mt-1 font-mono text-[10px] text-[#888880]">
+                        <p className={cn('mt-1 text-[#888880]', MONO_LABEL)}>
                           {item.reason}
                         </p>
                       )}
                     </>
                   ) : (
                     <>
-                      <p className="font-mono text-[10px] uppercase tracking-[0.15em] text-[#B8860B]">
+                      <p className={cn(MONO_LABEL, 'tracking-[0.15em] text-[#B8860B]')}>
                         Twist · {item.userDisplayName}
                       </p>
                       <p
-                        className="mt-1 text-[15px] italic leading-snug text-[#F0EDE8]"
+                        className="mt-1 text-[15px] italic leading-snug text-[#F0EDE8] max-md:text-[13px]"
                         style={{ fontFamily: 'var(--font-display)' }}
                       >
                         “{item.text}”
                       </p>
                     </>
                   )}
-                  <time className="mt-1 block font-mono text-[9px] uppercase tracking-[0.12em] text-[#444440]">
+                  <time className="mt-1 block font-mono text-[9px] uppercase tracking-[0.12em] text-[#444440] max-md:text-[8px]">
                     {new Date(item.createdAt).toLocaleString()}
                   </time>
                 </li>

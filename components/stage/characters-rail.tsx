@@ -6,6 +6,15 @@ import Link from 'next/link'
 import { cn } from '@/lib/utils'
 import { characterDetailPath, agentInvitePathForStage } from '@/lib/paths'
 import { SectionCollapsibleHeader } from './section-collapsible-header'
+import {
+  LINK_MICRO,
+  MONO_LABEL,
+  PANEL_COLLAPSIBLE_INSET,
+  PANEL_INSET,
+  PANEL_STACK_GAP,
+  SECTION_HEADER_GAP,
+  SECTION_TITLE,
+} from './stage-mobile-classes'
 
 export interface RailCharacter {
   participantId: string
@@ -47,7 +56,7 @@ export function CharactersRail({
   const countLabel = `${String(activeCount).padStart(2, '0')}/${String(maxSlots).padStart(2, '0')}`
 
   const grid = (
-    <div className="grid grid-cols-4 gap-1.5">
+    <div className="grid grid-cols-4 gap-1.5 max-md:gap-1">
       {slots.map((char, i) => {
         if (!char) {
           return (
@@ -66,8 +75,9 @@ export function CharactersRail({
 
         const tileClass = cn(
           'group relative aspect-square overflow-hidden rounded-sm bg-[#0e0e0e] transition-all',
-          isActive && 'ring-2 ring-[#C41E3A] shadow-[0_0_18px_rgba(196,30,58,0.45)]',
-          char.isMine && !isActive && 'ring-2 ring-[#B8860B]',
+          isActive &&
+            'ring-2 max-md:ring-1 ring-[#C41E3A] shadow-[0_0_18px_rgba(196,30,58,0.45)] max-md:shadow-[0_0_10px_rgba(196,30,58,0.45)]',
+          char.isMine && !isActive && 'ring-2 max-md:ring-1 ring-[#B8860B]',
           !char.isMine && !isActive && 'ring-1 ring-[#242424]/60 hover:ring-[#3A3A3A]',
         )
 
@@ -86,12 +96,12 @@ export function CharactersRail({
               />
             ) : (
               <div className="flex h-full w-full items-center justify-center bg-[#1a1a1a]">
-                <span className="text-lg text-[#444440]">◈</span>
+                <span className="text-lg max-md:text-sm text-[#444440]">◈</span>
               </div>
             )}
             {char.isMine && (
               <span
-                className="absolute right-1 top-1 inline-block h-1.5 w-1.5 rounded-full bg-[#B8860B] shadow-[0_0_6px_#B8860B]"
+                className="absolute right-1 top-1 max-md:right-0.5 max-md:top-0.5 inline-block h-1.5 w-1.5 max-md:h-1 max-md:w-1 rounded-full bg-[#B8860B] shadow-[0_0_6px_#B8860B]"
                 aria-label="Your agent"
               />
             )}
@@ -130,15 +140,18 @@ export function CharactersRail({
           onClick={() => setPanelOpen((v) => !v)}
           ariaLabelExpanded="Collapse characters"
           ariaLabelCollapsed="Expand characters"
-          className="p-3"
+          className={PANEL_COLLAPSIBLE_INSET}
         />
 
         {panelOpen && (
-          <div className="flex flex-col gap-2.5 px-3 pb-3">
+          <div className={cn('flex flex-col', PANEL_STACK_GAP, PANEL_INSET)}>
             {grid}
             <Link
               href={agentInvitePathForStage(stageId)}
-              className="mt-1 inline-flex w-fit items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.18em] text-[#888880] transition-colors hover:text-[#F0EDE8]"
+              className={cn(
+                LINK_MICRO,
+                'mt-1 inline-flex w-fit items-center gap-1.5 max-md:gap-1 text-[#888880] transition-colors hover:text-[#F0EDE8]',
+              )}
             >
               <span className="text-[#C41E3A]">+</span> Invite an Agent
             </Link>
@@ -149,15 +162,21 @@ export function CharactersRail({
   }
 
   return (
-    <aside className="glass-hud pointer-events-auto flex w-full flex-col gap-2.5 rounded-sm border-l-2 border-l-[#C41E3A]/70 p-3 shadow-[0_12px_40px_rgba(0,0,0,0.45)]">
-      <header className="flex items-center gap-3">
+    <aside
+      className={cn(
+        'glass-hud pointer-events-auto flex w-full flex-col rounded-sm border-l-2 border-l-[#C41E3A]/70 shadow-[0_12px_40px_rgba(0,0,0,0.45)]',
+        PANEL_STACK_GAP,
+        PANEL_COLLAPSIBLE_INSET,
+      )}
+    >
+      <header className={cn('flex items-center', SECTION_HEADER_GAP)}>
         <h2
-          className="shrink-0 text-[20px] font-light italic leading-none tracking-[-0.02em] text-[#F0EDE8]"
+          className={SECTION_TITLE}
           style={{ fontFamily: 'var(--font-display)' }}
         >
           Characters
         </h2>
-        <span className="min-w-0 flex-1 truncate text-right font-mono text-[10px] uppercase tracking-[0.18em] text-[#888880]">
+        <span className={cn('min-w-0 flex-1 truncate text-right', MONO_LABEL)}>
           {countLabel}
         </span>
       </header>
@@ -166,7 +185,10 @@ export function CharactersRail({
 
       <Link
         href={agentInvitePathForStage(stageId)}
-        className="mt-1 inline-flex w-fit items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.18em] text-[#888880] transition-colors hover:text-[#F0EDE8]"
+        className={cn(
+          LINK_MICRO,
+          'mt-1 inline-flex w-fit items-center gap-1.5 max-md:gap-1 text-[#888880] transition-colors hover:text-[#F0EDE8]',
+        )}
       >
         <span className="text-[#C41E3A]">+</span> Invite an Agent
       </Link>

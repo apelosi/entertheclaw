@@ -2,10 +2,11 @@
 
 import { useState } from 'react'
 import Image from 'next/image'
-import { cn } from '@/lib/utils'
 import type { FeedItem } from '@/lib/stage/feed-items'
+import { cn } from '@/lib/utils'
 import { DialogueHistoryModal } from './dialogue-history-modal'
 import { SceneBanner, type CurrentScene } from './scene-banner'
+import { SectionCollapsibleHeader } from './section-collapsible-header'
 
 export interface CurrentDialogue {
   eventId: string
@@ -24,8 +25,8 @@ interface Props {
   recentItems: FeedItem[]
   allHistoryItems: FeedItem[]
   feedBumpKey: number
-  lineCount: number
   currentScene: CurrentScene | null
+  recentScenes: FeedItem[]
   speakerImageByName: Map<string, string | null>
 }
 
@@ -43,8 +44,8 @@ export function DialoguePanel({
   recentItems,
   allHistoryItems,
   feedBumpKey,
-  lineCount,
   currentScene,
+  recentScenes,
   speakerImageByName,
 }: Props) {
   const [historyOpen, setHistoryOpen] = useState(false)
@@ -53,7 +54,12 @@ export function DialoguePanel({
   return (
     <>
       <section className="glass-hud pointer-events-auto w-full rounded-sm border-l-2 border-l-[#C41E3A]/70 shadow-[0_12px_40px_rgba(0,0,0,0.45)]">
-        <SceneBanner scene={currentScene} />
+        <SceneBanner
+          scene={currentScene}
+          stageId={stageId}
+          stageName={stageName}
+          recentScenes={recentScenes}
+        />
 
         <div className="flex items-start gap-3 p-3">
           <div className="h-12 w-12 shrink-0 overflow-hidden rounded-sm bg-[#0e0e0e]/70 ring-1 ring-[#242424]/60">
@@ -95,71 +101,98 @@ export function DialoguePanel({
           </div>
         </div>
 
-        <button
-          type="button"
+        <SectionCollapsibleHeader
+          title="Script"
+          open={recentOpen}
           onClick={() => setRecentOpen((v) => !v)}
-          className="flex w-full items-center gap-3 border-t border-[#242424]/50 px-3 py-2 transition-colors hover:border-[#3A3A3A]"
-          aria-expanded={recentOpen}
-          aria-label={recentOpen ? 'Collapse script' : 'Expand script'}
-        >
-          <h3
-            className="text-base font-semibold tracking-[-0.02em] text-[#F0EDE8]"
-            style={{ fontFamily: 'var(--font-display)' }}
-          >
-            Script
-          </h3>
-          <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-[#888880]">
-            {lineCount} line{lineCount !== 1 ? 's' : ''}
-          </span>
-          <span
-            className={cn(
-              'ml-auto text-base leading-none text-[#444440] transition-transform',
-              recentOpen && 'rotate-180',
-            )}
-            aria-hidden
-          >
-            ▾
-          </span>
-        </button>
+          ariaLabelExpanded="Collapse script"
+          ariaLabelCollapsed="Expand script"
+          className="border-t border-[#242424]/50 px-3 py-2 transition-colors hover:border-[#3A3A3A]"
+        />
 
         {recentOpen && (
           <div className="flex flex-col gap-2 px-3 pb-3">
             {recentItems.length > 0 ? (
-              <ul key={feedBumpKey} className="flex flex-col gap-2.5" aria-label="Recent lines">
+              <ul
+                key={feedBumpKey}
+                className="flex flex-col gap-2.5"
+                aria-label="Recent script entries"
+              >
                 {recentItems.map((item, index) => {
-                  if (item.kind !== 'dialogue') return null
-                  const imageUrl = resolveSpeakerImage(item, speakerImageByName)
+                  const enterClass = cn(
+                    'stage-feed-enter border-l-2 pl-2',
+                    item.kind === 'twist'
+                      ? 'border-l-[#B8860B]/80'
+                      : item.kind === 'scene'
+                        ? 'border-l-[#2A8E8E]/80'
+                        : 'border-l-transparent',
+                  )
+                  if (item.kind === 'dialogue') {
+                    const imageUrl = resolveSpeakerImage(item, speakerImageByName)
+                    return (
+                      <li
+                        key={item.id}
+                        className={enterClass}
+                        style={{ animationDelay: `${index * 40}ms` }}
+                      >
+                        <div className="flex items-start gap-2.5">
+                          <div className="h-9 w-9 shrink-0 overflow-hidden rounded-sm bg-[#0e0e0e]/70 ring-1 ring-[#242424]/60">
+                            {imageUrl ? (
+                              <Image
+                                src={imageUrl}
+                                alt={item.speakerName}
+                                width={36}
+                                height={36}
+                                className="h-full w-full object-cover image-pixelated"
+                              />
+                            ) : (
+                              <div className="flex h-full w-full items-center justify-center text-sm text-[#444440]">
+                                ◈
+                              </div>
+                            )}
+                          </div>
+                          <p className="min-w-0 flex-1 font-mono text-[11px] leading-relaxed text-[#888880]">
+                            <span className="text-[#C41E3A]/80">{item.speakerName}:</span>{' '}
+                            {item.isEmote ? <em>{item.text}</em> : item.text}
+                          </p>
+                        </div>
+                      </li>
+                    )
+                  }
+                  if (item.kind === 'scene') {
+                    return (
+                      <li
+                        key={item.id}
+                        className={enterClass}
+                        style={{ animationDelay: `${index * 40}ms` }}
+                      >
+                        <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-[#2A8E8E]">
+                          Scene · {item.name}
+                        </p>
+                        <p className="mt-0.5 font-mono text-[11px] italic leading-relaxed text-[#888880]">
+                          {item.description}
+                        </p>
+                      </li>
+                    )
+                  }
                   return (
                     <li
                       key={item.id}
-                      className="stage-feed-enter flex items-start gap-2.5"
+                      className={enterClass}
                       style={{ animationDelay: `${index * 40}ms` }}
                     >
-                      <div className="h-9 w-9 shrink-0 overflow-hidden rounded-sm bg-[#0e0e0e]/70 ring-1 ring-[#242424]/60">
-                        {imageUrl ? (
-                          <Image
-                            src={imageUrl}
-                            alt={item.speakerName}
-                            width={36}
-                            height={36}
-                            className="h-full w-full object-cover image-pixelated"
-                          />
-                        ) : (
-                          <div className="flex h-full w-full items-center justify-center text-sm text-[#444440]">
-                            ◈
-                          </div>
-                        )}
-                      </div>
-                      <p className="min-w-0 flex-1 font-mono text-[11px] leading-relaxed text-[#888880]">
-                        <span className="text-[#C41E3A]/80">{item.speakerName}:</span>{' '}
-                        {item.isEmote ? <em>{item.text}</em> : item.text}
+                      <p className="font-mono text-[11px] italic leading-relaxed text-[#B8860B]/90">
+                        <span className="not-italic text-[#888880]">
+                          {item.userDisplayName}:
+                        </span>{' '}
+                        &ldquo;{item.text}&rdquo;
                       </p>
                     </li>
                   )
                 })}
               </ul>
             ) : (
-              <p className="font-mono text-[11px] text-[#444440]">No prior lines.</p>
+              <p className="font-mono text-[11px] text-[#444440]">No prior script entries.</p>
             )}
             <button
               type="button"

@@ -55,8 +55,6 @@ interface StageCanvasProps {
   twistsEnabled: boolean
   lastTwistAt: number | null
   lastUserTwistAt: number | null
-  initialLineCount: number
-  initialTwistCount: number
 }
 
 const TYPEWRITER_INTERVAL_MS = 35
@@ -96,8 +94,6 @@ export default function StageCanvas({
   twistsEnabled,
   lastTwistAt,
   lastUserTwistAt,
-  initialLineCount,
-  initialTwistCount,
 }: StageCanvasProps) {
   const router = useRouter()
   const [dialogue, setDialogue] = useState<CurrentDialogue | null>(null)
@@ -111,8 +107,6 @@ export default function StageCanvas({
   })
   const [feedBumpKey, setFeedBumpKey] = useState(0)
   const [liveLastTwistAt, setLiveLastTwistAt] = useState<number | null>(lastTwistAt)
-  const [lineCount, setLineCount] = useState(initialLineCount)
-  const [twistCount, setTwistCount] = useState(initialTwistCount)
   const [aboutOpen, setAboutOpen] = useState(false)
   const [currentScene, setCurrentScene] = useState<CurrentScene | null>(initialScene)
   const [pendingSceneOverlay, setPendingSceneOverlay] = useState<CurrentScene | null>(null)
@@ -272,7 +266,6 @@ export default function StageCanvas({
       if (!data?.text || !data?.speakerName) return
       if (!seenEventIdsRef.current.has(raw.id)) {
         seenEventIdsRef.current.add(raw.id)
-        setLineCount((n) => n + 1)
       }
       showDialogue(data.speakerName, data.text, {
         agentId: raw.agentId,
@@ -287,7 +280,6 @@ export default function StageCanvas({
       if (data?.text) {
         if (!seenEventIdsRef.current.has(raw.id)) {
           seenEventIdsRef.current.add(raw.id)
-          setTwistCount((n) => n + 1)
         }
         const item = parseFeedItem({
           id: raw.id,
@@ -330,17 +322,22 @@ export default function StageCanvas({
     }
   }, [])
 
-  // Dialogue-only feed for the dialogue panel's recent lines
-  const recentDialogueItems = useMemo(() => {
+  // Mixed script feed (dialogue, scenes, twists) for the dialogue panel preview
+  const recentScriptItems = useMemo(() => {
     const activeId = dialogue?.eventId
     return feedItems
-      .filter((i) => i.kind === 'dialogue' && i.id !== activeId)
+      .filter((i) => i.id !== activeId)
       .slice(0, RECENT_FEED_LIMIT)
   }, [feedItems, dialogue?.eventId])
 
   // Twist-only feed for the twist panel
   const recentTwistItems = useMemo(
     () => feedItems.filter((i) => i.kind === 'twist').slice(0, RECENT_FEED_LIMIT),
+    [feedItems],
+  )
+
+  const recentSceneItems = useMemo(
+    () => feedItems.filter((i) => i.kind === 'scene').slice(0, RECENT_FEED_LIMIT),
     [feedItems],
   )
 
@@ -392,8 +389,8 @@ export default function StageCanvas({
     dialogue,
     allHistoryItems: feedItems,
     feedBumpKey,
-    lineCount,
     currentScene,
+    recentScenes: recentSceneItems,
     speakerImageByName,
   }
 
@@ -408,8 +405,6 @@ export default function StageCanvas({
     onLocalSubmitSuccess: () => setLiveLastTwistAt(Date.now()),
     activeTwist,
     recentTwists: recentTwistItems,
-    twistCount,
-    feedBumpKey,
   }
 
   return (
@@ -489,15 +484,6 @@ export default function StageCanvas({
           </div>
         </div>
 
-        <StageAboutPanel
-          description={stageDescription}
-          theme={stageTheme}
-          themeLabel={themeLabel}
-          createdAt={stageCreatedAt}
-          open={aboutOpen}
-          onClose={() => setAboutOpen(false)}
-        />
-
         {/* Scene change announcement — 5s overlay over the stage band */}
         <SceneChangeOverlay
           scene={pendingSceneOverlay}
@@ -505,11 +491,21 @@ export default function StageCanvas({
         />
       </div>
 
+      {/* Outside overflow-hidden stage band so long copy can extend over panels below */}
+      <StageAboutPanel
+        description={stageDescription}
+        theme={stageTheme}
+        themeLabel={themeLabel}
+        createdAt={stageCreatedAt}
+        open={aboutOpen}
+        onClose={() => setAboutOpen(false)}
+      />
+
       {/* Panels — single column on mobile, dialogue (wide) + twist/characters (narrow) on lg */}
       <div className="grid gap-3 p-4 lg:grid-cols-[1fr_22rem] lg:items-start lg:gap-5 lg:p-6">
         <DialoguePanel
           {...sharedDialogueProps}
-          recentItems={recentDialogueItems}
+          recentItems={recentScriptItems}
         />
         <div className="flex flex-col gap-3">
           <NarrativeTwist {...sharedNarrativeProps} collapsible defaultOpen={false} />

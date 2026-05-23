@@ -8,7 +8,7 @@ import {
   twists,
   agents,
 } from '@/lib/db/schema'
-import { eq, desc, and, count } from 'drizzle-orm'
+import { eq, desc, and } from 'drizzle-orm'
 import type { Metadata } from 'next'
 import StageViewClient from '@/components/stage/stage-view-client'
 import { Nav } from '@/components/nav'
@@ -65,16 +65,6 @@ async function getStageData(id: string, userId: string | null) {
     .orderBy(desc(twists.createdAt))
     .limit(1)
 
-  const [lineCountRow] = await db
-    .select({ count: count() })
-    .from(stageEvents)
-    .where(and(eq(stageEvents.stageId, id), eq(stageEvents.type, 'dialogue')))
-
-  const [twistCountRow] = await db
-    .select({ count: count() })
-    .from(stageEvents)
-    .where(and(eq(stageEvents.stageId, id), eq(stageEvents.type, 'twist')))
-
   let lastUserTwist: { createdAt: Date | null } | null = null
   if (userId) {
     const [row] = await db
@@ -123,8 +113,6 @@ async function getStageData(id: string, userId: string | null) {
     lastUserTwistAt: lastUserTwist?.createdAt
       ? new Date(lastUserTwist.createdAt).getTime()
       : null,
-    lineCount: Number(lineCountRow?.count ?? 0),
-    twistCount: Number(twistCountRow?.count ?? 0),
   }
 }
 
@@ -143,8 +131,6 @@ export default async function StagePage({ params }: Props) {
     initialScene,
     lastTwistAt,
     lastUserTwistAt,
-    lineCount,
-    twistCount,
     stageIsActive,
     hasCastOnStage,
   } = data
@@ -169,8 +155,6 @@ export default async function StagePage({ params }: Props) {
         twistsEnabled={twistsEnabled}
         lastTwistAt={twistsEnabled ? lastTwistAt : null}
         lastUserTwistAt={twistsEnabled ? lastUserTwistAt : null}
-        initialLineCount={lineCount}
-        initialTwistCount={twistCount}
       />
     </>
   )

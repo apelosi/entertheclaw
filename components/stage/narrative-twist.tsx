@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils'
 import { AUTH_PATH } from '@/lib/auth/paths'
 import type { ActiveTwist } from './active-twist'
 import type { FeedItem } from '@/lib/stage/feed-items'
+import { SectionCollapsibleHeader } from './section-collapsible-header'
 import { TwistHistoryModal } from './twist-history-modal'
 
 const STAGE_COOLDOWN_MS = 6 * 60 * 1000
@@ -22,8 +23,6 @@ interface Props {
   onLocalSubmitSuccess?: () => void
   activeTwist: ActiveTwist | null
   recentTwists: FeedItem[]
-  twistCount: number
-  feedBumpKey: number
   collapsible?: boolean
   defaultOpen?: boolean
 }
@@ -45,8 +44,6 @@ export function NarrativeTwist({
   liveLastTwistAt,
   onLocalSubmitSuccess,
   recentTwists,
-  twistCount,
-  feedBumpKey,
   collapsible = false,
   defaultOpen = true,
 }: Props) {
@@ -189,39 +186,13 @@ export function NarrativeTwist({
         <SubmissionStatus state={submission} />
       </div>
 
-      {/* History — always shown, no toggle, up to 5 recent twists */}
-      {recentTwists.length > 0 && (
-        <div className="flex flex-col gap-2 border-t border-[#242424]/50 pt-2.5">
-          <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-[#444440]">
-            Recent · {twistCount} twist{twistCount !== 1 ? 's' : ''}
-          </p>
-          <ul key={feedBumpKey} className="flex flex-col gap-2" aria-label="Recent twists">
-            {recentTwists.map((item, index) => {
-              if (item.kind !== 'twist') return null
-              return (
-                <li
-                  key={item.id}
-                  className={cn(
-                    'stage-feed-enter font-mono text-[11px] italic leading-relaxed',
-                    twistsEnabled ? 'text-[#B8860B]/90' : 'text-[#888880]/70',
-                  )}
-                  style={{ animationDelay: `${index * 40}ms` }}
-                >
-                  <span className="not-italic text-[#888880]">{item.userDisplayName}:</span>{' '}
-                  "{item.text}"
-                </li>
-              )
-            })}
-          </ul>
-          <button
-            type="button"
-            onClick={() => setHistoryOpen(true)}
-            className="inline-flex w-fit font-mono text-[10px] uppercase tracking-[0.18em] text-[#888880] underline-offset-2 transition-colors hover:text-[#F0EDE8] hover:underline"
-          >
-            Full history
-          </button>
-        </div>
-      )}
+      <button
+        type="button"
+        onClick={() => setHistoryOpen(true)}
+        className="inline-flex w-fit font-mono text-[10px] uppercase tracking-[0.18em] text-[#888880] underline-offset-2 transition-colors hover:text-[#F0EDE8] hover:underline"
+      >
+        Narrative history
+      </button>
     </>
   )
 
@@ -234,21 +205,10 @@ export function NarrativeTwist({
             twistsEnabled ? 'border-l-[#C41E3A]/70' : 'border-l-[#444440]/50 opacity-70',
           )}
         >
-          <button
-            type="button"
-            onClick={() => setPanelOpen((v) => !v)}
-            className="flex w-full items-center justify-between gap-3 p-3"
-          >
-            <div className="flex min-w-0 items-center gap-3">
-              <h2
-                className={cn(
-                  'shrink-0 text-[20px] font-light italic leading-none tracking-[-0.02em]',
-                  twistsEnabled ? 'text-[#F0EDE8]' : 'text-[#888880]',
-                )}
-                style={{ fontFamily: 'var(--font-display)' }}
-              >
-                Narrative Twist
-              </h2>
+          <SectionCollapsibleHeader
+            title="Narrative Twist"
+            titleClassName={twistsEnabled ? undefined : 'text-[#888880]'}
+            meta={
               <HeaderStatus
                 twistsEnabled={twistsEnabled}
                 windowOpen={windowOpen}
@@ -257,16 +217,13 @@ export function NarrativeTwist({
                 stageRemainingMs={stageRemainingMs}
                 userRemainingMs={userRemainingMs}
               />
-            </div>
-            <span
-              className={cn(
-                'shrink-0 text-base leading-none text-[#444440] transition-transform',
-                panelOpen && 'rotate-180',
-              )}
-            >
-              ▾
-            </span>
-          </button>
+            }
+            open={panelOpen}
+            onClick={() => setPanelOpen((v) => !v)}
+            ariaLabelExpanded="Collapse narrative twist"
+            ariaLabelCollapsed="Expand narrative twist"
+            className="p-3"
+          />
 
           {panelOpen && (
             <div className="flex flex-col gap-2.5 px-3 pb-3">
@@ -294,24 +251,26 @@ export function NarrativeTwist({
           twistsEnabled ? 'border-l-[#C41E3A]/70' : 'border-l-[#444440]/50 opacity-70',
         )}
       >
-        <header className="flex items-baseline justify-between gap-3">
+        <header className="flex items-center gap-3">
           <h2
             className={cn(
-              'text-[20px] font-light italic leading-none tracking-[-0.02em]',
+              'shrink-0 text-[20px] font-light italic leading-none tracking-[-0.02em]',
               twistsEnabled ? 'text-[#F0EDE8]' : 'text-[#888880]',
             )}
             style={{ fontFamily: 'var(--font-display)' }}
           >
             Narrative Twist
           </h2>
-          <HeaderStatus
-            twistsEnabled={twistsEnabled}
-            windowOpen={windowOpen}
-            stageLocked={stageLocked}
-            userLocked={userLocked}
-            stageRemainingMs={stageRemainingMs}
-            userRemainingMs={userRemainingMs}
-          />
+          <div className="flex min-w-0 flex-1 justify-end">
+            <HeaderStatus
+              twistsEnabled={twistsEnabled}
+              windowOpen={windowOpen}
+              stageLocked={stageLocked}
+              userLocked={userLocked}
+              stageRemainingMs={stageRemainingMs}
+              userRemainingMs={userRemainingMs}
+            />
+          </div>
         </header>
         {body}
       </aside>
@@ -343,7 +302,7 @@ function HeaderStatus({
 }) {
   if (!twistsEnabled) {
     return (
-      <span className="shrink-0 font-mono text-[10px] uppercase tracking-[0.15em] text-[#444440]">
+      <span className="max-w-full truncate font-mono text-[10px] uppercase tracking-[0.18em] text-[#444440]">
         Inactive
       </span>
     )
@@ -351,7 +310,7 @@ function HeaderStatus({
 
   if (windowOpen) {
     return (
-      <span className="animate-pulse rounded-sm bg-[#F0EDE8] px-2 py-1 font-mono text-[10px] font-semibold uppercase tracking-[0.15em] text-[#080808] shadow-[0_0_14px_rgba(240,237,232,0.45)]">
+      <span className="shrink-0 animate-pulse rounded-sm bg-[#F0EDE8] px-2 py-1 font-mono text-[10px] font-semibold uppercase tracking-[0.15em] text-[#080808] shadow-[0_0_14px_rgba(240,237,232,0.45)]">
         Submit Now
       </span>
     )
@@ -365,7 +324,7 @@ function HeaderStatus({
   const ss = String(seconds).padStart(2, '0')
 
   return (
-    <span className="shrink-0 font-mono text-[11px] uppercase tracking-[0.15em] text-[#888880]">
+    <span className="max-w-full truncate font-mono text-[10px] uppercase tracking-[0.18em] text-[#888880]">
       {label}{' '}
       <span className="text-[#F0EDE8]">
         {mm}

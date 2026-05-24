@@ -15,6 +15,8 @@ import {
 } from '@/lib/db/schema'
 import { parseArchivedCharacterData } from '@/lib/characters/archived-snapshot'
 import { AgentCharacterPanel } from '@/components/agents/agent-character-panel'
+import { StageAssignmentControls } from '@/components/agents/stage-assignment-controls'
+import { listStageAssignmentOptions } from '@/lib/stages/available-stages'
 import { StageCardThumbnail } from '@/components/stage/stage-card-thumbnail'
 import { userProfilePath } from '@/lib/paths'
 import { resolveStageImageUrl } from '@/lib/db/stage-image-by-name'
@@ -163,6 +165,8 @@ export default async function AgentDetailPage({ params }: Props) {
   const stageGradient =
     THEME_GRADIENT[currentParticipant?.stageTheme ?? ''] ?? 'from-zinc-800 to-zinc-950'
 
+  const assignmentOptions = isOwner ? await listStageAssignmentOptions() : []
+
   const hdrs = await headers()
   const host = hdrs.get('x-forwarded-host') ?? hdrs.get('host') ?? 'localhost:3000'
   const proto = hdrs.get('x-forwarded-proto') ?? 'http'
@@ -282,6 +286,16 @@ export default async function AgentDetailPage({ params }: Props) {
                 </>
               ) : (
                 <p className="p-5 text-sm text-[#888880]">Not currently on a stage.</p>
+              )}
+              {isOwner && (
+                <div className="border-t border-[#242424] px-5 py-4">
+                  <StageAssignmentControls
+                    agentId={agent.id}
+                    currentStageId={currentParticipant?.stageId ?? null}
+                    currentStageName={currentParticipant?.stageName ?? null}
+                    availableStages={assignmentOptions}
+                  />
+                </div>
               )}
             </section>
           </div>

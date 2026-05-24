@@ -1,48 +1,12 @@
-import { db } from '@/lib/db/client'
-import {
-  stages,
-  stageParticipants,
-  agents,
-  stageEvents,
-  npcPersonas,
-  characters,
-} from '@/lib/db/schema'
 import { verifyAgentApiKey } from '@/lib/api/agent-auth'
-import { eq, and, count, ne } from 'drizzle-orm'
+import {
+  enrollAgentOnStage,
+  getAgentOtherStageId,
+} from '@/lib/stages/enrollment'
 import { after } from 'next/server'
 import { generateCharacterAssets } from '@/lib/characters/generate-character-assets'
 
 export const runtime = 'nodejs'
-
-async function generateNpcPersona(stageId: string, stageName: string) {
-  // Call Gemini to generate a simple NPC persona
-  // Gracefully degrades to a static fallback if API unavailable
-  const roles = [
-    'innkeeper',
-    'merchant',
-    'guard',
-    'messenger',
-    'wandering scholar',
-    'street performer',
-    'local elder',
-    'traveling merchant',
-  ]
-  const personalities = [
-    'cautious and observant',
-    'boisterous and friendly',
-    'secretive and calculating',
-    'naive but eager',
-    'gruff but fair',
-  ]
-
-  return {
-    generatedName: `NPC_${Math.random().toString(36).slice(2, 8).toUpperCase()}`,
-    generatedRole: roles[Math.floor(Math.random() * roles.length)],
-    generatedPersonality: {
-      trait: personalities[Math.floor(Math.random() * personalities.length)],
-    },
-  }
-}
 
 interface JoinBody {
   name?: string
@@ -80,216 +44,53 @@ export async function POST(
       // empty body is fine
     }
 
-    // Check stage exists and is active
-    const [stage] = await db
-      .select()
-      .from(stages)
-      .where(and(eq(stages.id, stageId), eq(stages.isActive, true)))
-      .limit(1)
-
-    if (!stage) {
-      return Response.json({ error: 'Stage not found or inactive' }, { status: 404 })
-    }
-
-    // Check if agent is already in this stage
-    const [existing] = await db
-      .select()
-      .from(stageParticipants)
-      .where(
-        and(
-          eq(stageParticipants.stageId, stageId),
-          eq(stageParticipants.agentId, agent.id)
-        )
-      )
-      .limit(1)
-
-    if (existing) {
-      return Response.json({
-        ok: true,
-        role: existing.role,
-        participantId: existing.id,
-        message: 'Already in stage',
-      })
-    }
-
-    // PRD: one stage per agent — reject if already on a different stage
-    const [otherStage] = await db
-      .select({ stageId: stageParticipants.stageId })
-      .from(stageParticipants)
-      .where(
-        and(
-          eq(stageParticipants.agentId, agent.id),
-          ne(stageParticipants.stageId, stageId)
-        )
-      )
-      .limit(1)
-
-    if (otherStage) {
+    const otherStageId = await getAgentOtherStageId(agent.id, stageId)
+    if (otherStageId) {
       return Response.json(
         { error: 'Agent is already active on another stage' },
-        { status: 409 }
+        { status: 409 },
       )
     }
 
-    // Count current main characters
-    const [{ mainCount }] = await db
-      .select({ mainCount: count() })
-      .from(stageParticipants)
-      .where(
-        and(
-          eq(stageParticipants.stageId, stageId),
-          eq(stageParticipants.role, 'main')
-        )
-      )
-
-    const maxMain = stage.maxMainCharacters ?? 12
-    const maxNpcs = stage.maxNpcs ?? 36
-    const role = Number(mainCount) < maxMain ? 'main' : 'npc'
-
-    // Check NPC capacity if being assigned as NPC
-    if (role === 'npc') {
-      const [{ npcCount }] = await db
-        .select({ npcCount: count() })
-        .from(stageParticipants)
-        .where(
-          and(
-            eq(stageParticipants.stageId, stageId),
-            eq(stageParticipants.role, 'npc')
-          )
-        )
-
-      if (Number(npcCount) >= maxNpcs) {
-        return Response.json({ error: 'Stage is at capacity' }, { status: 409 })
-      }
-    }
-
-    // Insert participant. Race-safe: a concurrent request may have already
-    // inserted a row for (stage_id, agent_id) — the unique constraint
-    // `stage_participants_stage_agent_unique` (migration 0006) will collapse
-    // it to a single row. If we lose the race, fetch the winner's row and
-    // return its id without emitting another "joined" event.
-    const insertedParticipants = await db
-      .insert(stageParticipants)
-      .values({
-        stageId,
-        agentId: agent.id,
-        role: role as 'main' | 'npc',
-      })
-      .onConflictDoNothing({
-        target: [stageParticipants.stageId, stageParticipants.agentId],
-      })
-      .returning()
-
-    if (insertedParticipants.length === 0) {
-      const [winner] = await db
-        .select()
-        .from(stageParticipants)
-        .where(
-          and(
-            eq(stageParticipants.stageId, stageId),
-            eq(stageParticipants.agentId, agent.id),
-          ),
-        )
-        .limit(1)
-
-      return Response.json({
-        ok: true,
-        role: winner?.role ?? role,
-        participantId: winner?.id,
-        message: 'Already in stage',
-      })
-    }
-
-    const participant = insertedParticipants[0]
-
-    // Generate NPC persona if needed
-    let npcPersona = null
-    let characterName = agent.name ?? 'Unnamed Agent'
-    if (role === 'npc') {
-      const persona = await generateNpcPersona(stageId, stage.name)
-      const [inserted] = await db
-        .insert(npcPersonas)
-        .values({
-          stageId,
-          agentId: agent.id,
-          ...persona,
-        })
-        .returning()
-      npcPersona = inserted
-      characterName = inserted.generatedName
-    }
-
-    // Agent-provided character fields take priority over LLM generation.
-    const agentName = typeof body.name === 'string' && body.name.trim() ? body.name.trim() : null
-    const agentOccupation = typeof body.occupation === 'string' && body.occupation.trim() ? body.occupation.trim() : null
-    const agentBackstory = typeof body.backstory === 'string' && body.backstory.trim() ? body.backstory.trim() : null
-    const agentAppearance = typeof body.appearance === 'string' && body.appearance.trim() ? body.appearance.trim() : null
-
-    // Stub character row so dialogue/heartbeat resolve speaker metadata.
-    // Race-safe via `characters_stage_agent_unique` (migration 0006): if a
-    // concurrent join already inserted a character for this (stage, agent),
-    // fetch and reuse it instead of erroring.
-    const insertedCharacters = await db
-      .insert(characters)
-      .values({
-        agentId: agent.id,
-        stageId,
-        name: agentName ?? characterName,
-        occupation: agentOccupation ?? undefined,
-        backstory: agentBackstory ?? undefined,
-        appearance: agentAppearance ?? undefined,
-        isComplete: false,
-      })
-      .onConflictDoNothing({
-        target: [characters.stageId, characters.agentId],
-      })
-      .returning()
-
-    let character = insertedCharacters[0]
-    if (!character) {
-      const [existing] = await db
-        .select()
-        .from(characters)
-        .where(
-          and(
-            eq(characters.agentId, agent.id),
-            eq(characters.stageId, stageId),
-          ),
-        )
-        .limit(1)
-      if (!existing) {
-        return Response.json(
-          { error: 'Character row missing after conflict' },
-          { status: 500 },
-        )
-      }
-      character = existing
-    }
-
-    // Emit joined event. We intentionally do NOT emit a `turn_open` here:
-    // joins almost always follow (or precede) dialogue that emits its own
-    // turn_open, and listening agents can read the updated character list
-    // from the next snapshot they receive.
-    await db.insert(stageEvents).values({
-      stageId,
-      type: 'joined',
+    const result = await enrollAgentOnStage({
       agentId: agent.id,
-      content: {
-        role,
-        agentName: agent.name ?? agent.id,
+      agentName: agent.name,
+      stageId,
+      prefill: {
+        name: body.name,
+        occupation: body.occupation,
+        backstory: body.backstory,
+        appearance: body.appearance,
       },
     })
 
-    // Kick off portrait + sprite generation in the background.
-    // If the agent provided name/occupation/backstory, the LLM bible step is skipped.
-    // Runs after the response is flushed (Next 15 `after()` API). Failures
-    // are logged and never block the join response.
-    const generationCharacterId = character.id
-    const generationIsMain = role === 'main'
-    const prefilledFields =
-      agentName && agentOccupation && agentBackstory
-        ? { name: agentName, occupation: agentOccupation, backstory: agentBackstory, appearance: agentAppearance ?? undefined }
-        : undefined
+    if (!result.ok) {
+      if (result.error.kind === 'stage_not_found') {
+        return Response.json({ error: 'Stage not found or inactive' }, { status: 404 })
+      }
+      if (result.error.kind === 'stage_full') {
+        return Response.json({ error: 'Stage is at capacity' }, { status: 409 })
+      }
+      return Response.json(
+        { error: 'Character row missing after conflict' },
+        { status: 500 },
+      )
+    }
+
+    const data = result.data
+    if (data.alreadyOnStage) {
+      return Response.json({
+        ok: true,
+        role: data.role,
+        participantId: data.participantId,
+        characterId: data.characterId,
+        message: 'Already in stage',
+      })
+    }
+
+    const generationCharacterId = data.characterId
+    const generationIsMain = data.isMain
+    const prefilledFields = data.prefilledFields
     after(async () => {
       try {
         await generateCharacterAssets({
@@ -304,10 +105,10 @@ export async function POST(
 
     return Response.json({
       ok: true,
-      role,
-      participantId: participant.id,
-      characterId: character.id,
-      npcPersona: npcPersona ?? undefined,
+      role: data.role,
+      participantId: data.participantId,
+      characterId: data.characterId,
+      npcPersona: data.npcPersona,
     })
   } catch (err) {
     console.error('[POST /api/v1/stages/:id/join]', err)

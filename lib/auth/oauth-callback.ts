@@ -9,19 +9,9 @@ const OAUTH_DEST_COOKIE = '__oauth_dest'
 const OAUTH_NEW_USER_DEST_COOKIE = '__oauth_new_user_dest'
 // Backup mirror of the PKCE challenge value. The original Neon cookie may be
 // SameSite=Strict or stripped by iOS Safari ITP on cross-site redirect return.
-// We copy the value to a SameSite=Lax cookie so we can inject it server-side.
+// We copy the value to a SameSite=Lax cookie so we can re-inject it server-side.
 const OAUTH_CHALLENGE_BACKUP_COOKIE = '__oauth_ch'
 const NEON_CHALLENGE_COOKIE_NAME = '__Secure-neon-auth.session_challange'
-
-/** Filter a `Cookie:` header value to only Neon Auth cookies. */
-function extractNeonAuthCookies(cookieHeader: string): string {
-  if (!cookieHeader) return ''
-  return cookieHeader
-    .split(';')
-    .map((c) => c.trim())
-    .filter((c) => c.startsWith(NEON_AUTH_COOKIE_PREFIX))
-    .join('; ')
-}
 
 /** Read a single cookie value from a raw `Cookie:` header string. */
 function readCookie(cookieHeader: string, name: string): string | null {
@@ -46,30 +36,34 @@ function escapeJsSingleQuoted(s: string): string {
 }
 
 /**
- * Handle the OAuth callback on /auth/callback by exchanging the verifier for a
- * session cookie ourselves, then navigating the browser to the final destination
- * via an HTML page — NOT a 302+Set-Cookie redirect.
+ * Handle the OAuth callback at /auth/callback by delegating the verifier
+ * exchange to Neon's own middleware — NOT by calling /get-session directly.
  *
- * iOS Safari problem (why an HTML page instead of a redirect):
- *   Any approach that sets session cookies on a 302/307 redirect response and
- *   then immediately redirects to a protected route fails on iOS Safari because
- *   the browser may not commit the cookies before making the follow-up request.
- *   This manifests as "signed in successfully" but every protected route still
- *   bounces to /auth.
+ * Why NOT call /get-session directly:
+ *   A direct server-side /get-session call returns session_token cookies but
+ *   omits the session_data JWT that Neon's middleware caches on the client.
+ *   Without session_data, every protected-route request triggers a fresh
+ *   upstream round-trip to validate the session_token. That upstream call
+ *   reliably fails in production, so users are bounced to /auth immediately
+ *   after "signing in" — even though the OAuth exchange itself succeeded.
  *
- *   By returning a 200 HTML document with the Set-Cookie headers, the browser
- *   commits all cookies as part of processing the document response. Only then
- *   does the inline <script> run window.location.replace(dest). The protected
- *   route request therefore always carries the freshly-minted session cookie.
- *
- * Exchange flow:
- *   1. Read the verifier from the URL and the destination from __oauth_dest.
- *   2. Call Neon's /get-session?verifier=TOKEN, injecting the backup challenge
- *      cookie (__oauth_ch → __Secure-neon-auth.session_challange) when the
- *      original challenge was dropped by iOS Safari on the cross-site return.
- *   3. Forward Neon's Set-Cookie headers (session token + extras) on a 200
- *      HTML response that auto-navigates to the real destination via JS.
- *   4. Expire all our temporary cookies (__oauth_dest, __oauth_ch, etc.).
+ * Delegation strategy (combining af80f2b + 3c06d78 fixes):
+ *   1. Read the verifier and the destination from __oauth_dest.
+ *   2. Re-inject the PKCE challenge cookie from the __oauth_ch backup.
+ *      The original __Secure-neon-auth.session_challange is SameSite=Strict
+ *      and is dropped by browsers on the cross-site redirect return from the
+ *      OAuth provider. The backup is SameSite=Lax so it survives that hop.
+ *   3. Return a 200 HTML document (NOT a redirect) that:
+ *      a. Sets __Secure-neon-auth.session_challange=<backup> via Set-Cookie.
+ *      b. Expires all temporary flow cookies.
+ *      c. Runs window.location.replace('<dest>?neon_auth_session_verifier=TOKEN').
+ *   4. Because it is a document response (not a redirect), the browser commits
+ *      the re-injected challenge cookie BEFORE the JS navigation fires.
+ *      (iOS Safari does not reliably commit cookies on 302 redirect responses
+ *      before following the Location header — hence the HTML page.)
+ *   5. The subsequent same-site GET to <dest>?verifier=TOKEN carries the
+ *      challenge cookie. Neon's middleware (runAuthMiddleware) exchanges the
+ *      verifier, mints session_data + session_token, and the user is signed in.
  */
 export async function handleOAuthCallback(
   request: NextRequest,
@@ -84,15 +78,17 @@ export async function handleOAuthCallback(
     .map((c) => c.trim().split('=')[0])
     .filter((n) => n.startsWith(NEON_AUTH_COOKIE_PREFIX))
 
-  // Read the destination cookies written by /api/auth/oauth-start.
+  // Read the destination and challenge backup written by /api/auth/oauth-start.
   const destRaw = readCookie(cookieHeaderRaw, OAUTH_DEST_COOKIE)
   const newUserDestRaw = readCookie(cookieHeaderRaw, OAUTH_NEW_USER_DEST_COOKIE)
+  const challengeBackup = readCookie(cookieHeaderRaw, OAUTH_CHALLENGE_BACKUP_COOKIE)
 
   console.log('[oauth-callback] enter', {
     hasVerifier: !!verifier,
     verifierPrefix: verifier?.slice(0, 8) ?? null,
     destRaw,
     newUserDestRaw: newUserDestRaw ?? null,
+    hasChallengeBackup: !!challengeBackup,
     neonCookieNames,
     referer: request.headers.get('referer'),
     uaBrief: ua.slice(0, 120),
@@ -114,105 +110,43 @@ export async function handleOAuthCallback(
     )
   }
 
-  const baseUrl = process.env.NEON_AUTH_BASE_URL?.replace(/\/$/, '')
-  if (!baseUrl) {
-    console.error('[oauth-callback] NEON_AUTH_BASE_URL not configured')
-    return NextResponse.redirect(
-      new URL('/auth?error=server_misconfigured', request.url),
-      302,
-    )
-  }
+  // Attach the verifier to the destination URL so Neon's middleware can exchange
+  // it when the browser navigates there. Using URL API handles any existing query
+  // params on safeCallback correctly.
+  const destUrl = new URL(safeCallback, request.url)
+  destUrl.searchParams.set(OAUTH_VERIFIER_PARAM, verifier)
+  const destString = escapeJsSingleQuoted(destUrl.pathname + destUrl.search)
 
-  // Build the Cookie header for the upstream /get-session call.
-  // Start with whatever Neon auth cookies the browser sent (may include the
-  // original challenge if not dropped), then inject the backup challenge when
-  // the original was stripped by iOS Safari ITP / SameSite=Strict enforcement.
-  const neonCookiesFromRequest = extractNeonAuthCookies(cookieHeaderRaw)
-  const challengeBackup = readCookie(cookieHeaderRaw, OAUTH_CHALLENGE_BACKUP_COOKIE)
-  const hasOriginalChallenge = neonCookiesFromRequest.includes(NEON_CHALLENGE_COOKIE_NAME)
-
-  let cookiesForUpstream = neonCookiesFromRequest
-  if (challengeBackup && !hasOriginalChallenge) {
-    // Inject backup challenge as the real challenge cookie name so Neon can
-    // verify the PKCE flow. readCookie already URL-decodes the stored value;
-    // Cookie request headers use the raw value, so do NOT re-encode here.
-    const injected = `${NEON_CHALLENGE_COOKIE_NAME}=${challengeBackup}`
-    cookiesForUpstream = cookiesForUpstream ? `${cookiesForUpstream}; ${injected}` : injected
-  }
-
-  console.log('[oauth-callback] cookie state', {
-    hasOriginalChallenge,
+  console.log('[oauth-callback] delegating to Neon middleware', {
+    dest: destUrl.pathname + destUrl.search,
     hasChallengeBackup: !!challengeBackup,
-    hasDestCookie: !!destRaw,
-    neonCookieNames,
-    willInjectBackup: !!challengeBackup && !hasOriginalChallenge,
   })
 
-  const upstreamUrl = new URL(`${baseUrl}/get-session`)
-  upstreamUrl.searchParams.set(OAUTH_VERIFIER_PARAM, verifier)
-  const origin = request.headers.get('origin') ?? new URL(request.url).origin
-
-  let upstream: Response
-  try {
-    upstream = await fetch(upstreamUrl.toString(), {
-      method: 'GET',
-      headers: {
-        Cookie: cookiesForUpstream,
-        Origin: origin,
-        'x-neon-auth-middleware': 'true',
-      },
-    })
-  } catch (err) {
-    console.error('[oauth-callback] upstream fetch failed', err)
-    return NextResponse.redirect(
-      new URL('/auth?error=oauth_upstream_unreachable', request.url),
-      302,
-    )
-  }
-
-  const upstreamSetCookies = upstream.headers.getSetCookie()
-  console.log('[oauth-callback] upstream response', {
-    status: upstream.status,
-    ok: upstream.ok,
-    setCookieCount: upstreamSetCookies.length,
-    setCookieNames: upstreamSetCookies.map((c) => c.split('=')[0]),
-  })
-
-  if (!upstream.ok) {
-    const body = await upstream.text().catch(() => '')
-    console.error('[oauth-callback] upstream non-ok body', body.slice(0, 500))
-    return NextResponse.redirect(
-      new URL(`/auth?error=oauth_exchange_failed_${upstream.status}`, request.url),
-      302,
-    )
-  }
-
-  // ── Return a 200 HTML page, NOT a redirect ─────────────────────────────────
-  //
-  // iOS Safari does not reliably commit cookies set on a 302/307 redirect
-  // response before following the Location header. Returning a real document
-  // (status 200) guarantees cookies are committed before the inline script
-  // executes window.location.replace, so the protected-route request always
-  // carries the session token.
-  const dest = escapeJsSingleQuoted(safeCallback)
+  // Return a 200 HTML document. Using a document response (not 302) ensures the
+  // browser commits Set-Cookie headers before the inline script fires — critical
+  // for iOS Safari, which may not commit cookies on redirect responses in time.
   const html = `<!DOCTYPE html>
 <html><head><meta charset="utf-8">
-<script>window.location.replace('${dest}');</script>
+<script>window.location.replace('${destString}');</script>
 </head><body></body></html>`
-
-  console.log('[oauth-callback] exchange success — serving HTML nav to', safeCallback)
 
   const response = new NextResponse(html, {
     status: 200,
     headers: { 'Content-Type': 'text/html; charset=utf-8' },
   })
 
-  // Commit session cookies on the real document response.
-  for (const cookie of upstreamSetCookies) {
-    response.headers.append('Set-Cookie', cookie)
+  // Re-inject the PKCE challenge as SameSite=Lax so that the subsequent
+  // same-site GET to <dest>?verifier=TOKEN sends it to Neon's middleware.
+  // The original Neon challenge cookie is SameSite=Strict and was dropped on
+  // the cross-site redirect return from the OAuth provider; the backup survived.
+  if (challengeBackup) {
+    response.headers.append(
+      'Set-Cookie',
+      `${NEON_CHALLENGE_COOKIE_NAME}=${challengeBackup}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=60`,
+    )
   }
 
-  // Expire our temporary flow cookies.
+  // Expire all temporary flow cookies set by /api/auth/oauth-start.
   response.headers.append('Set-Cookie', expireCookie(OAUTH_DEST_COOKIE))
   response.headers.append('Set-Cookie', expireCookie(OAUTH_NEW_USER_DEST_COOKIE))
   response.headers.append('Set-Cookie', expireCookie(OAUTH_CHALLENGE_BACKUP_COOKIE))

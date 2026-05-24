@@ -2,6 +2,18 @@ import { callNeonAuthUpstream } from '@/lib/auth/neon-auth-upstream'
 
 export const runtime = 'nodejs'
 
+// The clean path we always give Neon as callbackURL — no query params, so
+// Neon can safely append ?neon_auth_session_verifier=… without risk of URL
+// construction issues. The real post-OAuth destination is stored in a cookie.
+const NEON_CALLBACK_PATH = '/auth/callback'
+
+// Cookie we use to carry the real destination across the OAuth redirect chain.
+// Set alongside the Neon challenge cookie in the same 302 response so both
+// are committed atomically before the cross-site navigation to the provider.
+const OAUTH_DEST_COOKIE = '__oauth_dest'
+const OAUTH_NEW_USER_DEST_COOKIE = '__oauth_new_user_dest'
+const COOKIE_MAX_AGE = 600 // 10 minutes — more than enough for an OAuth flow
+
 /**
  * Server-side OAuth initiation.
  *
@@ -11,13 +23,19 @@ export const runtime = 'nodejs'
  * had to commit before the navigation to GitHub. iOS Safari is unreliable about
  * persisting cookies set on a fetch when JS immediately initiates a top-level
  * navigation to a third-party origin — the commit and the navigation race, and
- * Safari sometimes drops the cookie. By the time the user returned to our
- * domain, `needsSessionVerification` (which requires the challenge cookie) was
- * false, so the verifier exchange never ran and the user landed back on /auth.
+ * Safari sometimes drops the cookie.
  *
- * This endpoint folds the two steps into a single HTTP response: the browser
- * gets `302 Location: <oauth-url>` with the challenge `Set-Cookie` attached,
- * and atomically commits both before following the redirect. No JS race.
+ * This endpoint fixes two things in one response:
+ *
+ * 1. Atomic cookie commit: the browser gets `302 Location: <oauth-url>` with
+ *    the Neon challenge `Set-Cookie` (and a `__oauth_dest` destination cookie).
+ *    All cookies commit before the redirect is followed. No JS race.
+ *
+ * 2. Clean callbackURL: we always pass `/auth/callback` (no query params) as
+ *    the Neon callbackURL. Neon appends `?neon_auth_session_verifier=…` to
+ *    this clean path, and our middleware intercepts it to do the exchange
+ *    server-side. Storing the destination in a cookie avoids any dependency on
+ *    Neon correctly appending a verifier to a URL that already has query params.
  */
 export async function GET(request: Request) {
   const url = new URL(request.url)
@@ -32,15 +50,16 @@ export async function GET(request: Request) {
     )
   }
 
+  // Always give Neon a clean callback path with no query params.
   const upstream = await callNeonAuthUpstream(
     'sign-in/social',
     {
       method: 'POST',
       body: {
         provider,
-        callbackURL,
+        callbackURL: NEON_CALLBACK_PATH,
         disableRedirect: true,
-        ...(newUserCallbackURL ? { newUserCallbackURL } : {}),
+        ...(newUserCallbackURL ? { newUserCallbackURL: NEON_CALLBACK_PATH } : {}),
       },
     },
     request,
@@ -75,13 +94,28 @@ export async function GET(request: Request) {
     )
   }
 
+  // Build the cookie attributes string shared by both destination cookies.
+  const cookieAttrs = `Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${COOKIE_MAX_AGE}`
+
   const setCookies = upstream.headers.getSetCookie()
   const headers = new Headers({ Location: data.url })
+
+  // Forward Neon's challenge cookie(s).
   for (const cookie of setCookies) {
     headers.append('Set-Cookie', cookie)
   }
+
+  // Store the real destinations so handleOAuthCallback can redirect there
+  // without depending on query params surviving the Neon redirect.
+  headers.append('Set-Cookie', `${OAUTH_DEST_COOKIE}=${encodeURIComponent(callbackURL)}; ${cookieAttrs}`)
+  if (newUserCallbackURL) {
+    headers.append('Set-Cookie', `${OAUTH_NEW_USER_DEST_COOKIE}=${encodeURIComponent(newUserCallbackURL)}; ${cookieAttrs}`)
+  }
+
   console.log('[oauth-start] success', {
     provider,
+    callbackURL,
+    newUserCallbackURL: newUserCallbackURL ?? null,
     setCookieCount: setCookies.length,
     setCookieNames: setCookies.map((c) => c.split('=')[0]),
     uaBrief: (request.headers.get('user-agent') ?? '').slice(0, 120),

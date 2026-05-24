@@ -29,7 +29,12 @@ interface Props {
   lastTwistAt: number | null
   lastUserTwistAt: number | null
   liveLastTwistAt: number | null
-  onLocalSubmitSuccess?: () => void
+  onLocalSubmitSuccess?: (twist: {
+    eventId: string
+    text: string
+    userDisplayName: string
+    createdAt: number
+  }) => void
   activeTwist: ActiveTwist | null
   recentTwists: FeedItem[]
   collapsible?: boolean
@@ -117,7 +122,17 @@ export function NarrativeTwist({
       if (res.ok) {
         setSubmission({ kind: 'won' })
         setDraft('')
-        onLocalSubmitSuccess?.()
+        const payload = (await res.json().catch(() => null)) as {
+          twist?: {
+            eventId: string
+            text: string
+            userDisplayName: string
+            createdAt: number
+          }
+        } | null
+        if (payload?.twist) {
+          onLocalSubmitSuccess?.(payload.twist)
+        }
         return
       }
       if (res.status === 429) {

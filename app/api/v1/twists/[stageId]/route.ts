@@ -168,7 +168,18 @@ export async function POST(
       sceneChanged,
     })
 
-    return Response.json({ ok: true, twistId: twist.id })
+    return Response.json({
+      ok: true,
+      twistId: twist.id,
+      twist: {
+        eventId: twistEvent.id,
+        text: trimmedContent,
+        userDisplayName,
+        createdAt: twistEvent.createdAt
+          ? new Date(twistEvent.createdAt).getTime()
+          : Date.now(),
+      },
+    })
   } catch (err) {
     console.error('[POST /api/v1/twists/:stageId]', err)
     return Response.json({ error: 'Internal server error' }, { status: 500 })

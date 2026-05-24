@@ -134,9 +134,9 @@ export async function handleOAuthCallback(
   let cookiesForUpstream = neonCookiesFromRequest
   if (challengeBackup && !hasOriginalChallenge) {
     // Inject backup challenge as the real challenge cookie name so Neon can
-    // verify the PKCE flow. The value was stored URL-encoded; readCookie above
-    // already decoded it, so we re-encode it for the Cookie header.
-    const injected = `${NEON_CHALLENGE_COOKIE_NAME}=${encodeURIComponent(challengeBackup)}`
+    // verify the PKCE flow. readCookie already URL-decodes the stored value;
+    // Cookie request headers use the raw value, so do NOT re-encode here.
+    const injected = `${NEON_CHALLENGE_COOKIE_NAME}=${challengeBackup}`
     cookiesForUpstream = cookiesForUpstream ? `${cookiesForUpstream}; ${injected}` : injected
   }
 

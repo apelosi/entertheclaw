@@ -111,25 +111,9 @@ export async function handleOAuthCallback(
     )
   }
 
-  const upstreamUrl = new URL(`${baseUrl}/get-session`)
-  upstreamUrl.searchParams.set(OAUTH_VERIFIER_PARAM, verifier)
-
-  // Build the Cookie header for the upstream /get-session call.
-  // Filter to only Neon Auth cookies — matches what Neon's own proxy does.
-  // If the original challenge cookie was dropped by iOS Safari (SameSite=Strict
-  // or ITP stripping), inject its value from our __oauth_ch backup cookie.
-  let neonCookies = extractNeonAuthCookies(cookieHeaderRaw)
-  const hasChallenge = neonCookies.includes(NEON_CHALLENGE_COOKIE_NAME)
+  const neonCookiesPresentInRequest = extractNeonAuthCookies(cookieHeaderRaw)
+  const hasChallenge = neonCookiesPresentInRequest.includes(NEON_CHALLENGE_COOKIE_NAME)
   const challengeBackup = readCookie(cookieHeaderRaw, OAUTH_CHALLENGE_BACKUP_COOKIE)
-
-  if (!hasChallenge && challengeBackup) {
-    const injected = `${NEON_CHALLENGE_COOKIE_NAME}=${challengeBackup}`
-    neonCookies = neonCookies ? `${neonCookies}; ${injected}` : injected
-    console.log('[oauth-callback] injected backup challenge cookie')
-  }
-
-  const cookieHeader = neonCookies
-  const origin = request.headers.get('origin') ?? new URL(request.url).origin
 
   console.log('[oauth-callback] cookie state', {
     hasChallenge,
@@ -137,6 +121,48 @@ export async function handleOAuthCallback(
     hasDestCookie: !!destRaw,
     neonCookieNames,
   })
+
+  // ── Strategy 1 (preferred): delegate to Neon's own middleware ─────────────
+  //
+  // Re-set the challenge cookie (SameSite=Lax) and redirect the browser to
+  // <dest>?neon_auth_session_verifier=TOKEN. The browser commits the challenge
+  // cookie before following the redirect, so Neon's middleware sees both the
+  // verifier and the challenge, runs exchangeOAuthToken, and mints all session
+  // cookies correctly (including the session_data JWT cache). This means
+  // protected routes work immediately without any extra upstream round-trips.
+  //
+  // We use the backup value because the original challenge cookie from Neon was
+  // SameSite=Strict and was dropped by iOS Safari on the cross-site return.
+  if (challengeBackup) {
+    const destUrl = new URL(safeCallback, request.url)
+    destUrl.searchParams.set(OAUTH_VERIFIER_PARAM, verifier)
+
+    const response = NextResponse.redirect(destUrl, 302)
+    // Re-set the challenge with SameSite=Lax so it is sent on the top-level
+    // GET navigation from /auth/callback to destUrl (same-site, but we use
+    // Lax to be safe against any edge-case SameSite restrictions).
+    response.headers.append(
+      'Set-Cookie',
+      `${NEON_CHALLENGE_COOKIE_NAME}=${challengeBackup}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=60`,
+    )
+    response.headers.append('Set-Cookie', expireCookie(OAUTH_DEST_COOKIE))
+    response.headers.append('Set-Cookie', expireCookie(OAUTH_NEW_USER_DEST_COOKIE))
+    response.headers.append('Set-Cookie', expireCookie(OAUTH_CHALLENGE_BACKUP_COOKIE))
+    console.log('[oauth-callback] delegating to Neon middleware →', destUrl.pathname + destUrl.search)
+    return response
+  }
+
+  // ── Strategy 2 (fallback): call /get-session directly ────────────────────
+  //
+  // Used when the backup challenge was not sent (shouldn't normally occur once
+  // PR #16 is deployed, but kept as a fallback). We call Neon's /get-session
+  // ourselves, forwarding whatever Neon auth cookies are available. If the
+  // challenge cookie is also absent this will return 400.
+  const upstreamUrl = new URL(`${baseUrl}/get-session`)
+  upstreamUrl.searchParams.set(OAUTH_VERIFIER_PARAM, verifier)
+
+  const cookieHeader = neonCookiesPresentInRequest
+  const origin = request.headers.get('origin') ?? new URL(request.url).origin
 
   let upstream: Response
   try {
@@ -168,42 +194,19 @@ export async function handleOAuthCallback(
     const body = await upstream.text().catch(() => '')
     console.error('[oauth-callback] upstream non-ok body', body.slice(0, 500))
     return NextResponse.redirect(
-      new URL(
-        `/auth?error=oauth_exchange_failed_${upstream.status}`,
-        request.url,
-      ),
+      new URL(`/auth?error=oauth_exchange_failed_${upstream.status}`, request.url),
       302,
     )
   }
 
-  // Determine the final destination.
-  // newUserDestRaw is only set when the caller supplied a newUserCallbackURL.
-  // We don't have a reliable way to detect new-vs-existing from /get-session
-  // response headers alone, so we check if the session response body carries
-  // an `isNewUser` hint. If not, fall back to the standard dest.
-  let finalDest = safeCallback
-  if (newUserDestRaw) {
-    try {
-      const body = await upstream.json() as Record<string, unknown>
-      const isNew = body?.isNewUser === true
-      if (isNew && newUserDestRaw.startsWith('/') && !newUserDestRaw.startsWith('//')) {
-        finalDest = newUserDestRaw
-      }
-    } catch {
-      // Not a JSON body or no isNewUser flag — stay with safeCallback.
-    }
-  }
-
-  const response = NextResponse.redirect(new URL(finalDest, request.url), 302)
+  const response = NextResponse.redirect(new URL(safeCallback, request.url), 302)
   for (const cookie of upstreamSetCookies) {
     response.headers.append('Set-Cookie', cookie)
   }
-  // Expire the destination and challenge backup cookies — they've served their purpose.
   response.headers.append('Set-Cookie', expireCookie(OAUTH_DEST_COOKIE))
   response.headers.append('Set-Cookie', expireCookie(OAUTH_NEW_USER_DEST_COOKIE))
   response.headers.append('Set-Cookie', expireCookie(OAUTH_CHALLENGE_BACKUP_COOKIE))
-
-  console.log('[oauth-callback] success — redirecting to', finalDest)
+  console.log('[oauth-callback] fallback success — redirecting to', safeCallback)
   return response
 }
 

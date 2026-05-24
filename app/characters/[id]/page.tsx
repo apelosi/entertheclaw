@@ -5,9 +5,12 @@ import { Nav } from '@/components/nav'
 import { BackButton } from '@/components/ui/back-button'
 import { detailPageLinkClass } from '@/components/ui/animated-underline-link'
 import { StageCardThumbnail } from '@/components/stage/stage-card-thumbnail'
+import { StageAssignmentControls } from '@/components/agents/stage-assignment-controls'
+import { listStageAssignmentOptions } from '@/lib/stages/available-stages'
 import { db } from '@/lib/db/client'
 import { agents, characters, stageEvents, stageParticipants, stages } from '@/lib/db/schema'
 import { agentDetailPath, userProfilePath } from '@/lib/paths'
+import { resolveStageImageUrl } from '@/lib/db/stage-image-by-name'
 import { resolveInternalBackFallback } from '@/lib/navigation/resolve-back-fallback'
 import { getPublicDisplayName, syncUserDisplayName } from '@/lib/users/public-profile'
 import { and, desc, eq } from 'drizzle-orm'
@@ -92,6 +95,8 @@ export default async function CharacterDetailPage({ params }: Props) {
   const isOnStage = row.participantId != null
   const isOwner = Boolean(session?.user && session.user.id === agentUserId)
   const stageGradient = THEME_GRADIENT[stageTheme ?? ''] ?? 'from-zinc-800 to-zinc-950'
+
+  const assignmentOptions = isOwner ? await listStageAssignmentOptions() : []
 
   const [lastDialogue] = await db
     .select({ createdAt: stageEvents.createdAt })
@@ -237,10 +242,23 @@ export default async function CharacterDetailPage({ params }: Props) {
                 </Link>
               </div>
               <StageCardThumbnail
-                imageUrl={stageImageUrl ?? undefined}
+                imageUrl={
+                  resolveStageImageUrl({ name: stageName ?? '', imageUrl: stageImageUrl }) ??
+                  undefined
+                }
                 name={stageName ?? 'Stage'}
                 gradient={stageGradient}
               />
+              {isOwner && (
+                <div className="border-t border-[#242424] px-5 py-4">
+                  <StageAssignmentControls
+                    agentId={agentId}
+                    currentStageId={isOnStage ? stageId : null}
+                    currentStageName={isOnStage ? stageName : null}
+                    availableStages={assignmentOptions}
+                  />
+                </div>
+              )}
             </section>
 
             <section className="rounded-md border border-[#242424] bg-[#161616] p-5">

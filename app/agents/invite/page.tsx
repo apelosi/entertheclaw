@@ -8,6 +8,7 @@ import type { Metadata } from 'next'
 import { db } from '@/lib/db/client'
 import { stages, stageParticipants } from '@/lib/db/schema'
 import { eq, count } from 'drizzle-orm'
+import { resolveStageImageUrl } from '@/lib/db/stage-image-by-name'
 import { InviteAgentForm, type InviteStageOption } from './invite-agent-form'
 
 export const metadata: Metadata = { title: 'Invite Agent' }
@@ -39,7 +40,7 @@ async function getInviteStages(): Promise<InviteStageOption[]> {
         name: s.name,
         theme: s.theme,
         description: s.description ?? null,
-        imageUrl: s.imageUrl ?? null,
+        imageUrl: resolveStageImageUrl(s),
         maxMainCharacters: s.maxMainCharacters ?? 12,
         participantCount: Number(total),
       }

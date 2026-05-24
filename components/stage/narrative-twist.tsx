@@ -52,6 +52,7 @@ export function NarrativeTwist({
   lastUserTwistAt,
   liveLastTwistAt,
   onLocalSubmitSuccess,
+  activeTwist,
   recentTwists,
   collapsible = false,
   defaultOpen = true,
@@ -195,6 +196,20 @@ export function NarrativeTwist({
         <SubmissionStatus state={submission} />
       </div>
 
+      {stageLocked && activeTwist && (
+        <div className="flex flex-col gap-1 border-t border-[#242424]/50 pt-2.5 max-md:gap-0.5 max-md:pt-2">
+          <p
+            className="text-[15px] italic leading-snug text-[#F0EDE8] max-md:text-[13px]"
+            style={{ fontFamily: 'var(--font-display)' }}
+          >
+            &ldquo;{activeTwist.text}&rdquo;
+          </p>
+          <p className={cn(MONO_LABEL, 'text-[#888880]')}>
+            &mdash; {activeTwist.userDisplayName}
+          </p>
+        </div>
+      )}
+
       <button
         type="button"
         onClick={() => setHistoryOpen(true)}
@@ -336,7 +351,7 @@ function HeaderStatus({
   }
 
   const ms = stageLocked ? stageRemainingMs : userRemainingMs
-  const label = stageLocked ? 'Closes' : 'Cooldown'
+  const label = stageLocked ? 'Re-opens in' : 'Cooldown'
   const minutes = Math.floor(ms / 60000)
   const seconds = Math.floor((ms % 60000) / 1000)
   const mm = String(minutes).padStart(2, '0')

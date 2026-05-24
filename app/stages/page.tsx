@@ -4,6 +4,7 @@ import { StageCard } from '@/components/stage/stage-card'
 import { db } from '@/lib/db/client'
 import { stages, stageParticipants, stageEvents } from '@/lib/db/schema'
 import { dialogueFromEventContent } from '@/lib/stage/feed-items'
+import { resolveStageImageUrl } from '@/lib/db/stage-image-by-name'
 import { eq, and, count, desc } from 'drizzle-orm'
 
 export const metadata = { title: 'Stages' }
@@ -72,7 +73,7 @@ export default async function StagesPage() {
                 participantCount={Number(stage.participantCount)}
                 lastLine={stage.lastLine}
                 lastSpeakerName={stage.lastSpeakerName}
-                imageUrl={stage.imageUrl ?? undefined}
+                imageUrl={resolveStageImageUrl(stage) ?? undefined}
               />
             ))}
           </div>

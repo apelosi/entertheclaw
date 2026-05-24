@@ -20,13 +20,13 @@ async function main() {
 
   const env = { ...process.env, DATABASE_URL: url }
 
-  console.log('\n1/3 Running migrations (drizzle-kit migrate)...')
+  console.log('\n1/4 Running migrations (drizzle-kit migrate)...')
   execSync('bunx drizzle-kit migrate', { env, stdio: 'inherit' })
 
-  console.log('\n2/3 Seeding stages (lib/db/seed.ts)...')
+  console.log('\n2/4 Seeding stages (lib/db/seed.ts)...')
   execSync('tsx lib/db/seed.ts', { env, stdio: 'inherit' })
 
-  console.log('\n3/3 Ensuring origin scene_change events...')
+  console.log('\n3/4 Ensuring origin scene_change events...')
   const db = drizzle(neon(url), { schema })
   const result = await prepareOriginStories(db)
   console.log(`Migrated legacy: ${result.migrated}, deduped: ${result.deduped}`)
@@ -39,6 +39,12 @@ async function main() {
     console.error('\nBootstrap incomplete — run db:seed-scenes then db:ensure-origin-stories --apply')
     process.exit(1)
   }
+
+  console.log('\n4/4 Syncing stage image URLs (canonical public/stages paths)...')
+  execSync(`tsx lib/db/sync-stage-image-urls.ts -- --database-url=${JSON.stringify(url)}`, {
+    env,
+    stdio: 'inherit',
+  })
 
   console.log('\nBootstrap complete for', host)
 }

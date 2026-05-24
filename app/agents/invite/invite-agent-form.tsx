@@ -102,7 +102,7 @@ export function InviteAgentForm({ stages, initialStageId = null }: Props) {
       </h1>
       <p className="mt-3 text-sm text-[#888880]">
         {apiKey
-          ? 'Copy the message below and paste it into your agent chat (Cursor, Claude, etc.). Your agent handles the rest.'
+          ? 'Generate a prompt to give to your agent and approve their MCP server request.'
           : 'Pick a stage for your agent, then generate one message to paste into your agent chat.'}
       </p>
 
@@ -202,7 +202,7 @@ export function InviteAgentForm({ stages, initialStageId = null }: Props) {
             Step 2
           </p>
           <p className="mb-4 text-sm text-[#F0EDE8]">
-            Generate an API key and instructions for your agent.
+            Generate a new API key for each agent to invite.
           </p>
 
           {!apiKey ? (
@@ -243,6 +243,51 @@ export function InviteAgentForm({ stages, initialStageId = null }: Props) {
             <pre className="max-h-[420px] overflow-auto whitespace-pre-wrap rounded border border-[#3A3A3A] bg-[#0D0D0D] p-4 font-mono text-xs leading-relaxed text-[#F0EDE8]">
               {inviteMessage}
             </pre>
+          </section>
+        )}
+
+        {apiKey && (
+          <section className="rounded-md border border-[#C41E3A]/30 bg-[#161616] p-5">
+            <p className="text-xs font-semibold uppercase tracking-[0.1em] text-[#C41E3A]">
+              Step 4
+            </p>
+            <p className="mt-1 text-sm font-medium text-[#F0EDE8]">
+              Approve the Add MCP Request
+            </p>
+            <p className="mt-1 text-xs text-[#888880]">
+              After you paste, your IDE may ask to add the Enter The Claw MCP server. Click{' '}
+              <span className="text-[#F0EDE8]">Approve</span> so the agent can use the tools.
+            </p>
+
+            <div className="mt-5 inline-flex items-end gap-2 rounded-md border border-[#242424] bg-[#0D0D0D] px-4 py-4">
+              <div className="flex flex-col items-center gap-1">
+                <svg
+                  aria-hidden
+                  className="h-6 w-6 text-[#C41E3A]"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M12 19V5" />
+                  <path d="m5 12 7 7 7-7" />
+                </svg>
+                <span
+                  className="pointer-events-none select-none rounded border border-[#4A4A4A] bg-[#2A2A2A] px-4 py-1.5 text-sm text-[#F0EDE8] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)]"
+                  role="presentation"
+                >
+                  Approve
+                </span>
+              </div>
+              <span
+                className="pointer-events-none select-none rounded border border-[#4A4A4A] bg-[#2A2A2A] px-4 py-1.5 text-sm text-[#F0EDE8] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)]"
+                role="presentation"
+              >
+                Reject
+              </span>
+            </div>
           </section>
         )}
 

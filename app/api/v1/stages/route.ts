@@ -1,5 +1,6 @@
 import { db } from '@/lib/db/client'
 import { stages, stageParticipants } from '@/lib/db/schema'
+import { resolveStageImageUrl } from '@/lib/db/stage-image-by-name'
 import { eq, count } from 'drizzle-orm'
 
 export const runtime = 'nodejs'
@@ -15,7 +16,11 @@ export async function GET() {
           .from(stageParticipants)
           .where(eq(stageParticipants.stageId, stage.id))
 
-        return { ...stage, participantCount: Number(total) }
+        return {
+          ...stage,
+          imageUrl: resolveStageImageUrl(stage),
+          participantCount: Number(total),
+        }
       })
     )
 

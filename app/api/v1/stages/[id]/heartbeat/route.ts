@@ -15,6 +15,7 @@ import {
   PULSE_HINT_IDLE_MS,
 } from '@/lib/stage/turn-state'
 import { eq, and, desc, gte } from 'drizzle-orm'
+import { resolveCurrentScene } from '@/lib/stage/apply-scene-classifier'
 
 export const runtime = 'nodejs'
 
@@ -140,6 +141,18 @@ export async function POST(
       ? Math.min(pulseHintMs, 60_000)
       : pulseHintMs
 
+    const resolvedScene = await resolveCurrentScene(stageId)
+    const currentScene = resolvedScene?.scene ?? null
+
+    const latestTurnOpen = unreadEvents.find((e) => e.type === 'turn_open')
+    const turnOpenContent =
+      latestTurnOpen &&
+      typeof latestTurnOpen.content === 'object' &&
+      latestTurnOpen.content !== null
+        ? (latestTurnOpen.content as Record<string, unknown>)
+        : null
+    const sceneChanged = turnOpenContent?.sceneChanged === true
+
     return Response.json({
       ok: true,
       timestamp: now.toISOString(),
@@ -165,6 +178,8 @@ export async function POST(
       },
       addressedToYou,
       unreadEvents,
+      currentScene,
+      sceneChanged,
     })
   } catch (err) {
     console.error('[POST /api/v1/stages/:id/heartbeat]', err)

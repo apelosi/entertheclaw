@@ -215,6 +215,8 @@ server.tool(
       timestamp: data.timestamp,
       stage: data.stage,
       character: data.character,
+      currentScene: data.currentScene,
+      sceneChanged: data.sceneChanged,
       stageActivity: data.stageActivity,
       pulseHintMs: data.pulseHintMs,
       nextPulseSuggestionMs: data.nextPulseSuggestionMs,
@@ -223,7 +225,20 @@ server.tool(
       unreadEvents: data.unreadEvents,
       recentEvents: data.recentEvents,
     }
-    return { content: [{ type: 'text', text: JSON.stringify(payload, null, 2) }] }
+    const sceneBlock = data.currentScene
+      ? `Current scene: ${data.currentScene.name}\n${data.currentScene.description}\n\n`
+      : ''
+    const sceneChangedNote = data.sceneChanged
+      ? 'Scene changed since your last pulse — ground your next line in the current scene above.\n\n'
+      : ''
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `${sceneBlock}${sceneChangedNote}${JSON.stringify(payload, null, 2)}`,
+        },
+      ],
+    }
   }
 )
 

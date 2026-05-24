@@ -10,9 +10,15 @@
  * keeps running on the current scene; a future event gets another chance.
  */
 
+import {
+  buildSceneFallbackFromTwistText,
+  twistExplicitlyRelocatesScene,
+} from './twist-scene-fallback'
+
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions'
 const DEFAULT_MODEL = 'openai/gpt-5-nano'
-const TIMEOUT_MS = 4000
+const DIALOGUE_TIMEOUT_MS = 4000
+const TWIST_TIMEOUT_MS = 8000
 
 export interface SceneClassifierInput {
   stageName: string
@@ -50,6 +56,42 @@ OR
 
 No prose outside the JSON object.`
 
+const TWIST_SYSTEM_PROMPT = `You are the silent stage director for a 24/7 improv platform.
+
+A human director just injected a TWIST — authoritative stage direction, not in-character dialogue.
+
+Decide whether the twist relocates the action to a new scene (new location + immediate context).
+
+Rules:
+- Director twists that describe travel, hard cuts, explosions pulling people outside, "scene changes to…", or a new setting MUST emit changed:true.
+- DO NOT stay on the current scene when the director explicitly moves the action elsewhere.
+- DO NOT change scene for purely emotional or relational beats with no location shift.
+- When changing, write:
+  - name: 6–10 words, concrete location + brief context.
+  - description: 1–3 sentences, present tense, paint the space and what's immediately happening. No dialogue.
+  - reason: 1 short sentence explaining why this twist changed the scene.
+
+Output strict JSON:
+{ "changed": false }
+OR
+{ "changed": true, "name": "...", "description": "...", "reason": "..." }
+
+No prose outside the JSON object.`
+
+const TWIST_EXTRACTION_PROMPT = `You are the silent stage director for a 24/7 improv platform.
+
+The director twist below explicitly relocates the scene. Extract the NEW scene location and context.
+
+Always respond with changed:true. Write:
+- name: 6–10 words, concrete location + brief context.
+- description: 1–3 sentences, present tense, paint the space and what's immediately happening. No dialogue.
+- reason: 1 short sentence.
+
+Output strict JSON:
+{ "changed": true, "name": "...", "description": "...", "reason": "..." }
+
+No prose outside the JSON object.`
+
 function buildUserPrompt(input: SceneClassifierInput): string {
   const speaker = input.newEvent.speaker ? ` (${input.newEvent.speaker})` : ''
   const eventLabel = input.newEvent.kind === 'twist' ? 'NEW TWIST' : 'NEW LINE'
@@ -64,19 +106,36 @@ ${eventLabel}${speaker}: ${input.newEvent.text}
 Decide.`
 }
 
-export async function classifyScene(
-  input: SceneClassifierInput,
-): Promise<SceneClassifierResult> {
-  const apiKey = process.env.OPENROUTER_API_KEY
-  if (!apiKey) {
-    console.warn('[scene-classifier] OPENROUTER_API_KEY not set; skipping')
-    return { changed: false }
+function normalizeChangedResult(
+  parsed: unknown,
+): Extract<SceneClassifierResult, { changed: true }> | { changed: false } {
+  if (!parsed || typeof parsed !== 'object') return { changed: false }
+  const p = parsed as Record<string, unknown>
+  if (p.changed !== true) return { changed: false }
+
+  const name = typeof p.name === 'string' ? p.name.trim() : ''
+  const description =
+    typeof p.description === 'string' ? p.description.trim() : ''
+  const reason = typeof p.reason === 'string' ? p.reason.trim() : ''
+  if (!name || !description) return { changed: false }
+
+  return {
+    changed: true,
+    name: name.slice(0, 120),
+    description: description.slice(0, 800),
+    reason: reason.slice(0, 280) || 'Scene relocated.',
   }
+}
 
-  const model = process.env.OPENROUTER_SCENE_MODEL || DEFAULT_MODEL
-
+async function callSceneClassifierModel(
+  apiKey: string,
+  model: string,
+  systemPrompt: string,
+  userPrompt: string,
+  timeoutMs: number,
+): Promise<SceneClassifierResult> {
   const controller = new AbortController()
-  const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS)
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
 
   try {
     const res = await fetch(OPENROUTER_URL, {
@@ -93,8 +152,8 @@ export async function classifyScene(
         temperature: 0.4,
         max_tokens: 400,
         messages: [
-          { role: 'system', content: SYSTEM_PROMPT },
-          { role: 'user', content: buildUserPrompt(input) },
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt },
         ],
       }),
       signal: controller.signal,
@@ -122,26 +181,17 @@ export async function classifyScene(
       return { changed: false }
     }
 
-    if (!parsed || typeof parsed !== 'object') return { changed: false }
-    const p = parsed as Record<string, unknown>
-
-    if (p.changed !== true) return { changed: false }
-
-    const name = typeof p.name === 'string' ? p.name.trim() : ''
-    const description =
-      typeof p.description === 'string' ? p.description.trim() : ''
-    const reason = typeof p.reason === 'string' ? p.reason.trim() : ''
-    if (!name || !description) return { changed: false }
-
-    return {
-      changed: true,
-      name: name.slice(0, 120),
-      description: description.slice(0, 800),
-      reason: reason.slice(0, 280),
+    const normalized = normalizeChangedResult(parsed)
+    if (normalized.changed) {
+      return {
+        ...normalized,
+        reason: normalized.reason.slice(0, 280) || 'Scene relocated.',
+      }
     }
+    return { changed: false }
   } catch (err) {
     if ((err as { name?: string })?.name === 'AbortError') {
-      console.warn('[scene-classifier] timed out after', TIMEOUT_MS, 'ms')
+      console.warn('[scene-classifier] timed out after', timeoutMs, 'ms')
     } else {
       console.warn('[scene-classifier] error:', err)
     }
@@ -149,4 +199,60 @@ export async function classifyScene(
   } finally {
     clearTimeout(timeoutId)
   }
+}
+
+function twistSceneFallback(text: string): SceneClassifierResult {
+  const fallback = buildSceneFallbackFromTwistText(text)
+  if (fallback) {
+    console.warn(
+      '[scene-classifier] using deterministic twist relocation fallback',
+    )
+    return fallback
+  }
+  return { changed: false }
+}
+
+export async function classifyScene(
+  input: SceneClassifierInput,
+): Promise<SceneClassifierResult> {
+  const isTwist = input.newEvent.kind === 'twist'
+  const explicitRelocation =
+    isTwist && twistExplicitlyRelocatesScene(input.newEvent.text)
+
+  const apiKey = process.env.OPENROUTER_API_KEY
+  if (!apiKey) {
+    if (explicitRelocation) {
+      return twistSceneFallback(input.newEvent.text)
+    }
+    console.warn('[scene-classifier] OPENROUTER_API_KEY not set; skipping')
+    return { changed: false }
+  }
+
+  const model = process.env.OPENROUTER_SCENE_MODEL || DEFAULT_MODEL
+  const timeoutMs = isTwist ? TWIST_TIMEOUT_MS : DIALOGUE_TIMEOUT_MS
+  const systemPrompt = isTwist ? TWIST_SYSTEM_PROMPT : SYSTEM_PROMPT
+  const userPrompt = buildUserPrompt(input)
+
+  const primary = await callSceneClassifierModel(
+    apiKey,
+    model,
+    systemPrompt,
+    userPrompt,
+    timeoutMs,
+  )
+  if (primary.changed) return primary
+
+  if (explicitRelocation) {
+    const extraction = await callSceneClassifierModel(
+      apiKey,
+      model,
+      TWIST_EXTRACTION_PROMPT,
+      buildUserPrompt(input),
+      timeoutMs,
+    )
+    if (extraction.changed) return extraction
+    return twistSceneFallback(input.newEvent.text)
+  }
+
+  return { changed: false }
 }

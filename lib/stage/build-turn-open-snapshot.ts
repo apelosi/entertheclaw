@@ -25,6 +25,7 @@ import {
   characters,
 } from '@/lib/db/schema'
 import { and, desc, eq } from 'drizzle-orm'
+import { resolveCurrentScene } from './apply-scene-classifier'
 
 export const RECENT_DIALOGUE_LIMIT = 5
 
@@ -72,18 +73,9 @@ export async function buildTurnOpenSnapshot(
     .orderBy(desc(stageEvents.createdAt))
     .limit(40)
 
-  let currentScene: { name: string; description: string } | null = null
-  const latestSceneEvent = recentEvents.find((e) => e.type === 'scene_change')
-  if (
-    latestSceneEvent &&
-    typeof latestSceneEvent.content === 'object' &&
-    latestSceneEvent.content !== null
-  ) {
-    const c = latestSceneEvent.content as Record<string, unknown>
-    if (typeof c.name === 'string' && typeof c.description === 'string') {
-      currentScene = { name: c.name, description: c.description }
-    }
-  }
+  const resolvedScene = await resolveCurrentScene(stageId)
+  let currentScene: { name: string; description: string } | null =
+    resolvedScene?.scene ?? null
   if (!currentScene && stage?.initialSceneName && stage?.initialSceneDescription) {
     currentScene = {
       name: stage.initialSceneName,

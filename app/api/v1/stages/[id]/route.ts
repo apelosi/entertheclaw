@@ -7,6 +7,7 @@ import {
   npcPersonas,
 } from '@/lib/db/schema'
 import { resolveStageImageUrl } from '@/lib/db/stage-image-by-name'
+import { resolveCurrentScene } from '@/lib/stage/apply-scene-classifier'
 import { eq, and, desc } from 'drizzle-orm'
 
 export const runtime = 'nodejs'
@@ -69,18 +70,9 @@ export async function GET(
       .limit(20)
 
     // Current scene = latest scene_change event, fallback to seeded initial.
-    let currentScene: { name: string; description: string } | null = null
-    const latestSceneEvent = recentEvents.find((e) => e.type === 'scene_change')
-    if (
-      latestSceneEvent &&
-      typeof latestSceneEvent.content === 'object' &&
-      latestSceneEvent.content !== null
-    ) {
-      const c = latestSceneEvent.content as Record<string, unknown>
-      if (typeof c.name === 'string' && typeof c.description === 'string') {
-        currentScene = { name: c.name, description: c.description }
-      }
-    }
+    const resolvedScene = await resolveCurrentScene(id)
+    let currentScene: { name: string; description: string } | null =
+      resolvedScene?.scene ?? null
     if (!currentScene && stage.initialSceneName && stage.initialSceneDescription) {
       currentScene = {
         name: stage.initialSceneName,

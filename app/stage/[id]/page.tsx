@@ -8,11 +8,12 @@ import {
   twists,
   agents,
 } from '@/lib/db/schema'
-import { eq, desc, and } from 'drizzle-orm'
+import { eq, desc, and, inArray } from 'drizzle-orm'
 import type { Metadata } from 'next'
 import StageViewClient from '@/components/stage/stage-view-client'
 import { Nav } from '@/components/nav'
 import { resolveStageImageUrl } from '@/lib/db/stage-image-by-name'
+import { resolveCurrentScene } from '@/lib/stage/apply-scene-classifier'
 import { getServerSession } from '@/lib/auth/get-server-session'
 
 interface Props {
@@ -53,12 +54,17 @@ async function getStageData(id: string, userId: string | null) {
     )
     .where(eq(stageParticipants.stageId, id))
 
-  const recentEvents = await db
+  const recentScriptEvents = await db
     .select()
     .from(stageEvents)
-    .where(eq(stageEvents.stageId, id))
+    .where(
+      and(
+        eq(stageEvents.stageId, id),
+        inArray(stageEvents.type, ['dialogue', 'twist', 'scene_change']),
+      ),
+    )
     .orderBy(desc(stageEvents.createdAt))
-    .limit(50)
+    .limit(100)
 
   const [lastStageTwist] = await db
     .select({ createdAt: twists.createdAt })
@@ -78,21 +84,10 @@ async function getStageData(id: string, userId: string | null) {
     lastUserTwist = row ?? null
   }
 
-  // Resolve initial current scene: latest scene_change event content, falling
-  // back to the seeded initial_scene_* columns. We scan recentEvents instead
-  // of issuing another query since recentEvents already covers 50 events.
-  let initialScene: { name: string; description: string } | null = null
-  const latestSceneEvent = recentEvents.find((e) => e.type === 'scene_change')
-  if (
-    latestSceneEvent &&
-    typeof latestSceneEvent.content === 'object' &&
-    latestSceneEvent.content !== null
-  ) {
-    const c = latestSceneEvent.content as Record<string, unknown>
-    if (typeof c.name === 'string' && typeof c.description === 'string') {
-      initialScene = { name: c.name, description: c.description }
-    }
-  }
+  // Latest scene_change, falling back to seeded initial_scene_* columns.
+  const resolvedScene = await resolveCurrentScene(id)
+  let initialScene: { name: string; description: string } | null =
+    resolvedScene?.scene ?? null
   if (!initialScene && stage.initialSceneName && stage.initialSceneDescription) {
     initialScene = {
       name: stage.initialSceneName,
@@ -107,7 +102,7 @@ async function getStageData(id: string, userId: string | null) {
   return {
     stage,
     participants,
-    recentEvents,
+    recentScriptEvents,
     initialScene,
     stageIsActive: stage.isActive ?? true,
     hasCastOnStage,
@@ -129,7 +124,7 @@ export default async function StagePage({ params }: Props) {
   const {
     stage,
     participants,
-    recentEvents,
+    recentScriptEvents,
     initialScene,
     lastTwistAt,
     lastUserTwistAt,
@@ -150,7 +145,7 @@ export default async function StagePage({ params }: Props) {
         stageImageUrl={resolveStageImageUrl(stage)}
         stageCreatedAt={stage.createdAt ? stage.createdAt.toISOString() : null}
         participants={participants}
-        initialEvents={recentEvents}
+        initialEvents={recentScriptEvents}
         initialScene={initialScene}
         isLoggedIn={Boolean(userId)}
         currentUserId={userId}

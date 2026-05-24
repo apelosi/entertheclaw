@@ -106,6 +106,8 @@ export interface HeartbeatResponse {
   }
   addressedToYou: boolean
   unreadEvents: StageEvent[]
+  currentScene: { name: string; description: string } | null
+  sceneChanged: boolean
 }
 
 export interface ClaimResult {

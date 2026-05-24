@@ -183,8 +183,27 @@ export function DialoguePanel({
 }: Props) {
   const [historyOpen, setHistoryOpen] = useState(false)
   const [scriptOpen, setScriptOpen] = useState(true)
-  const hasRecentItems =
-    recentItemsDesktop.length > 0 || recentItemsMobile.length > 0
+
+  const dialogueTime = dialogue?.createdAt ?? null
+  const splitByDialogue = (items: FeedItem[]) => {
+    if (dialogueTime === null) {
+      return { newer: [] as FeedItem[], older: items }
+    }
+    const newer: FeedItem[] = []
+    const older: FeedItem[] = []
+    for (const item of items) {
+      if (item.createdAt > dialogueTime) newer.push(item)
+      else older.push(item)
+    }
+    return { newer, older }
+  }
+
+  const { newer: newerDesktop, older: olderDesktop } = splitByDialogue(recentItemsDesktop)
+  const { newer: newerMobile, older: olderMobile } = splitByDialogue(recentItemsMobile)
+
+  const hasNewerThanDialogue = newerDesktop.length > 0 || newerMobile.length > 0
+  const hasOlderThanDialogue = olderDesktop.length > 0 || olderMobile.length > 0
+  const hasRecentItems = hasNewerThanDialogue || hasOlderThanDialogue
 
   return (
     <>
@@ -215,7 +234,21 @@ export function DialoguePanel({
 
         {scriptOpen && (
           <div className={cn('flex flex-col', PANEL_STACK_GAP, PANEL_INSET)}>
-            <div className="flex items-start gap-2.5 border-l-2 border-l-[#C41E3A]/70 pl-2 max-md:gap-2 max-md:pl-1.5">
+            {hasNewerThanDialogue && (
+              <div key={`newer-${feedBumpKey}`}>
+                <RecentScriptList
+                  items={newerDesktop}
+                  speakerImageByName={speakerImageByName}
+                  className="max-sm:hidden"
+                />
+                <RecentScriptList
+                  items={newerMobile}
+                  speakerImageByName={speakerImageByName}
+                  className="sm:hidden"
+                />
+              </div>
+            )}
+            <div className="flex items-start gap-2.5 border-l-2 border-l-transparent pl-2 max-md:gap-2 max-md:pl-1.5">
               <div className={cn(AVATAR, 'bg-[#0e0e0e]/70 ring-1 ring-[#242424]/60')}>
                 {dialogue?.speakerImageUrl ? (
                   <Image
@@ -256,21 +289,21 @@ export function DialoguePanel({
               </div>
             </div>
 
-            {hasRecentItems ? (
+            {hasOlderThanDialogue ? (
               <div key={feedBumpKey}>
                 <RecentScriptList
-                  items={recentItemsDesktop}
+                  items={olderDesktop}
                   speakerImageByName={speakerImageByName}
                   className="max-sm:hidden"
                 />
                 <RecentScriptList
-                  items={recentItemsMobile}
+                  items={olderMobile}
                   speakerImageByName={speakerImageByName}
                   className="sm:hidden"
                 />
               </div>
             ) : (
-              !dialogue && (
+              !dialogue && !hasRecentItems && (
                 <p className={MONO_MUTED}>No prior script entries.</p>
               )
             )}

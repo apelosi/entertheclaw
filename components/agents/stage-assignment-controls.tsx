@@ -250,7 +250,7 @@ export function StageAssignmentControls({
     <div className={cn('flex flex-wrap gap-2', className)}>
       <Button
         size="sm"
-        variant="primary"
+        variant={onStage ? 'primary' : 'secondary'}
         onClick={() => setStep('picking')}
       >
         {onStage ? 'Pull from stage' : 'Assign to a stage'}

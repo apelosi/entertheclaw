@@ -54,6 +54,10 @@ export async function GET(request: Request) {
       errorBody?.error ??
       errorBody?.message ??
       `oauth_start_failed_${upstream.status}`
+    console.error('[oauth-start] upstream rejected', {
+      status: upstream.status,
+      message,
+    })
     return Response.redirect(
       new URL(`/auth?error=${encodeURIComponent(message)}`, request.url),
       302,
@@ -64,15 +68,23 @@ export async function GET(request: Request) {
     | { url?: string }
     | null
   if (typeof data?.url !== 'string' || !data.url) {
+    console.error('[oauth-start] upstream returned no url', data)
     return Response.redirect(
       new URL('/auth?error=oauth_start_no_url', request.url),
       302,
     )
   }
 
+  const setCookies = upstream.headers.getSetCookie()
   const headers = new Headers({ Location: data.url })
-  for (const cookie of upstream.headers.getSetCookie()) {
+  for (const cookie of setCookies) {
     headers.append('Set-Cookie', cookie)
   }
+  console.log('[oauth-start] success', {
+    provider,
+    setCookieCount: setCookies.length,
+    setCookieNames: setCookies.map((c) => c.split('=')[0]),
+    uaBrief: (request.headers.get('user-agent') ?? '').slice(0, 120),
+  })
   return new Response(null, { status: 302, headers })
 }

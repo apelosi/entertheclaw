@@ -42,6 +42,21 @@ export async function handleOAuthCallback(
   const { searchParams } = request.nextUrl
   const verifier = searchParams.get(OAUTH_VERIFIER_PARAM)
   const popupCallback = searchParams.get(POPUP_CALLBACK_PARAM)
+  const ua = request.headers.get('user-agent') ?? ''
+  const cookieHeaderRaw = request.headers.get('cookie') ?? ''
+  const cookieNames = cookieHeaderRaw
+    .split(';')
+    .map((c) => c.trim().split('=')[0])
+    .filter((n) => n.startsWith(NEON_AUTH_COOKIE_PREFIX))
+
+  console.log('[oauth-callback] enter', {
+    hasVerifier: !!verifier,
+    verifierPrefix: verifier?.slice(0, 8) ?? null,
+    popupCallback,
+    neonCookieNames: cookieNames,
+    referer: request.headers.get('referer'),
+    uaBrief: ua.slice(0, 120),
+  })
 
   const safeCallback = (() => {
     if (!popupCallback) return '/'
@@ -55,6 +70,7 @@ export async function handleOAuthCallback(
   const callbackUrl = new URL(safeCallback, request.url)
 
   if (!verifier) {
+    console.warn('[oauth-callback] missing verifier; redirecting to /auth')
     return NextResponse.redirect(
       new URL('/auth?error=missing_verifier', request.url),
       302,
@@ -76,8 +92,18 @@ export async function handleOAuthCallback(
   // Forward only Neon Auth cookies (challenge cookie etc.) — matches what
   // Neon's own proxy does. Sending the full cookie jar would leak unrelated
   // cookies and risk header-size limits.
-  const cookieHeader = extractNeonAuthCookies(request.headers.get('cookie') ?? '')
+  const cookieHeader = extractNeonAuthCookies(cookieHeaderRaw)
   const origin = request.headers.get('origin') ?? new URL(request.url).origin
+
+  if (!cookieHeader) {
+    console.warn('[oauth-callback] no Neon Auth cookies on request — likely Safari cookie drop', {
+      anyCookies: !!cookieHeaderRaw,
+      rawCookieNames: cookieHeaderRaw
+        .split(';')
+        .map((c) => c.trim().split('=')[0])
+        .filter(Boolean),
+    })
+  }
 
   let upstream: Response
   try {
@@ -97,8 +123,17 @@ export async function handleOAuthCallback(
     )
   }
 
+  const upstreamSetCookies = upstream.headers.getSetCookie()
+  console.log('[oauth-callback] upstream response', {
+    status: upstream.status,
+    ok: upstream.ok,
+    setCookieCount: upstreamSetCookies.length,
+    setCookieNames: upstreamSetCookies.map((c) => c.split('=')[0]),
+  })
+
   if (!upstream.ok) {
-    console.error('[oauth-callback] upstream returned', upstream.status)
+    const body = await upstream.text().catch(() => '')
+    console.error('[oauth-callback] upstream non-ok body', body.slice(0, 500))
     return NextResponse.redirect(
       new URL(
         `/auth?error=oauth_exchange_failed_${upstream.status}`,
@@ -109,9 +144,10 @@ export async function handleOAuthCallback(
   }
 
   const response = NextResponse.redirect(callbackUrl, 302)
-  for (const cookie of upstream.headers.getSetCookie()) {
+  for (const cookie of upstreamSetCookies) {
     response.headers.append('Set-Cookie', cookie)
   }
+  console.log('[oauth-callback] success — redirecting to', safeCallback)
   return response
 }
 

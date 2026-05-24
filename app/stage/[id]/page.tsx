@@ -73,6 +73,28 @@ async function getStageData(id: string, userId: string | null) {
     .orderBy(desc(twists.createdAt))
     .limit(1)
 
+  // Latest twist event content for seeding the on-page "active twist" panel.
+  // Pulled from stage_events (not twists table) so we get the captured
+  // userDisplayName in the content payload.
+  const [lastTwistEvent] = await db
+    .select({ content: stageEvents.content, createdAt: stageEvents.createdAt })
+    .from(stageEvents)
+    .where(and(eq(stageEvents.stageId, id), eq(stageEvents.type, 'twist')))
+    .orderBy(desc(stageEvents.createdAt))
+    .limit(1)
+
+  let initialActiveTwist: { text: string; userDisplayName: string } | null = null
+  if (lastTwistEvent?.content && typeof lastTwistEvent.content === 'object') {
+    const c = lastTwistEvent.content as Record<string, unknown>
+    if (typeof c.text === 'string') {
+      initialActiveTwist = {
+        text: c.text,
+        userDisplayName:
+          typeof c.userDisplayName === 'string' ? c.userDisplayName : 'Anonymous Director',
+      }
+    }
+  }
+
   let lastUserTwist: { createdAt: Date | null } | null = null
   if (userId) {
     const [row] = await db
@@ -110,6 +132,7 @@ async function getStageData(id: string, userId: string | null) {
     lastUserTwistAt: lastUserTwist?.createdAt
       ? new Date(lastUserTwist.createdAt).getTime()
       : null,
+    initialActiveTwist,
   }
 }
 
@@ -130,6 +153,7 @@ export default async function StagePage({ params }: Props) {
     lastUserTwistAt,
     stageIsActive,
     hasCastOnStage,
+    initialActiveTwist,
   } = data
 
   const twistsEnabled = stageIsActive && hasCastOnStage
@@ -152,6 +176,7 @@ export default async function StagePage({ params }: Props) {
         twistsEnabled={twistsEnabled}
         lastTwistAt={twistsEnabled ? lastTwistAt : null}
         lastUserTwistAt={twistsEnabled ? lastUserTwistAt : null}
+        initialActiveTwist={initialActiveTwist}
       />
     </>
   )

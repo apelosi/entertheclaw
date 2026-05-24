@@ -59,6 +59,7 @@ interface StageCanvasProps {
   twistsEnabled: boolean
   lastTwistAt: number | null
   lastUserTwistAt: number | null
+  initialActiveTwist: ActiveTwist | null
 }
 
 const TYPEWRITER_INTERVAL_MS = 35
@@ -98,11 +99,12 @@ export default function StageCanvas({
   twistsEnabled,
   lastTwistAt,
   lastUserTwistAt,
+  initialActiveTwist,
 }: StageCanvasProps) {
   const router = useRouter()
   const [dialogue, setDialogue] = useState<CurrentDialogue | null>(null)
   const [activeAgentId, setActiveAgentId] = useState<string | null>(null)
-  const [activeTwist, setActiveTwist] = useState<ActiveTwist | null>(null)
+  const [activeTwist, setActiveTwist] = useState<ActiveTwist | null>(initialActiveTwist)
   const [feedItems, setFeedItems] = useState<FeedItem[]>(() => {
     const all = feedItemsFromEvents(initialEvents as StageEventLike[])
     const activeDialogueEvent = initialEvents.find((e) => e.type === 'dialogue')
@@ -422,7 +424,23 @@ export default function StageCanvas({
     lastTwistAt,
     lastUserTwistAt,
     liveLastTwistAt,
-    onLocalSubmitSuccess: () => setLiveLastTwistAt(Date.now()),
+    onLocalSubmitSuccess: (twist: {
+      eventId: string
+      text: string
+      userDisplayName: string
+      createdAt: number
+    }) => {
+      setLiveLastTwistAt(twist.createdAt)
+      // Mark the event as seen so the WS broadcast doesn't double-apply it.
+      seenEventIdsRef.current.add(twist.eventId)
+      applyTwist({
+        kind: 'twist',
+        id: twist.eventId,
+        text: twist.text,
+        userDisplayName: twist.userDisplayName,
+        createdAt: twist.createdAt,
+      })
+    },
     activeTwist,
     recentTwists: recentTwistItems,
   }

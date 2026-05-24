@@ -1,8 +1,12 @@
 import { NextResponse, type NextRequest } from 'next/server'
 
 const OAUTH_VERIFIER_PARAM = 'neon_auth_session_verifier'
-const POPUP_CALLBACK_PARAM = 'neon_popup_callback'
 const NEON_AUTH_COOKIE_PREFIX = '__Secure-neon-auth'
+
+// Destination cookies written by /api/auth/oauth-start alongside the Neon
+// challenge cookie — both committed atomically in the same 302 response.
+const OAUTH_DEST_COOKIE = '__oauth_dest'
+const OAUTH_NEW_USER_DEST_COOKIE = '__oauth_new_user_dest'
 
 /** Filter a `Cookie:` header value to only Neon Auth cookies. */
 function extractNeonAuthCookies(cookieHeader: string): string {
@@ -12,6 +16,20 @@ function extractNeonAuthCookies(cookieHeader: string): string {
     .map((c) => c.trim())
     .filter((c) => c.startsWith(NEON_AUTH_COOKIE_PREFIX))
     .join('; ')
+}
+
+/** Read a single cookie value from a raw `Cookie:` header string. */
+function readCookie(cookieHeader: string, name: string): string | null {
+  for (const part of cookieHeader.split(';')) {
+    const [k, ...rest] = part.trim().split('=')
+    if (k.trim() === name) return decodeURIComponent(rest.join('='))
+  }
+  return null
+}
+
+/** Expire a cookie by setting Max-Age=0. */
+function expireCookie(name: string): string {
+  return `${name}=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0`
 }
 
 /**
@@ -41,33 +59,35 @@ export async function handleOAuthCallback(
 ): Promise<NextResponse> {
   const { searchParams } = request.nextUrl
   const verifier = searchParams.get(OAUTH_VERIFIER_PARAM)
-  const popupCallback = searchParams.get(POPUP_CALLBACK_PARAM)
   const ua = request.headers.get('user-agent') ?? ''
   const cookieHeaderRaw = request.headers.get('cookie') ?? ''
-  const cookieNames = cookieHeaderRaw
+
+  const neonCookieNames = cookieHeaderRaw
     .split(';')
     .map((c) => c.trim().split('=')[0])
     .filter((n) => n.startsWith(NEON_AUTH_COOKIE_PREFIX))
 
+  // Read the destination cookies written by /api/auth/oauth-start.
+  const destRaw = readCookie(cookieHeaderRaw, OAUTH_DEST_COOKIE)
+  const newUserDestRaw = readCookie(cookieHeaderRaw, OAUTH_NEW_USER_DEST_COOKIE)
+
   console.log('[oauth-callback] enter', {
     hasVerifier: !!verifier,
     verifierPrefix: verifier?.slice(0, 8) ?? null,
-    popupCallback,
-    neonCookieNames: cookieNames,
+    destRaw,
+    newUserDestRaw: newUserDestRaw ?? null,
+    neonCookieNames,
     referer: request.headers.get('referer'),
     uaBrief: ua.slice(0, 120),
   })
 
+  // Validate destination: must be a same-origin path (no open-redirect).
   const safeCallback = (() => {
-    if (!popupCallback) return '/'
-    // Only allow same-origin paths starting with '/'. Avoid open-redirect.
-    if (popupCallback.startsWith('/') && !popupCallback.startsWith('//')) {
-      return popupCallback
-    }
+    const raw = destRaw
+    if (!raw) return '/'
+    if (raw.startsWith('/') && !raw.startsWith('//')) return raw
     return '/'
   })()
-
-  const callbackUrl = new URL(safeCallback, request.url)
 
   if (!verifier) {
     console.warn('[oauth-callback] missing verifier; redirecting to /auth')
@@ -143,11 +163,33 @@ export async function handleOAuthCallback(
     )
   }
 
-  const response = NextResponse.redirect(callbackUrl, 302)
+  // Determine the final destination.
+  // newUserDestRaw is only set when the caller supplied a newUserCallbackURL.
+  // We don't have a reliable way to detect new-vs-existing from /get-session
+  // response headers alone, so we check if the session response body carries
+  // an `isNewUser` hint. If not, fall back to the standard dest.
+  let finalDest = safeCallback
+  if (newUserDestRaw) {
+    try {
+      const body = await upstream.json() as Record<string, unknown>
+      const isNew = body?.isNewUser === true
+      if (isNew && newUserDestRaw.startsWith('/') && !newUserDestRaw.startsWith('//')) {
+        finalDest = newUserDestRaw
+      }
+    } catch {
+      // Not a JSON body or no isNewUser flag — stay with safeCallback.
+    }
+  }
+
+  const response = NextResponse.redirect(new URL(finalDest, request.url), 302)
   for (const cookie of upstreamSetCookies) {
     response.headers.append('Set-Cookie', cookie)
   }
-  console.log('[oauth-callback] success — redirecting to', safeCallback)
+  // Expire the destination cookies — they've served their purpose.
+  response.headers.append('Set-Cookie', expireCookie(OAUTH_DEST_COOKIE))
+  response.headers.append('Set-Cookie', expireCookie(OAUTH_NEW_USER_DEST_COOKIE))
+
+  console.log('[oauth-callback] success — redirecting to', finalDest)
   return response
 }
 

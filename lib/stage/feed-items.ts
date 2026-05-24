@@ -100,6 +100,33 @@ export function feedItemsFromEvents(events: StageEventLike[]): FeedItem[] {
     .sort((a, b) => b.createdAt - a.createdAt)
 }
 
+/** Total dialogue lines visible in the script panel (current + prior). */
+export const RECENT_SCRIPT_DIALOGUE_TOTAL_DESKTOP = 5
+export const RECENT_SCRIPT_DIALOGUE_TOTAL_MOBILE = 3
+
+/** Prior dialogue lines plus any scenes/twists within that same time window. */
+export function selectRecentScriptPreview(
+  feedItems: FeedItem[],
+  excludeId: string | undefined,
+  totalDialogueLimit: number,
+): FeedItem[] {
+  if (totalDialogueLimit <= 0) return []
+
+  const priorDialogueLimit = excludeId
+    ? Math.max(0, totalDialogueLimit - 1)
+    : totalDialogueLimit
+  if (priorDialogueLimit <= 0) return []
+
+  const filtered = feedItems.filter((i) => i.id !== excludeId)
+  const dialogues = filtered.filter((i) => i.kind === 'dialogue')
+  if (dialogues.length === 0) return []
+
+  const cutoffIndex = Math.min(priorDialogueLimit, dialogues.length) - 1
+  const cutoffTime = dialogues[cutoffIndex]!.createdAt
+
+  return filtered.filter((i) => i.createdAt >= cutoffTime)
+}
+
 export function formatFeedAsMarkdown(
   items: FeedItem[],
   stageName: string,

@@ -16,6 +16,9 @@ import { useStageEvents } from './use-stage-events'
 import {
   feedItemsFromEvents,
   parseFeedItem,
+  RECENT_SCRIPT_DIALOGUE_TOTAL_DESKTOP,
+  RECENT_SCRIPT_DIALOGUE_TOTAL_MOBILE,
+  selectRecentScriptPreview,
   type FeedItem,
   type StageEventLike,
 } from '@/lib/stage/feed-items'
@@ -323,13 +326,27 @@ export default function StageCanvas({
     }
   }, [])
 
-  // Mixed script feed (dialogue, scenes, twists) for the dialogue panel preview
-  const recentScriptItems = useMemo(() => {
-    const activeId = dialogue?.eventId
-    return feedItems
-      .filter((i) => i.id !== activeId)
-      .slice(0, RECENT_FEED_LIMIT)
-  }, [feedItems, dialogue?.eventId])
+  const activeDialogueId = dialogue?.eventId
+
+  const recentScriptItemsDesktop = useMemo(
+    () =>
+      selectRecentScriptPreview(
+        feedItems,
+        activeDialogueId,
+        RECENT_SCRIPT_DIALOGUE_TOTAL_DESKTOP,
+      ),
+    [feedItems, activeDialogueId],
+  )
+
+  const recentScriptItemsMobile = useMemo(
+    () =>
+      selectRecentScriptPreview(
+        feedItems,
+        activeDialogueId,
+        RECENT_SCRIPT_DIALOGUE_TOTAL_MOBILE,
+      ),
+    [feedItems, activeDialogueId],
+  )
 
   // Twist-only feed for the twist panel
   const recentTwistItems = useMemo(
@@ -508,7 +525,8 @@ export default function StageCanvas({
       <div className="grid gap-3 p-4 max-md:gap-2 max-md:p-3 lg:grid-cols-[1fr_22rem] lg:items-start lg:gap-5 lg:p-6">
         <DialoguePanel
           {...sharedDialogueProps}
-          recentItems={recentScriptItems}
+          recentItemsDesktop={recentScriptItemsDesktop}
+          recentItemsMobile={recentScriptItemsMobile}
         />
         <div className="flex flex-col gap-3 max-md:gap-2">
           <NarrativeTwist {...sharedNarrativeProps} collapsible defaultOpen={false} />

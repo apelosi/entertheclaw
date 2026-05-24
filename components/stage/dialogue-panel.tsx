@@ -25,9 +25,6 @@ import {
   TYPEWRITER_CURSOR,
 } from './stage-mobile-classes'
 
-const RECENT_SCRIPT_LIMIT_MOBILE = 3
-const RECENT_SCRIPT_LIMIT_DESKTOP = 5
-
 export interface CurrentDialogue {
   eventId: string
   createdAt: number
@@ -42,7 +39,8 @@ interface Props {
   stageId: string
   stageName: string
   dialogue: CurrentDialogue | null
-  recentItems: FeedItem[]
+  recentItemsDesktop: FeedItem[]
+  recentItemsMobile: FeedItem[]
   allHistoryItems: FeedItem[]
   feedBumpKey: number
   currentScene: CurrentScene | null
@@ -55,6 +53,99 @@ function resolveSpeakerImage(
   speakerImageByName: Map<string, string | null>,
 ): string | null {
   return item.speakerImageUrl ?? speakerImageByName.get(item.speakerName) ?? null
+}
+
+
+function RecentScriptList({
+  items,
+  speakerImageByName,
+  className,
+}: {
+  items: FeedItem[]
+  speakerImageByName: Map<string, string | null>
+  className?: string
+}) {
+  if (items.length === 0) return null
+
+  return (
+    <ul
+      className={cn('flex flex-col', PANEL_STACK_GAP, className)}
+      aria-label="Recent script entries"
+    >
+      {items.map((item, index) => {
+        const enterClass = cn(
+          'stage-feed-enter',
+          item.kind === 'dialogue' && 'border-l-2 border-l-transparent pl-2',
+        )
+        if (item.kind === 'dialogue') {
+          const imageUrl = resolveSpeakerImage(item, speakerImageByName)
+          return (
+            <li
+              key={item.id}
+              className={enterClass}
+              style={{ animationDelay: `${index * 40}ms` }}
+            >
+              <DialogueRow item={item} imageUrl={imageUrl} />
+            </li>
+          )
+        }
+        if (item.kind === 'scene') {
+          return (
+            <li
+              key={item.id}
+              className={enterClass}
+              style={{ animationDelay: `${index * 40}ms` }}
+            >
+              <SceneScriptMarker name={item.name} description={item.description} />
+            </li>
+          )
+        }
+        return (
+          <li
+            key={item.id}
+            className={enterClass}
+            style={{ animationDelay: `${index * 40}ms` }}
+          >
+            <TwistScriptMarker userDisplayName={item.userDisplayName} text={item.text} />
+          </li>
+        )
+      })}
+    </ul>
+  )
+}
+
+function DialogueRow({
+  item,
+  imageUrl,
+}: {
+  item: FeedItem & { kind: 'dialogue' }
+  imageUrl: string | null
+}) {
+  return (
+    <div className="flex items-start gap-2.5 max-md:gap-2">
+      <div className={cn(AVATAR, 'bg-[#0e0e0e]/70 ring-1 ring-[#242424]/60')}>
+        {imageUrl ? (
+          <Image
+            src={imageUrl}
+            alt={item.speakerName}
+            width={36}
+            height={36}
+            className="h-full w-full object-cover image-pixelated"
+          />
+        ) : (
+          <div className={AVATAR_PLACEHOLDER}>◈</div>
+        )}
+      </div>
+      <p className={cn('min-w-0 flex-1 text-[#888880]', MONO_BODY_SM)}>
+        <span className="text-[#C41E3A]/80">{item.speakerName}:</span>{' '}
+        {item.isEmote ? (
+          <em>{normalizeEmoteAction(item.text)}</em>
+        ) : (
+          <DialogueText text={item.text} />
+        )}
+      </p>
+    </div>
+  )
 }
 
 function CurrentSpeakerMeta({ speakerName }: { speakerName: string }) {
@@ -82,7 +173,8 @@ export function DialoguePanel({
   stageId,
   stageName,
   dialogue,
-  recentItems,
+  recentItemsDesktop,
+  recentItemsMobile,
   allHistoryItems,
   feedBumpKey,
   currentScene,
@@ -91,7 +183,8 @@ export function DialoguePanel({
 }: Props) {
   const [historyOpen, setHistoryOpen] = useState(false)
   const [scriptOpen, setScriptOpen] = useState(true)
-  const visibleRecentItems = recentItems.slice(0, RECENT_SCRIPT_LIMIT_DESKTOP)
+  const hasRecentItems =
+    recentItemsDesktop.length > 0 || recentItemsMobile.length > 0
 
   return (
     <>
@@ -163,80 +256,19 @@ export function DialoguePanel({
               </div>
             </div>
 
-            {visibleRecentItems.length > 0 ? (
-              <ul
-                key={feedBumpKey}
-                className={cn('flex flex-col', PANEL_STACK_GAP)}
-                aria-label="Recent script entries"
-              >
-                {visibleRecentItems.map((item, index) => {
-                  const enterClass = cn(
-                    'stage-feed-enter',
-                    item.kind === 'dialogue' && 'border-l-2 border-l-transparent pl-2',
-                    index >= RECENT_SCRIPT_LIMIT_MOBILE && 'max-sm:hidden',
-                  )
-                  if (item.kind === 'dialogue') {
-                    const imageUrl = resolveSpeakerImage(item, speakerImageByName)
-                    return (
-                      <li
-                        key={item.id}
-                        className={enterClass}
-                        style={{ animationDelay: `${index * 40}ms` }}
-                      >
-                        <div className="flex items-start gap-2.5 max-md:gap-2">
-                          <div className={cn(AVATAR, 'bg-[#0e0e0e]/70 ring-1 ring-[#242424]/60')}>
-                            {imageUrl ? (
-                              <Image
-                                src={imageUrl}
-                                alt={item.speakerName}
-                                width={36}
-                                height={36}
-                                className="h-full w-full object-cover image-pixelated"
-                              />
-                            ) : (
-                              <div className={AVATAR_PLACEHOLDER}>◈</div>
-                            )}
-                          </div>
-                          <p className={cn('min-w-0 flex-1 text-[#888880]', MONO_BODY_SM)}>
-                            <span className="text-[#C41E3A]/80">{item.speakerName}:</span>{' '}
-                            {item.isEmote ? (
-                              <em>{normalizeEmoteAction(item.text)}</em>
-                            ) : (
-                              <DialogueText text={item.text} />
-                            )}
-                          </p>
-                        </div>
-                      </li>
-                    )
-                  }
-                  if (item.kind === 'scene') {
-                    return (
-                      <li
-                        key={item.id}
-                        className={enterClass}
-                        style={{ animationDelay: `${index * 40}ms` }}
-                      >
-                        <SceneScriptMarker
-                          name={item.name}
-                          description={item.description}
-                        />
-                      </li>
-                    )
-                  }
-                  return (
-                    <li
-                      key={item.id}
-                      className={enterClass}
-                      style={{ animationDelay: `${index * 40}ms` }}
-                    >
-                      <TwistScriptMarker
-                        userDisplayName={item.userDisplayName}
-                        text={item.text}
-                      />
-                    </li>
-                  )
-                })}
-              </ul>
+            {hasRecentItems ? (
+              <div key={feedBumpKey}>
+                <RecentScriptList
+                  items={recentItemsDesktop}
+                  speakerImageByName={speakerImageByName}
+                  className="max-sm:hidden"
+                />
+                <RecentScriptList
+                  items={recentItemsMobile}
+                  speakerImageByName={speakerImageByName}
+                  className="sm:hidden"
+                />
+              </div>
             ) : (
               !dialogue && (
                 <p className={MONO_MUTED}>No prior script entries.</p>

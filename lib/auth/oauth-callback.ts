@@ -3,10 +3,15 @@ import { NextResponse, type NextRequest } from 'next/server'
 const OAUTH_VERIFIER_PARAM = 'neon_auth_session_verifier'
 const NEON_AUTH_COOKIE_PREFIX = '__Secure-neon-auth'
 
-// Destination cookies written by /api/auth/oauth-start alongside the Neon
-// challenge cookie — both committed atomically in the same 302 response.
+// Cookies written by /api/auth/oauth-start, committed atomically with the
+// Neon challenge cookie in the same 302 response.
 const OAUTH_DEST_COOKIE = '__oauth_dest'
 const OAUTH_NEW_USER_DEST_COOKIE = '__oauth_new_user_dest'
+// Backup mirror of the PKCE challenge value. The original Neon cookie may be
+// SameSite=Strict or stripped by iOS Safari ITP on cross-site redirect return.
+// We copy the value to a SameSite=Lax cookie so we can inject it server-side.
+const OAUTH_CHALLENGE_BACKUP_COOKIE = '__oauth_ch'
+const NEON_CHALLENGE_COOKIE_NAME = '__Secure-neon-auth.session_challange'
 
 /** Filter a `Cookie:` header value to only Neon Auth cookies. */
 function extractNeonAuthCookies(cookieHeader: string): string {
@@ -109,21 +114,29 @@ export async function handleOAuthCallback(
   const upstreamUrl = new URL(`${baseUrl}/get-session`)
   upstreamUrl.searchParams.set(OAUTH_VERIFIER_PARAM, verifier)
 
-  // Forward only Neon Auth cookies (challenge cookie etc.) — matches what
-  // Neon's own proxy does. Sending the full cookie jar would leak unrelated
-  // cookies and risk header-size limits.
-  const cookieHeader = extractNeonAuthCookies(cookieHeaderRaw)
+  // Build the Cookie header for the upstream /get-session call.
+  // Filter to only Neon Auth cookies — matches what Neon's own proxy does.
+  // If the original challenge cookie was dropped by iOS Safari (SameSite=Strict
+  // or ITP stripping), inject its value from our __oauth_ch backup cookie.
+  let neonCookies = extractNeonAuthCookies(cookieHeaderRaw)
+  const hasChallenge = neonCookies.includes(NEON_CHALLENGE_COOKIE_NAME)
+  const challengeBackup = readCookie(cookieHeaderRaw, OAUTH_CHALLENGE_BACKUP_COOKIE)
+
+  if (!hasChallenge && challengeBackup) {
+    const injected = `${NEON_CHALLENGE_COOKIE_NAME}=${challengeBackup}`
+    neonCookies = neonCookies ? `${neonCookies}; ${injected}` : injected
+    console.log('[oauth-callback] injected backup challenge cookie')
+  }
+
+  const cookieHeader = neonCookies
   const origin = request.headers.get('origin') ?? new URL(request.url).origin
 
-  if (!cookieHeader) {
-    console.warn('[oauth-callback] no Neon Auth cookies on request — likely Safari cookie drop', {
-      anyCookies: !!cookieHeaderRaw,
-      rawCookieNames: cookieHeaderRaw
-        .split(';')
-        .map((c) => c.trim().split('=')[0])
-        .filter(Boolean),
-    })
-  }
+  console.log('[oauth-callback] cookie state', {
+    hasChallenge,
+    hasChallengeBackup: !!challengeBackup,
+    hasDestCookie: !!destRaw,
+    neonCookieNames,
+  })
 
   let upstream: Response
   try {
@@ -185,9 +198,10 @@ export async function handleOAuthCallback(
   for (const cookie of upstreamSetCookies) {
     response.headers.append('Set-Cookie', cookie)
   }
-  // Expire the destination cookies — they've served their purpose.
+  // Expire the destination and challenge backup cookies — they've served their purpose.
   response.headers.append('Set-Cookie', expireCookie(OAUTH_DEST_COOKIE))
   response.headers.append('Set-Cookie', expireCookie(OAUTH_NEW_USER_DEST_COOKIE))
+  response.headers.append('Set-Cookie', expireCookie(OAUTH_CHALLENGE_BACKUP_COOKIE))
 
   console.log('[oauth-callback] success — redirecting to', finalDest)
   return response

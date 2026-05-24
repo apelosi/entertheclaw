@@ -12,7 +12,30 @@ const NEON_CALLBACK_PATH = '/auth/callback'
 // are committed atomically before the cross-site navigation to the provider.
 const OAUTH_DEST_COOKIE = '__oauth_dest'
 const OAUTH_NEW_USER_DEST_COOKIE = '__oauth_new_user_dest'
+// Backup copy of the Neon challenge cookie value. Neon sets the challenge as
+// __Secure-neon-auth.session_challange which may have SameSite=Strict or be
+// otherwise dropped by iOS Safari on cross-site redirect return. We mirror the
+// value in our own SameSite=Lax cookie so handleOAuthCallback can inject it
+// back when calling /get-session, even if the original was not forwarded.
+const OAUTH_CHALLENGE_BACKUP_COOKIE = '__oauth_ch'
+const NEON_CHALLENGE_COOKIE_NAME = '__Secure-neon-auth.session_challange'
 const COOKIE_MAX_AGE = 600 // 10 minutes — more than enough for an OAuth flow
+
+/**
+ * Extract the value of a named cookie from a list of Set-Cookie header strings.
+ * Returns null if the cookie is not found.
+ */
+function extractSetCookieValue(setCookieHeaders: string[], name: string): string | null {
+  for (const header of setCookieHeaders) {
+    const [nameValue] = header.split(';')
+    const eqIdx = nameValue.indexOf('=')
+    if (eqIdx < 0) continue
+    if (nameValue.slice(0, eqIdx).trim() === name) {
+      return nameValue.slice(eqIdx + 1).trim()
+    }
+  }
+  return null
+}
 
 /**
  * Server-side OAuth initiation.
@@ -100,13 +123,25 @@ export async function GET(request: Request) {
   const setCookies = upstream.headers.getSetCookie()
   const headers = new Headers({ Location: data.url })
 
-  // Forward Neon's challenge cookie(s).
+  // Forward Neon's challenge cookie(s) as-is.
   for (const cookie of setCookies) {
     headers.append('Set-Cookie', cookie)
   }
 
-  // Store the real destinations so handleOAuthCallback can redirect there
-  // without depending on query params surviving the Neon redirect.
+  // Mirror the challenge value in our own SameSite=Lax cookie so that
+  // handleOAuthCallback can inject it into the /get-session call even when
+  // the original __Secure-neon-auth.session_challange is dropped by iOS Safari
+  // (which happens when the cookie is SameSite=Strict or ITP strips it on the
+  // cross-site redirect return from the OAuth provider).
+  const challengeValue = extractSetCookieValue(setCookies, NEON_CHALLENGE_COOKIE_NAME)
+  if (challengeValue) {
+    headers.append(
+      'Set-Cookie',
+      `${OAUTH_CHALLENGE_BACKUP_COOKIE}=${encodeURIComponent(challengeValue)}; ${cookieAttrs}`,
+    )
+  }
+
+  // Store the real destinations so handleOAuthCallback can redirect there.
   headers.append('Set-Cookie', `${OAUTH_DEST_COOKIE}=${encodeURIComponent(callbackURL)}; ${cookieAttrs}`)
   if (newUserCallbackURL) {
     headers.append('Set-Cookie', `${OAUTH_NEW_USER_DEST_COOKIE}=${encodeURIComponent(newUserCallbackURL)}; ${cookieAttrs}`)
@@ -118,6 +153,7 @@ export async function GET(request: Request) {
     newUserCallbackURL: newUserCallbackURL ?? null,
     setCookieCount: setCookies.length,
     setCookieNames: setCookies.map((c) => c.split('=')[0]),
+    hasChallengeBackup: !!challengeValue,
     uaBrief: (request.headers.get('user-agent') ?? '').slice(0, 120),
   })
   return new Response(null, { status: 302, headers })

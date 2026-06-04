@@ -1,6 +1,5 @@
 import { getServerSession } from '@/lib/auth/get-server-session'
-import { needsDisplayName } from '@/lib/auth/display-name'
-import { syncUserDisplayName } from '@/lib/users/public-profile'
+import { getPublicDisplayName } from '@/lib/users/public-profile'
 import { redirect } from 'next/navigation'
 
 export const dynamic = 'force-dynamic'
@@ -19,10 +18,10 @@ export default async function AccountPage() {
   if (!session?.user) redirect('/auth')
   const user = session.user
 
-  if (!needsDisplayName(user)) {
-    const label = user.name?.trim() || user.email?.split('@')[0]
-    if (label) await syncUserDisplayName(user.id, label)
-  }
+  // Read the display name from the authoritative store rather than the session
+  // user.name, which Neon serves from a signed session_data cache cookie that
+  // can lag behind a just-saved value by minutes.
+  const displayName = (await getPublicDisplayName(user.id)) ?? ''
 
   return (
     <>
@@ -48,7 +47,7 @@ export default async function AccountPage() {
           <dl className="space-y-4">
             <div>
               <DisplayNameForm
-                initialName={user.name?.trim() ?? ''}
+                initialName={displayName}
                 mode="account"
               />
             </div>

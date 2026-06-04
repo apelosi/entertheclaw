@@ -7,10 +7,15 @@ import { syncUserDisplayName } from '@/lib/users/public-profile'
 export const runtime = 'nodejs'
 
 /**
- * Set the user's display name: update the Neon Auth profile name AND sync it to
- * the public profile table. The Neon Auth update runs server-side via the
- * trusted upstream path because the browser-proxied /api/auth/update-user call
- * is blocked by Better Auth's CSRF origin check in production.
+ * Set the user's display name.
+ *
+ * The public profile table (`user_profiles`) is the authoritative store and is
+ * written first, so saving never depends on the upstream Neon Auth mutation.
+ * That mutation can transiently fail on the very first request right after a
+ * brand-new sign-up (the session isn't propagated upstream yet), which used to
+ * make the form revert and force a second tap. Mirroring the name to the Neon
+ * Auth profile is now best-effort: the app reads display names from
+ * `user_profiles`, so an upstream hiccup must not block onboarding.
  */
 export async function POST(request: Request) {
   const { data: session } = await auth.getSession()
@@ -38,28 +43,30 @@ export async function POST(request: Request) {
 
   const name = displayName.trim()
 
-  // Authoritative update: this is what needsDisplayName() reads on later logins.
-  const upstream = await callNeonAuthUpstream(
-    'update-user',
-    { method: 'POST', body: { name } },
-    request,
-    { forwardSession: true },
-  )
-  if (!upstream.ok) {
-    const data = (await upstream.json().catch(() => null)) as { message?: string } | null
-    return NextResponse.json(
-      { error: data?.message ?? 'Could not save display name.' },
-      { status: upstream.status },
-    )
-  }
-
+  // Authoritative write — this is what the app (and the onboarding gate) reads.
   await syncUserDisplayName(user.id, name)
 
+  // Best-effort mirror to the Neon Auth profile name. Not fatal.
   const res = NextResponse.json({ ok: true })
-  // Forward any refreshed session cookies so the cached session reflects the
-  // new name immediately (otherwise onboarding could re-trigger briefly).
-  for (const cookie of upstream.headers.getSetCookie()) {
-    res.headers.append('set-cookie', cookie)
+  try {
+    const upstream = await callNeonAuthUpstream(
+      'update-user',
+      { method: 'POST', body: { name } },
+      request,
+      { forwardSession: true },
+    )
+    if (upstream.ok) {
+      // Forward any refreshed session cookies so the cached session reflects
+      // the new name sooner.
+      for (const cookie of upstream.headers.getSetCookie()) {
+        res.headers.append('set-cookie', cookie)
+      }
+    } else {
+      console.warn('[display-name] upstream update-user failed', upstream.status)
+    }
+  } catch (err) {
+    console.warn('[display-name] upstream update-user error', err)
   }
+
   return res
 }

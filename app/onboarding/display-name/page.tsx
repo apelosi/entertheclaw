@@ -1,5 +1,6 @@
 import { getServerSession } from '@/lib/auth/get-server-session'
-import { displayNameOnboardingPath, needsDisplayName } from '@/lib/auth/display-name'
+import { displayNameOnboardingPath } from '@/lib/auth/display-name'
+import { userNeedsDisplayName } from '@/lib/users/public-profile'
 import { authUrl } from '@/lib/auth/paths'
 import { DisplayNameForm } from '@/components/account/display-name-form'
 import { HOME_PATH } from '@/lib/paths'
@@ -23,13 +24,16 @@ export default async function DisplayNameOnboardingPage({ searchParams }: PagePr
     redirect(authUrl(displayNameOnboardingPath(callbackUrl)))
   }
 
-  if (!needsDisplayName(session.user)) {
+  if (!(await userNeedsDisplayName(session.user.id))) {
     redirect(callbackUrl)
   }
 
+  // Default to the email handle (everything before the @) regardless of how
+  // the user signed up, falling back to any Neon Auth name only if there is
+  // no email on the account.
   const suggested =
+    session.user.email?.split('@')[0]?.trim() ||
     session.user.name?.trim() ||
-    session.user.email?.split('@')[0] ||
     ''
 
   return (

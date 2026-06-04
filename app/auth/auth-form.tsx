@@ -163,6 +163,10 @@ function AuthFormInner() {
   const handleOtpSubmit = async () => {
     resetMessages()
     setLoading(true)
+    // Keep the button busy through the navigation that finishAuth() starts;
+    // letting `finally` reset it would flash "Continue" before the next screen
+    // loads and make the tap look like it failed.
+    let navigating = false
     try {
       const result = await verifySignInOtp({
         email: email.trim(),
@@ -172,17 +176,20 @@ function AuthFormInner() {
         setError(result.error)
         return
       }
-      await finishAuth()
+      navigating = true
+      finishAuth()
     } catch {
       setError('Could not verify code. Check your connection and try again.')
     } finally {
-      setLoading(false)
+      if (!navigating) setLoading(false)
     }
   }
 
   const handlePasswordSubmit = async () => {
     resetMessages()
     setLoading(true)
+    // See handleOtpSubmit: keep the button busy through navigation on success.
+    let navigating = false
 
     try {
       const signInRes = await authClient.signIn.email({
@@ -192,7 +199,8 @@ function AuthFormInner() {
       })
 
       if (!signInRes.error) {
-        await finishAuth()
+        navigating = true
+        finishAuth()
         return
       }
 
@@ -212,7 +220,8 @@ function AuthFormInner() {
       })
 
       if (!signUpRes.error) {
-        await finishAuth()
+        navigating = true
+        finishAuth()
         return
       }
 
@@ -228,7 +237,7 @@ function AuthFormInner() {
     } catch {
       setError('Could not sign in. Check your connection and try again.')
     } finally {
-      setLoading(false)
+      if (!navigating) setLoading(false)
     }
   }
 

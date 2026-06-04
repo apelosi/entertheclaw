@@ -40,6 +40,10 @@ export function DisplayNameForm({ initialName, mode, callbackUrl }: DisplayNameF
     }
 
     setLoading(true)
+    // When we navigate away on success, keep the button in its busy state until
+    // the next screen loads — do NOT let `finally` revert it to "Continue",
+    // which looks like the action failed and invites a needless second tap.
+    let navigating = false
     try {
       const profileRes = await fetch('/api/account/display-name', {
         method: 'POST',
@@ -53,6 +57,7 @@ export function DisplayNameForm({ initialName, mode, callbackUrl }: DisplayNameF
       }
 
       if (mode === 'onboarding') {
+        navigating = true
         window.location.assign(callbackUrl ?? HOME_PATH)
         return
       }
@@ -64,7 +69,7 @@ export function DisplayNameForm({ initialName, mode, callbackUrl }: DisplayNameF
     } catch {
       setError('Could not save display name. Check your connection and try again.')
     } finally {
-      setLoading(false)
+      if (!navigating) setLoading(false)
     }
   }
 

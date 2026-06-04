@@ -26,6 +26,7 @@ export async function callNeonAuthUpstream(
   path: string,
   init: { method: 'POST'; body: Record<string, unknown> },
   request?: Request,
+  options?: { forwardSession?: boolean },
 ): Promise<Response> {
   const baseUrl = process.env.NEON_AUTH_BASE_URL?.replace(/\/$/, '')
   if (!baseUrl) {
@@ -35,13 +36,22 @@ export async function callNeonAuthUpstream(
     )
   }
 
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    'x-neon-auth-middleware': 'true',
+    Origin: resolveAppOrigin(request),
+  }
+
+  // Authenticated endpoints (e.g. update-user) identify the user from the
+  // Neon Auth session cookie, so forward the browser's cookies upstream.
+  if (options?.forwardSession) {
+    const cookie = request?.headers.get('cookie')
+    if (cookie) headers.Cookie = cookie
+  }
+
   return fetch(`${baseUrl}/${path}`, {
     method: init.method,
-    headers: {
-      'Content-Type': 'application/json',
-      'x-neon-auth-middleware': 'true',
-      Origin: resolveAppOrigin(request),
-    },
+    headers,
     body: JSON.stringify(init.body),
   })
 }

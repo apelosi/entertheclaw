@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { authClient } from '@/lib/auth-client'
 import { validateDisplayName } from '@/lib/auth/display-name'
 import { HOME_PATH } from '@/lib/paths'
 
@@ -42,19 +41,14 @@ export function DisplayNameForm({ initialName, mode, callbackUrl }: DisplayNameF
 
     setLoading(true)
     try {
-      const result = await authClient.updateUser({ name: name.trim() })
-      if (result.error) {
-        setError(result.error.message ?? 'Could not save display name.')
-        return
-      }
-
       const profileRes = await fetch('/api/account/display-name', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ displayName: trimmedName }),
       })
       if (!profileRes.ok) {
-        setError('Display name saved to account but could not publish it publicly. Try again.')
+        const data = (await profileRes.json().catch(() => null)) as { error?: string } | null
+        setError(data?.error ?? 'Could not save display name. Please try again.')
         return
       }
 

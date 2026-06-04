@@ -1,7 +1,7 @@
 'use client'
 
 import { Suspense, useEffect, useState, type ReactNode } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { authClient } from '@/lib/auth-client'
 import { startSocialSignIn } from '@/lib/auth/start-social-sign-in'
@@ -68,7 +68,6 @@ function SocialButton({
 }
 
 function AuthFormInner() {
-  const router = useRouter()
   const searchParams = useSearchParams()
   const callbackURL = searchParams.get('callbackUrl') ?? HOME_PATH
   // Every sign-in/sign-up lands on the display-name onboarding page, which is
@@ -123,7 +122,13 @@ function AuthFormInner() {
   }, [resendCooldown, email])
 
   const finishAuth = () => {
-    router.push(onboardingDest)
+    // Use a full-page navigation (not router.push) so the submit button stays
+    // frozen in its busy state until the next screen loads — a soft client
+    // navigation can re-render/remount this form mid-transition and flash the
+    // idle "Continue" label. A hard navigation also sends the freshly minted
+    // session cookie cleanly, so the onboarding gate evaluates reliably right
+    // after sign-up.
+    window.location.assign(onboardingDest)
   }
 
   const requestSignInOtp = async (options?: { advanceToOtp?: boolean }) => {

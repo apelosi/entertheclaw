@@ -1,6 +1,7 @@
 import { Nav } from '@/components/nav'
 import { getServerSession } from '@/lib/auth/get-server-session'
-import { displayNameOnboardingPath, needsDisplayName } from '@/lib/auth/display-name'
+import { displayNameOnboardingPath } from '@/lib/auth/display-name'
+import { userNeedsDisplayName } from '@/lib/users/public-profile'
 import { redirect } from 'next/navigation'
 import { authUrl } from '@/lib/auth/paths'
 import { AGENT_INVITE_PATH } from '@/lib/paths'
@@ -61,7 +62,7 @@ export default async function InviteAgentPage({ searchParams }: InvitePageProps)
     redirect(authUrl(INVITE_PATH))
   }
 
-  if (needsDisplayName(session.user)) {
+  if (await userNeedsDisplayName(session.user.id)) {
     redirect(displayNameOnboardingPath(INVITE_PATH))
   }
 

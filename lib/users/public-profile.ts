@@ -24,3 +24,16 @@ export async function getPublicDisplayName(userId: string): Promise<string | nul
 
   return row?.displayName ?? null
 }
+
+/**
+ * True when the user has not yet chosen a public display name.
+ *
+ * This is the authoritative onboarding gate: it depends only on our own
+ * `user_profiles` table (written when the user submits the display-name form),
+ * not on the Neon Auth `name` field — which can be auto-populated (empty,
+ * full email, or an OAuth provider name) and is therefore unreliable for
+ * deciding whether to run the sign-up onboarding step.
+ */
+export async function userNeedsDisplayName(userId: string): Promise<boolean> {
+  return (await getPublicDisplayName(userId)) === null
+}

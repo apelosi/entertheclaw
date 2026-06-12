@@ -8,8 +8,16 @@ import { StageCardThumbnail } from '@/components/stage/stage-card-thumbnail'
 import { StageAssignmentControls } from '@/components/agents/stage-assignment-controls'
 import { listStageAssignmentOptions } from '@/lib/stages/available-stages'
 import { db } from '@/lib/db/client'
-import { agents, characters, stageEvents, stageParticipants, stages } from '@/lib/db/schema'
+import {
+  agents,
+  archivedCharacters,
+  characters,
+  stageEvents,
+  stageParticipants,
+  stages,
+} from '@/lib/db/schema'
 import { agentDetailPath, userProfilePath } from '@/lib/paths'
+import { parseArchivedCharacterData } from '@/lib/characters/archived-snapshot'
 import { resolveStageImageUrl } from '@/lib/db/stage-image-by-name'
 import { resolveInternalBackFallback } from '@/lib/navigation/resolve-back-fallback'
 import { getPublicDisplayName, syncUserDisplayName } from '@/lib/users/public-profile'
@@ -26,7 +34,7 @@ const THEME_GRADIENT: Record<string, string> = {
   drama: 'from-slate-800 to-zinc-900',
 }
 
-function formatDate(date: Date | null | undefined) {
+function formatDate(date: Date | string | null | undefined) {
   if (!date) return '—'
   return new Date(date).toLocaleDateString(undefined, {
     year: 'numeric',
@@ -35,24 +43,48 @@ function formatDate(date: Date | null | undefined) {
   })
 }
 
+function archiveReasonLabel(reason: string | null | undefined): string | null {
+  if (!reason) return null
+  if (reason === 'user_pulled') return 'Pulled from stage'
+  if (reason === 'timeout_24h') return 'Timed out'
+  return reason
+}
+
 interface Props {
   params: Promise<{ id: string }>
 }
 
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const { id } = await params
-  const [row] = await db
-    .select({ name: characters.name })
-    .from(characters)
-    .where(eq(characters.id, id))
-    .limit(1)
-  return { title: row?.name ?? 'Character' }
+/**
+ * Normalized view model so the page can render either a live character (from
+ * the `characters` table) or an archived one (snapshot in
+ * `archived_characters`) with the same markup.
+ */
+interface CharacterView {
+  name: string | null
+  occupation: string | null
+  backstory: string | null
+  imageUrl: string | null
+  spriteUrl: string | null
+  createdAt: Date | string | null
+  updatedAt: Date | string | null
+  isComplete: boolean
+  /** True when this is a historical/archived character (not currently live). */
+  isArchived: boolean
+  /** True when the agent is currently a participant on this stage. */
+  isOnStage: boolean
+  archiveReason: string | null
+  characterId: string
+  stageId: string
+  stageName: string | null
+  stageTheme: string | null
+  stageImageUrl: string | null
+  agentId: string
+  agentUserId: string
+  agentName: string | null
+  agentImageUrl: string | null
 }
 
-export default async function CharacterDetailPage({ params }: Props) {
-  const { id } = await params
-  const { data: session } = await getServerSession()
-
+async function loadLiveCharacter(id: string): Promise<CharacterView | null> {
   const [row] = await db
     .select({
       character: characters,
@@ -79,38 +111,133 @@ export default async function CharacterDetailPage({ params }: Props) {
     .where(eq(characters.id, id))
     .limit(1)
 
-  if (!row) notFound()
+  if (!row) return null
 
-  const {
-    character,
-    agentId,
-    agentUserId,
-    agentName,
-    agentImageUrl,
-    stageId,
-    stageName,
-    stageTheme,
-    stageImageUrl,
-  } = row
-  const isOnStage = row.participantId != null
-  const isOwner = Boolean(session?.user && session.user.id === agentUserId)
-  const stageGradient = THEME_GRADIENT[stageTheme ?? ''] ?? 'from-zinc-800 to-zinc-950'
+  return {
+    name: row.character.name,
+    occupation: row.character.occupation,
+    backstory: row.character.backstory,
+    imageUrl: row.character.imageUrl,
+    spriteUrl: row.character.spriteUrl,
+    createdAt: row.character.createdAt,
+    updatedAt: row.character.updatedAt,
+    isComplete: row.character.isComplete !== false,
+    isArchived: false,
+    isOnStage: row.participantId != null,
+    archiveReason: null,
+    characterId: id,
+    stageId: row.stageId,
+    stageName: row.stageName,
+    stageTheme: row.stageTheme,
+    stageImageUrl: row.stageImageUrl,
+    agentId: row.agentId,
+    agentUserId: row.agentUserId,
+    agentName: row.agentName,
+    agentImageUrl: row.agentImageUrl,
+  }
+}
 
-  const assignmentOptions = isOwner ? await listStageAssignmentOptions() : []
-
-  const [lastDialogue] = await db
-    .select({ createdAt: stageEvents.createdAt })
-    .from(stageEvents)
-    .where(and(eq(stageEvents.characterId, id), eq(stageEvents.type, 'dialogue')))
-    .orderBy(desc(stageEvents.createdAt))
+async function loadArchivedCharacter(id: string): Promise<CharacterView | null> {
+  const [row] = await db
+    .select({
+      archived: archivedCharacters,
+      agentId: agents.id,
+      agentUserId: agents.userId,
+      agentName: agents.name,
+      agentImageUrl: agents.imageUrl,
+      stageId: stages.id,
+      stageName: stages.name,
+      stageTheme: stages.theme,
+      stageImageUrl: stages.imageUrl,
+    })
+    .from(archivedCharacters)
+    .innerJoin(agents, eq(archivedCharacters.agentId, agents.id))
+    .innerJoin(stages, eq(archivedCharacters.stageId, stages.id))
+    .where(eq(archivedCharacters.originalCharacterId, id))
+    .orderBy(desc(archivedCharacters.archivedAt))
     .limit(1)
 
-  let ownerDisplayName = await getPublicDisplayName(agentUserId)
+  if (!row) return null
+
+  const snap = parseArchivedCharacterData(row.archived.characterData)
+
+  return {
+    name: snap.name ?? null,
+    occupation: snap.occupation ?? null,
+    backstory: snap.backstory ?? null,
+    imageUrl: snap.imageUrl ?? null,
+    spriteUrl: snap.spriteUrl ?? null,
+    createdAt: snap.createdAt ?? row.archived.archivedAt,
+    updatedAt: snap.updatedAt ?? row.archived.archivedAt,
+    isComplete: snap.isComplete !== false,
+    isArchived: true,
+    isOnStage: false,
+    archiveReason: row.archived.archiveReason,
+    characterId: id,
+    stageId: row.stageId,
+    stageName: row.stageName,
+    stageTheme: row.stageTheme,
+    stageImageUrl: row.stageImageUrl,
+    agentId: row.agentId,
+    agentUserId: row.agentUserId,
+    agentName: row.agentName,
+    agentImageUrl: row.agentImageUrl,
+  }
+}
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { id } = await params
+  const [row] = await db
+    .select({ name: characters.name })
+    .from(characters)
+    .where(eq(characters.id, id))
+    .limit(1)
+  if (row?.name) return { title: row.name }
+
+  const [archived] = await db
+    .select({ characterData: archivedCharacters.characterData })
+    .from(archivedCharacters)
+    .where(eq(archivedCharacters.originalCharacterId, id))
+    .orderBy(desc(archivedCharacters.archivedAt))
+    .limit(1)
+  const snap = archived ? parseArchivedCharacterData(archived.characterData) : null
+  return { title: snap?.name ?? 'Character' }
+}
+
+export default async function CharacterDetailPage({ params }: Props) {
+  const { id } = await params
+  const { data: session } = await getServerSession()
+
+  // A character that has been pulled/timed out is deleted from the live
+  // `characters` table and only survives as a snapshot in
+  // `archived_characters`. Fall back to that snapshot so prior characters keep
+  // a working page instead of 404ing.
+  const view = (await loadLiveCharacter(id)) ?? (await loadArchivedCharacter(id))
+  if (!view) notFound()
+
+  const isOwner = Boolean(session?.user && session.user.id === view.agentUserId)
+  const stageGradient = THEME_GRADIENT[view.stageTheme ?? ''] ?? 'from-zinc-800 to-zinc-950'
+
+  // Assignment controls only make sense for a live character (an archived one is
+  // a read-only historical record).
+  const assignmentOptions =
+    isOwner && !view.isArchived ? await listStageAssignmentOptions() : []
+
+  const [lastDialogue] = view.isArchived
+    ? []
+    : await db
+        .select({ createdAt: stageEvents.createdAt })
+        .from(stageEvents)
+        .where(and(eq(stageEvents.characterId, id), eq(stageEvents.type, 'dialogue')))
+        .orderBy(desc(stageEvents.createdAt))
+        .limit(1)
+
+  let ownerDisplayName = await getPublicDisplayName(view.agentUserId)
   if (!ownerDisplayName && isOwner && session?.user) {
     const sessionName =
       session.user.name?.trim() || session.user.email?.split('@')[0] || null
     if (sessionName) {
-      await syncUserDisplayName(agentUserId, sessionName)
+      await syncUserDisplayName(view.agentUserId, sessionName)
       ownerDisplayName = sessionName
     }
   }
@@ -126,14 +253,21 @@ export default async function CharacterDetailPage({ params }: Props) {
     '/characters',
   )
 
-  const portraitUrl = character.imageUrl ?? character.spriteUrl
-  const isSprite = Boolean(character.spriteUrl && portraitUrl === character.spriteUrl)
+  const portraitUrl = view.imageUrl ?? view.spriteUrl
+  const isSprite = Boolean(view.spriteUrl && portraitUrl === view.spriteUrl)
 
-  const statusLabel = character.isComplete === false
-    ? 'Creating'
-    : isOnStage
-      ? 'On stage'
-      : 'Not on stage'
+  const reasonLabel = archiveReasonLabel(view.archiveReason)
+  const statusLabel = view.isArchived
+    ? reasonLabel
+      ? `Archived · ${reasonLabel}`
+      : 'Archived'
+    : !view.isComplete
+      ? 'Creating'
+      : view.isOnStage
+        ? 'On stage'
+        : 'Not on stage'
+
+  const statusIsLive = !view.isArchived && view.isOnStage && view.isComplete
 
   return (
     <>
@@ -148,7 +282,7 @@ export default async function CharacterDetailPage({ params }: Props) {
             {portraitUrl ? (
               <Image
                 src={portraitUrl}
-                alt={character.name ?? 'Character'}
+                alt={view.name ?? 'Character'}
                 fill
                 sizes="64px"
                 className={
@@ -166,10 +300,10 @@ export default async function CharacterDetailPage({ params }: Props) {
               className="font-display text-[32px] font-semibold tracking-[-0.02em] text-[#F0EDE8]"
               style={{ fontFamily: 'var(--font-display)' }}
             >
-              {character.name ?? 'Unnamed Character'}
+              {view.name ?? 'Unnamed Character'}
             </h1>
-            {character.occupation && (
-              <p className="mt-1 text-sm text-[#888880]">{character.occupation}</p>
+            {view.occupation && (
+              <p className="mt-1 text-sm text-[#888880]">{view.occupation}</p>
             )}
           </div>
         </div>
@@ -185,9 +319,7 @@ export default async function CharacterDetailPage({ params }: Props) {
                   <p className="text-xs text-[#444440]">Status</p>
                   <p
                     className={`mt-1 font-mono text-sm uppercase tracking-[0.05em] ${
-                      isOnStage && character.isComplete !== false
-                        ? 'text-[#C41E3A]'
-                        : 'text-[#888880]'
+                      statusIsLive ? 'text-[#C41E3A]' : 'text-[#888880]'
                     }`}
                   >
                     {statusLabel}
@@ -196,13 +328,13 @@ export default async function CharacterDetailPage({ params }: Props) {
                 <div>
                   <p className="text-xs text-[#444440]">Updated</p>
                   <p className="mt-1 text-sm text-[#888880]">
-                    {formatDate(character.updatedAt)}
+                    {formatDate(view.updatedAt)}
                   </p>
                 </div>
                 <div>
                   <p className="text-xs text-[#444440]">Created</p>
                   <p className="mt-1 text-sm text-[#888880]">
-                    {formatDate(character.createdAt)}
+                    {formatDate(view.createdAt)}
                   </p>
                 </div>
                 <div>
@@ -216,9 +348,9 @@ export default async function CharacterDetailPage({ params }: Props) {
               </div>
               <div className="mt-4 border-t border-[#242424] pt-4">
                 <p className="text-xs text-[#444440]">Backstory</p>
-                {character.backstory?.trim() ? (
+                {view.backstory?.trim() ? (
                   <p className="mt-2 text-sm leading-relaxed text-[#888880]">
-                    {character.backstory.trim()}
+                    {view.backstory.trim()}
                   </p>
                 ) : (
                   <p className="mt-2 text-sm italic text-[#444440]">No backstory yet.</p>
@@ -234,28 +366,44 @@ export default async function CharacterDetailPage({ params }: Props) {
                   Stage
                 </h2>
                 <Link
-                  href={`/stage/${stageId}`}
+                  href={`/stage/${view.stageId}`}
                   className={`inline-block min-w-0 max-w-full truncate text-right font-display text-lg font-semibold tracking-[-0.02em] ${detailPageLinkClass}`}
                   style={{ fontFamily: 'var(--font-display)' }}
                 >
-                  {stageName}
+                  {view.stageName}
                 </Link>
               </div>
               <StageCardThumbnail
                 imageUrl={
-                  resolveStageImageUrl({ name: stageName ?? '', imageUrl: stageImageUrl }) ??
-                  undefined
+                  resolveStageImageUrl({
+                    name: view.stageName ?? '',
+                    imageUrl: view.stageImageUrl,
+                  }) ?? undefined
                 }
-                name={stageName ?? 'Stage'}
+                name={view.stageName ?? 'Stage'}
                 gradient={stageGradient}
               />
-              {isOwner && (
+              {isOwner && view.isArchived && (
+                <p className="border-t border-[#242424] px-5 py-4 text-xs text-[#888880]">
+                  This is a prior character and is no longer on stage. Manage the agent
+                  from its{' '}
+                  <Link
+                    href={agentDetailPath(view.agentId)}
+                    className={detailPageLinkClass}
+                  >
+                    agent page
+                  </Link>
+                  .
+                </p>
+              )}
+              {isOwner && !view.isArchived && (
                 <div className="border-t border-[#242424] px-5 py-4">
                   <StageAssignmentControls
-                    agentId={agentId}
-                    currentStageId={isOnStage ? stageId : null}
-                    currentStageName={isOnStage ? stageName : null}
+                    agentId={view.agentId}
+                    currentStageId={view.isOnStage ? view.stageId : null}
+                    currentStageName={view.isOnStage ? view.stageName : null}
                     availableStages={assignmentOptions}
+                    redirectTo={agentDetailPath(view.agentId)}
                   />
                 </div>
               )}
@@ -267,10 +415,10 @@ export default async function CharacterDetailPage({ params }: Props) {
               </h2>
               <div className="flex items-center gap-3">
                 <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-full bg-[#111111]">
-                  {agentImageUrl ? (
+                  {view.agentImageUrl ? (
                     <Image
-                      src={agentImageUrl}
-                      alt={agentName ?? 'Agent'}
+                      src={view.agentImageUrl}
+                      alt={view.agentName ?? 'Agent'}
                       fill
                       sizes="48px"
                       className="object-cover"
@@ -282,10 +430,10 @@ export default async function CharacterDetailPage({ params }: Props) {
                   )}
                 </div>
                 <Link
-                  href={agentDetailPath(agentId)}
+                  href={agentDetailPath(view.agentId)}
                   className={`inline-block text-sm font-medium ${detailPageLinkClass}`}
                 >
-                  {agentName ?? 'Unnamed Agent'}
+                  {view.agentName ?? 'Unnamed Agent'}
                 </Link>
               </div>
             </section>
@@ -296,7 +444,7 @@ export default async function CharacterDetailPage({ params }: Props) {
               </h2>
               {ownerDisplayName ? (
                 <Link
-                  href={userProfilePath(agentUserId)}
+                  href={userProfilePath(view.agentUserId)}
                   className={`inline-block text-sm font-medium ${detailPageLinkClass}`}
                 >
                   {ownerDisplayName}

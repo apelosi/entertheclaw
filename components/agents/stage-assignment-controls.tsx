@@ -20,6 +20,13 @@ interface Props {
   currentStageId: string | null
   currentStageName: string | null
   availableStages: StageAssignmentOption[]
+  /**
+   * Where to navigate after a successful action. Used by pages whose own URL
+   * may stop being valid once the action runs (e.g. a character detail page
+   * whose character gets archived by a pull/move). When omitted, the page is
+   * refreshed in place.
+   */
+  redirectTo?: string
   /** Optional className for the outer container. */
   className?: string
 }
@@ -33,6 +40,7 @@ export function StageAssignmentControls({
   currentStageId,
   currentStageName,
   availableStages,
+  redirectTo,
   className,
 }: Props) {
   const router = useRouter()
@@ -91,9 +99,18 @@ export function StageAssignmentControls({
       if (!res.ok) {
         throw new Error(body?.error ?? 'Action failed')
       }
-      router.refresh()
-      setBusy(false)
-      reset()
+      if (redirectTo) {
+        // The current page (e.g. this character's detail page) may no longer be
+        // valid after the action archived the character. Navigate somewhere
+        // that is guaranteed to exist instead of refreshing into a 404. Leave
+        // `busy` set so the button stays disabled through the navigation.
+        router.push(redirectTo)
+        router.refresh()
+      } else {
+        router.refresh()
+        setBusy(false)
+        reset()
+      }
     } catch (err) {
       setBusy(false)
       setError(err instanceof Error ? err.message : 'Unknown error')

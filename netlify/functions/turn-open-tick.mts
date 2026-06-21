@@ -25,5 +25,5 @@ export default async () => {
 }
 
 export const config = {
-  schedule: '* * * * *', // every minute
+  schedule: '*/5 * * * *', // every 5 minutes (safety-net only; inline emits cover the hot path)
 }

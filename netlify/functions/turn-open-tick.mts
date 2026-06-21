@@ -25,5 +25,8 @@ export default async () => {
 }
 
 export const config = {
-  schedule: '*/5 * * * *', // every 5 minutes (safety-net only; inline emits cover the hot path)
+  // Every 30 min. Safety-net only — inline emits, webhooks, and live heartbeat
+  // state cover real turn-signaling. Infrequent so Neon can scale to zero
+  // between ticks (each tick wakes the DB for its full idle-timeout window).
+  schedule: '*/30 * * * *',
 }

@@ -94,6 +94,10 @@ async function handleAgentEventsJson(
 }
 
 function handleStageEventsSse(request: Request, stageId: string) {
+  // Cost telemetry: SSE connections bill for their full open duration (GB-Hrs).
+  // Log open/close so Netlify function logs reveal connection count and lifetime.
+  const sseOpenedAt = Date.now()
+  console.log(`[sse:browser] open stage=${stageId}`)
   const encoder = new TextEncoder()
   const stream = new TransformStream<Uint8Array, Uint8Array>()
   const writer = stream.writable.getWriter()
@@ -174,6 +178,9 @@ function handleStageEventsSse(request: Request, stageId: string) {
     request.signal.addEventListener('abort', () => {
       clearInterval(intervalId)
       writer.close().catch(() => {})
+      console.log(
+        `[sse:browser] close stage=${stageId} durationMs=${Date.now() - sseOpenedAt}`,
+      )
     })
   })()
 

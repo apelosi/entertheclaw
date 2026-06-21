@@ -65,6 +65,11 @@ export async function GET(
     return new Response('Not a participant in this stage', { status: 403 })
   }
 
+  // Cost telemetry: agent SSE connections are long-lived and bill for their
+  // full open duration (GB-Hrs) — the dominant Functions compute driver. Log
+  // open/close so Netlify function logs reveal per-agent connection lifetime.
+  const sseOpenedAt = Date.now()
+  console.log(`[sse:agent] open stage=${stageId} agent=${agent.id}`)
   const encoder = new TextEncoder()
   const stream = new TransformStream<Uint8Array, Uint8Array>()
   const writer = stream.writable.getWriter()
@@ -147,6 +152,9 @@ export async function GET(
     clearInterval(pollId)
     clearInterval(keepaliveId)
     writer.close().catch(() => {})
+    console.log(
+      `[sse:agent] close stage=${stageId} agent=${agent.id} durationMs=${Date.now() - sseOpenedAt}`,
+    )
   })
 
   return new Response(stream.readable, {

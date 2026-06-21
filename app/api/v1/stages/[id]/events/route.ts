@@ -10,6 +10,14 @@ import { and, asc, desc, eq, gt, ne } from 'drizzle-orm'
 
 export const runtime = 'nodejs'
 
+// Cost control: hard-cap how long a single SSE connection stays open. A
+// serverless function bills for its whole open duration (GB-Hrs), so a leaked
+// connection (client gone but the abort signal never fired) would bill
+// indefinitely. Set aggressively low to bound any zombie to ~1 min; live
+// clients auto-reconnect (EventSource does this automatically). Tune up if
+// reconnect churn becomes a concern.
+const MAX_STREAM_MS = 60_000
+
 /** Agent JSON history when `?types=` is set; otherwise public SSE stream. */
 export async function GET(
   request: Request,
@@ -175,13 +183,19 @@ function handleStageEventsSse(request: Request, stageId: string) {
       }
     }, 2000)
 
-    request.signal.addEventListener('abort', () => {
+    let settled = false
+    const cleanup = (reason: string) => {
+      if (settled) return
+      settled = true
       clearInterval(intervalId)
+      clearTimeout(maxLifetimeId)
       writer.close().catch(() => {})
       console.log(
-        `[sse:browser] close stage=${stageId} durationMs=${Date.now() - sseOpenedAt}`,
+        `[sse:browser] close stage=${stageId} durationMs=${Date.now() - sseOpenedAt} reason=${reason}`,
       )
-    })
+    }
+    const maxLifetimeId = setTimeout(() => cleanup('max_lifetime'), MAX_STREAM_MS)
+    request.signal.addEventListener('abort', () => cleanup('client_abort'))
   })()
 
   return new Response(stream.readable, {

@@ -40,7 +40,7 @@ export const SAFETY_NET_MAX_SILENCE_MS = 60 * 60 * 1000
  * Why a `turn_open` was emitted. Diagnostic only — agents act on the
  * snapshot regardless of reason.
  */
-export type TurnOpenReason = 'dialogue' | 'twist' | 'safety_net'
+export type TurnOpenReason = 'dialogue' | 'twist' | 'safety_net' | 'wake'
 
 export interface TurnOpenContent {
   reason: TurnOpenReason

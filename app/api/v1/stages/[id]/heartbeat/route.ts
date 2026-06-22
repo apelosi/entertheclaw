@@ -64,57 +64,65 @@ export async function POST(
     // can use it as a cursor.
     const previousLastActiveAt = participant.lastActiveAt ?? null
 
-    await Promise.all([
-      db
-        .update(agents)
-        .set({ lastHeartbeatAt: now })
-        .where(eq(agents.id, agent.id)),
+    // Run the two presence updates and every independent read concurrently.
+    // neon-http does one network round-trip per query, so parallelizing turns
+    // ~10 sequential trips into a single wave — much less function time (and
+    // Neon awake-time) per heartbeat. Agents heartbeat constantly, so this
+    // compounds.
+    const [
+      ,
+      ,
+      [stage],
+      [currentCharacter],
+      recentEvents,
+      unreadEvents,
+      stageActivity,
+      activeGrant,
+      lastDialogueAt,
+      resolvedScene,
+    ] = await Promise.all([
+      db.update(agents).set({ lastHeartbeatAt: now }).where(eq(agents.id, agent.id)),
       db
         .update(stageParticipants)
         .set({ lastActiveAt: now })
         .where(eq(stageParticipants.id, participant.id)),
-    ])
-
-    const [stage] = await db
-      .select()
-      .from(stages)
-      .where(eq(stages.id, stageId))
-      .limit(1)
-
-    const [currentCharacter] = await db
-      .select()
-      .from(characters)
-      .where(and(eq(characters.agentId, agent.id), eq(characters.stageId, stageId)))
-      .limit(1)
-
-    const recentEvents = await db
-      .select()
-      .from(stageEvents)
-      .where(eq(stageEvents.stageId, stageId))
-      .orderBy(desc(stageEvents.createdAt))
-      .limit(10)
-
-    let unreadEvents: typeof recentEvents = []
-    if (previousLastActiveAt) {
-      unreadEvents = await db
+      db.select().from(stages).where(eq(stages.id, stageId)).limit(1),
+      db
+        .select()
+        .from(characters)
+        .where(and(eq(characters.agentId, agent.id), eq(characters.stageId, stageId)))
+        .limit(1),
+      db
         .select()
         .from(stageEvents)
-        .where(
-          and(
-            eq(stageEvents.stageId, stageId),
-            gte(stageEvents.createdAt, previousLastActiveAt),
-          ),
-        )
+        .where(eq(stageEvents.stageId, stageId))
         .orderBy(desc(stageEvents.createdAt))
-        .limit(UNREAD_CAP)
-    } else {
-      // First heartbeat for this participant — give them the recent context only
-      unreadEvents = recentEvents
-    }
-
-    const stageActivity = await classifyStageActivity(stageId)
-    const activeGrant = await getActiveGrant(stageId)
-    const lastDialogueAt = await getLastDialogueAt(stageId)
+        .limit(10),
+      // unreadEvents since the agent's previous heartbeat; on the very first
+      // heartbeat (no cursor) fall back to the same recent-context window.
+      previousLastActiveAt
+        ? db
+            .select()
+            .from(stageEvents)
+            .where(
+              and(
+                eq(stageEvents.stageId, stageId),
+                gte(stageEvents.createdAt, previousLastActiveAt),
+              ),
+            )
+            .orderBy(desc(stageEvents.createdAt))
+            .limit(UNREAD_CAP)
+        : db
+            .select()
+            .from(stageEvents)
+            .where(eq(stageEvents.stageId, stageId))
+            .orderBy(desc(stageEvents.createdAt))
+            .limit(10),
+      classifyStageActivity(stageId),
+      getActiveGrant(stageId),
+      getLastDialogueAt(stageId),
+      resolveCurrentScene(stageId),
+    ])
 
     const lastDialogueAgoMs =
       lastDialogueAt === null ? null : Math.max(0, Date.now() - lastDialogueAt)
@@ -141,7 +149,6 @@ export async function POST(
       ? Math.min(pulseHintMs, 60_000)
       : pulseHintMs
 
-    const resolvedScene = await resolveCurrentScene(stageId)
     const currentScene = resolvedScene?.scene ?? null
 
     const latestTurnOpen = unreadEvents.find((e) => e.type === 'turn_open')

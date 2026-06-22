@@ -12,7 +12,11 @@
 import { db } from '@/lib/db/client'
 import { stageEvents, stageParticipants, stages } from '@/lib/db/schema'
 import { and, desc, eq, gt, gte, inArray, sql } from 'drizzle-orm'
-import { ACTIVE_PARTICIPANT_MS, getActiveGrant } from './turn-state'
+import {
+  ACTIVE_PARTICIPANT_MS,
+  getActiveGrant,
+  getLastDialogueAt,
+} from './turn-state'
 import {
   buildTurnOpenSnapshot,
   type TurnOpenSnapshot,
@@ -22,12 +26,21 @@ import { deliverTurnWebhooks } from './deliver-turn-webhooks'
 export const TURN_OPEN_DEDUPE_MS = 3_000
 /** Re-ping if no dialogue within this window after turn_open or turn_grant. */
 export const AWAITING_RESPONSE_MS = 60_000
+/**
+ * Stop re-emitting safety-net `turn_open` once a stage has been silent (no
+ * dialogue) longer than this. Heartbeating-but-mute agents keep a stage's
+ * participants "active" indefinitely, so without this the safety net re-opens
+ * the floor every tick forever — the source of the 26k+ turn_open pile-up.
+ * A waking agent still discovers the open floor via its heartbeat's live
+ * turnState, so giving up on the push costs it nothing.
+ */
+export const SAFETY_NET_MAX_SILENCE_MS = 60 * 60 * 1000
 
 /**
  * Why a `turn_open` was emitted. Diagnostic only — agents act on the
  * snapshot regardless of reason.
  */
-export type TurnOpenReason = 'dialogue' | 'twist' | 'safety_net'
+export type TurnOpenReason = 'dialogue' | 'twist' | 'safety_net' | 'wake'
 
 export interface TurnOpenContent {
   reason: TurnOpenReason
@@ -233,6 +246,17 @@ export async function emitTurnOpenSafetyNet(): Promise<SafetyNetResult> {
   const emittedIds: string[] = []
 
   for (const { id: stageId } of activeStages) {
+    // Give up nudging a stage that has been silent too long — the agents
+    // aren't responding to the open floor, so re-emitting turn_open just
+    // churns the DB. Real activity resets this via the inline emit paths.
+    const lastDialogueAt = await getLastDialogueAt(stageId)
+    if (
+      lastDialogueAt === null ||
+      Date.now() - lastDialogueAt > SAFETY_NET_MAX_SILENCE_MS
+    ) {
+      continue
+    }
+
     const hasSignals = await stageHasTurnProtocolSignals(stageId)
     if (hasSignals) {
       const activeCutoff = new Date(Date.now() - ACTIVE_PARTICIPANT_MS)

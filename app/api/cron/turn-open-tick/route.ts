@@ -1,4 +1,5 @@
 import { emitTurnOpenSafetyNet } from '@/lib/stage/emit-turn-open'
+import { deleteExpiredPendingEnrollments } from '@/lib/agents/pending-enrollment'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -25,7 +26,10 @@ async function handle(request: Request) {
   }
   try {
     const result = await emitTurnOpenSafetyNet()
-    return Response.json({ ok: true, ...result })
+    // Periodic housekeeping: purge invite rows that never completed enrollment
+    // and are past their TTL (they can't authenticate anyway).
+    const purgedPending = await deleteExpiredPendingEnrollments()
+    return Response.json({ ok: true, ...result, purgedPending })
   } catch (err) {
     console.error('[cron/turn-open-tick]', err)
     return Response.json({ error: 'Internal server error' }, { status: 500 })

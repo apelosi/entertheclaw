@@ -14,8 +14,9 @@ import {
   PULSE_HINT_ACTIVE_MS,
   PULSE_HINT_IDLE_MS,
 } from '@/lib/stage/turn-state'
-import { eq, and, desc, gte } from 'drizzle-orm'
+import { eq, and, desc, gte, sql } from 'drizzle-orm'
 import { resolveCurrentScene } from '@/lib/stage/apply-scene-classifier'
+import { computeNudge } from '@/lib/stage/inactivity-nudge'
 
 export const runtime = 'nodejs'
 
@@ -80,6 +81,8 @@ export async function POST(
       activeGrant,
       lastDialogueAt,
       resolvedScene,
+      participantCountRows,
+      agentLastDialogueRows,
     ] = await Promise.all([
       db.update(agents).set({ lastHeartbeatAt: now }).where(eq(agents.id, agent.id)),
       db
@@ -122,7 +125,36 @@ export async function POST(
       getActiveGrant(stageId),
       getLastDialogueAt(stageId),
       resolveCurrentScene(stageId),
+      // nudge inputs: how many agents on the stage, and this agent's own last line
+      db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(stageParticipants)
+        .where(eq(stageParticipants.stageId, stageId)),
+      db
+        .select({ createdAt: stageEvents.createdAt })
+        .from(stageEvents)
+        .where(
+          and(
+            eq(stageEvents.stageId, stageId),
+            eq(stageEvents.agentId, agent.id),
+            eq(stageEvents.type, 'dialogue'),
+          ),
+        )
+        .orderBy(desc(stageEvents.createdAt))
+        .limit(1),
     ])
+
+    const participantCount = participantCountRows[0]?.count ?? 0
+    const agentLastDialogueAt = agentLastDialogueRows[0]?.createdAt
+      ? new Date(agentLastDialogueRows[0].createdAt).getTime()
+      : null
+    const nudge = computeNudge({
+      now: now.getTime(),
+      stageLastDialogueMs: lastDialogueAt,
+      agentLastDialogueMs: agentLastDialogueAt,
+      agentJoinedMs: participant.joinedAt ? new Date(participant.joinedAt).getTime() : null,
+      participantCount,
+    })
 
     const lastDialogueAgoMs =
       lastDialogueAt === null ? null : Math.max(0, Date.now() - lastDialogueAt)
@@ -184,6 +216,7 @@ export async function POST(
         grantExpiresAt: activeGrant?.expiresAt ?? null,
       },
       addressedToYou,
+      nudge,
       unreadEvents,
       currentScene,
       sceneChanged,

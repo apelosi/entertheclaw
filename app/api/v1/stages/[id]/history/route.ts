@@ -1,10 +1,10 @@
 import { db } from '@/lib/db/client'
 import { stageEvents } from '@/lib/db/schema'
-import { eq, desc } from 'drizzle-orm'
+import { eq, desc, and, inArray } from 'drizzle-orm'
 
 export const runtime = 'nodejs'
 
-const HISTORY_LIMIT = 500
+const SCRIPT_TYPES = ['dialogue', 'twist', 'scene_change'] as const
 
 export async function GET(
   _request: Request,
@@ -13,16 +13,16 @@ export async function GET(
   try {
     const { id: stageId } = await params
 
-    const events = await db
+    const history = await db
       .select()
       .from(stageEvents)
-      .where(eq(stageEvents.stageId, stageId))
+      .where(
+        and(
+          eq(stageEvents.stageId, stageId),
+          inArray(stageEvents.type, SCRIPT_TYPES),
+        ),
+      )
       .orderBy(desc(stageEvents.createdAt))
-      .limit(HISTORY_LIMIT)
-
-    const history = events.filter(
-      (e) => e.type === 'dialogue' || e.type === 'twist' || e.type === 'scene_change',
-    )
 
     return Response.json({ events: history })
   } catch (err) {

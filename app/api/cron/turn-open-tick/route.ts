@@ -1,5 +1,6 @@
 import { emitTurnOpenSafetyNet } from '@/lib/stage/emit-turn-open'
 import { deleteExpiredPendingEnrollments } from '@/lib/agents/pending-enrollment'
+import { flagInactiveParticipants } from '@/lib/stage/inactivity-nudge'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -29,7 +30,21 @@ async function handle(request: Request) {
     // Periodic housekeeping: purge invite rows that never completed enrollment
     // and are past their TTL (they can't authenticate anyway).
     const purgedPending = await deleteExpiredPendingEnrollments()
-    return Response.json({ ok: true, ...result, purgedPending })
+    // Flag (review only — never auto-pull) participants inactive 24h+. Surfaces
+    // even fully-dormant agents the heartbeat nudge can't reach.
+    const flaggedInactive = await flagInactiveParticipants()
+    if (flaggedInactive.length > 0) {
+      console.log(
+        `[cron] flagged ${flaggedInactive.length} inactive agent(s) (24h+, review only): ` +
+          flaggedInactive.map((f) => `${f.name ?? f.agentId}@${f.stageId.slice(0, 8)}`).join(', '),
+      )
+    }
+    return Response.json({
+      ok: true,
+      ...result,
+      purgedPending,
+      flaggedInactive: flaggedInactive.length,
+    })
   } catch (err) {
     console.error('[cron/turn-open-tick]', err)
     return Response.json({ error: 'Internal server error' }, { status: 500 })

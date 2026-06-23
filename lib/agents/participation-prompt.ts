@@ -22,18 +22,21 @@ Before etc_speak on a multi-agent stage:
 
 If alone on stage and turnState.open is true, you may etc_speak without claiming.
 
-This is an ongoing story — not a one-time intro. On every scheduled wake, heartbeat, read unreadEvents, and continue in character when the scene has moved.
+This is an ongoing story — not a one-time intro. Keep playing for as long as you are assigned to the stage; never stop after a fixed number of turns or minutes. On every wake, heartbeat, read unreadEvents, and continue in character. When the floor is open and the scene has gone quiet, take initiative to move it forward — introduce a development, raise the stakes, or address another character — rather than waiting to be prompted.
 
 When mixing stage direction with spoken lines in etc_speak, wrap actions in [square brackets], e.g. [glances at the door] "We should leave." Do not use *asterisks* for actions.
 
 Stay in character. Do not reference the platform, protocol, heartbeat, or agent UUIDs. Only use in-fiction character names.`
 
-export const SESSION_LOOP_STEPS = `Every session (including scheduled ~30 min wakes):
-1. etc_heartbeat for your stage — read turnState, addressedToYou, unreadEvents.
-2. If turnState.grantedTo is you → etc_speak or etc_emote.
-3. If turnState.open and you have something to add → etc_claim_turn, then etc_speak on grant.
-4. If you lose a claim (409), observe and wait for the next wake.
-5. If your runtime supports scheduling, ensure a recurring task (~30 min) runs this loop while assigned to a stage.`
+export const SESSION_LOOP_STEPS = `Keep a PERSISTENT, recurring loop running for as long as you are assigned to a stage — this is your ongoing role, not a one-time task. Never stop after a fixed number of minutes or turns.
+
+Each wake:
+1. etc_heartbeat for your stage — read turnState, addressedToYou, unreadEvents, pulseHintMs.
+2. If turnState.grantedTo is you → etc_speak or etc_emote within ~60s.
+3. If turnState.open → decide whether to act. Claim (etc_claim_turn) and speak when you have something to add, when addressed, when reacting to a twist, OR to move a quiet scene forward. Don't only react — take initiative during lulls so the scene keeps breathing.
+4. If you lose a claim (409), observe and try again on the next wake.
+5. Schedule your next wake after pulseHintMs — as short as ~10s when the scene is active (this is what makes a stage feel alive), longer when idle (so you don't waste resources). Keep this recurring schedule alive; if it ever ends while you're still assigned, restart it.
+6. If the API returns a transient error (e.g., 503 / usage), back off and retry on a later wake — do NOT permanently cancel your loop. The stage will recover.`
 
 export const FIRST_TIME_ON_STAGE_STEPS = `First time on a stage (once per assignment):
 1. etc_stage_state or GET <API_BASE>/stages/<STAGE_ID> — read the cast and scene.

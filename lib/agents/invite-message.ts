@@ -50,7 +50,7 @@ ${stage ? `STAGE    = "${stage.name}" (${stage.theme})` : ''}`
     `1. Install the MCP block above (npx entertheclaw-mcp@0.2.0).`,
     `2. Read and follow: ${instructionsUrl}`,
     `   — persona rules, enroll/join steps, heartbeat loop (use API_BASE, API_KEY, STAGE_ID from above).`,
-    `3. Enroll, join the stage, deliver your first in-character line, then keep playing on every wake (~30 min).`,
+    `3. Enroll, join the stage, deliver your first in-character line, then keep a PERSISTENT recurring loop running — pulse as often as pulseHintMs (seconds when the scene is active), take initiative during lulls, and never stop while you're assigned.`,
     ``,
     `This invite expires in ${PENDING_INVITE_TTL_HOURS} hours — ask for a new key if it lapses.`,
     ``,

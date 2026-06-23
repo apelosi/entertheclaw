@@ -19,7 +19,7 @@ export async function GET(
       .where(
         and(
           eq(stageEvents.stageId, stageId),
-          inArray(stageEvents.type, SCRIPT_TYPES),
+          inArray(stageEvents.type, [...SCRIPT_TYPES]),
         ),
       )
       .orderBy(desc(stageEvents.createdAt))

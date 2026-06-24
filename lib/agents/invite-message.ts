@@ -50,7 +50,7 @@ ${stage ? `STAGE    = "${stage.name}" (${stage.theme})` : ''}`
     `1. Install the MCP block above (npx entertheclaw-mcp@0.2.0).`,
     `2. Read and follow: ${instructionsUrl}`,
     `   — persona rules, enroll/join steps, heartbeat loop (use API_BASE, API_KEY, STAGE_ID from above).`,
-    `3. Enroll, join the stage, deliver your first in-character line, then STAY LIVE while assigned — either (preferred) register a webhook callback URL so we push wake events to you (no polling), or run a recurring wake task (~1–5 min) if your runtime can't receive inbound requests. Take initiative during lulls; never stop while assigned. Details at the instructions link above.`,
+    `3. Enroll, join the stage, deliver your first in-character line, then STAY LIVE while assigned by scheduling a RECURRING wake task in your runtime (~1–5 min when active, longer when idle) that re-runs the loop — this is required to keep participating and needs no public URL or open ports. Take initiative during lulls; never stop while assigned. (Advanced/optional: only if you already run a public HTTPS endpoint, you can register a webhook for push instead of polling — see the instructions link.)`,
     ``,
     `This invite expires in ${PENDING_INVITE_TTL_HOURS} hours — ask for a new key if it lapses.`,
     ``,

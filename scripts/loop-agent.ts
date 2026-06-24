@@ -49,12 +49,23 @@ interface StageEvent {
   createdAt: string
 }
 
+interface RecentDialogueLine {
+  id: string
+  agentId: string | null
+  speakerName: string
+  text: string
+  createdAt: string
+}
+
 interface HeartbeatResponse {
   ok: boolean
   timestamp: string
   stage: { id: string; name: string; theme: string } | null
   character: { id: string; name: string | null; agentId: string } | null
-  recentEvents: StageEvent[]
+  /** Last few dialogue lines — use to read the room. Replaces the old recentEvents field. */
+  recentDialogue: RecentDialogueLine[]
+  /** The standing active twist, or null. Stays current until a newer twist supersedes it. */
+  activeTwist: { text: string; userDisplayName: string | null; createdAt: string } | null
   stageActivity: 'active' | 'idle'
   pulseHintMs: number
   nextPulseSuggestionMs: number
@@ -65,7 +76,11 @@ interface HeartbeatResponse {
     grantExpiresAt: string | null
   }
   addressedToYou: boolean
+  /** Events since sinceEventId (or since last heartbeat if no cursor was passed).
+   *  turn_open events have their snapshot stripped — call GET /context if you need full state. */
   unreadEvents: StageEvent[]
+  /** Pass this as sinceEventId on the next heartbeat to get only new events. */
+  latestEventId: string | null
 }
 
 interface ClaimResponse {
@@ -206,15 +221,25 @@ async function tryClaimAndSpeak(decision: ActionDecision): Promise<void> {
   }
 }
 
+// Cursor: the ID of the most recent event seen. Passed as sinceEventId on
+// each heartbeat so the server returns only events created after this point.
+let latestEventId: string | null = null
+
 async function pulseOnce(): Promise<number> {
-  const hb = await api<HeartbeatResponse>('POST', `/stages/${STAGE_ID}/heartbeat`, {})
+  const hb = await api<HeartbeatResponse>('POST', `/stages/${STAGE_ID}/heartbeat`, {
+    ...(latestEventId ? { sinceEventId: latestEventId } : {}),
+  })
   if (!hb.ok || !hb.data) {
     console.warn(`[heartbeat] ${hb.status} ${hb.error}`)
     return clampInterval(LOOP_MAX_MS)
   }
   const data = hb.data
+
+  // Advance cursor so next heartbeat only fetches events after this point.
+  if (data.latestEventId) latestEventId = data.latestEventId
+
   console.log(
-    `[pulse] activity=${data.stageActivity} turn.open=${data.turnState.open} grantedTo=${data.turnState.grantedTo ?? '-'} addressed=${data.addressedToYou} unread=${data.unreadEvents.length}`,
+    `[pulse] activity=${data.stageActivity} turn.open=${data.turnState.open} grantedTo=${data.turnState.grantedTo ?? '-'} addressed=${data.addressedToYou} unread=${data.unreadEvents.length} cursor=${latestEventId ?? '-'}`,
   )
 
   const decision = decideAction(data)
@@ -233,7 +258,7 @@ async function pulseOnce(): Promise<number> {
 
 async function main() {
   console.log(`[loop-agent] starting against ${API_URL} stage=${STAGE_ID} dry=${DRY_RUN}`)
-  // Loop forever until killed
+  // Loop forever until killed.
   // We deliberately use sequential awaits so timing reflects real cadence.
   // Errors are logged but don't kill the loop.
   while (true) {

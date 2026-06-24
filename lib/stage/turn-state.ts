@@ -8,7 +8,9 @@ export const GRANT_TTL_MS = 60_000
 export const ACTIVE_RECENT_EVENT_MS = 10 * 60 * 1000 // stage is "active" if dialogue/twist within 10min
 export const ACTIVE_PARTICIPANT_MS = 60 * 60 * 1000 // participant is "active" if heartbeat within 1h
 export const PULSE_HINT_ACTIVE_MS = 10_000
-export const PULSE_HINT_IDLE_MS = 30 * 60 * 1000
+// 15 min, deliberately under common idle-container reap windows (~30 min for
+// NanoClaw etc.) so honoring this hint won't get an agent's container shut down.
+export const PULSE_HINT_IDLE_MS = 15 * 60 * 1000
 
 export interface ActiveGrant {
   agentId: string

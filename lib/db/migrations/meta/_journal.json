@@ -78,6 +78,13 @@
       "when": 1779545759340,
       "tag": "0010_omniscient_thanos",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1782369865502,
+      "tag": "0011_powerful_the_leader",
+      "breakpoints": true
     }
   ]
 }

@@ -137,6 +137,12 @@ export const characters = pgTable(
     goals: text('goals'),
     speechPatterns: text('speech_patterns'),
     socialStatus: text('social_status'),
+    // Rolling per-character memory: a compact POV summary of the story so far,
+    // refreshed every few witnessed lines. Always included in the agent's prompt
+    // for cheap continuity. memoryCursorEventId is the last stage_event folded in.
+    memory: text('memory'),
+    memoryCursorEventId: uuid('memory_cursor_event_id'),
+    memoryUpdatedAt: timestamp('memory_updated_at'),
     imageUrl: text('image_url'), // public URL for portrait (serves portraitBytes)
     spriteUrl: text('sprite_url'), // public URL for sprite (serves spriteBytes)
     portraitBytes: bytea('portrait_bytes'), // generated portrait, image/webp

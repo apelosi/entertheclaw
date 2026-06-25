@@ -4,6 +4,7 @@ import { verifyAgentApiKey } from '@/lib/api/agent-auth'
 import { applySceneClassifier } from '@/lib/stage/apply-scene-classifier'
 import { getActiveGrant } from '@/lib/stage/turn-state'
 import { emitTurnOpen } from '@/lib/stage/emit-turn-open'
+import { refreshCharacterMemoriesIfStale } from '@/lib/stage/character-memory'
 import { normalizeStageDirectionMarkers } from '@/lib/stage/dialogue-format'
 import { eq, and } from 'drizzle-orm'
 
@@ -151,6 +152,12 @@ export async function POST(
       causedByEventId: event.id,
       sceneChanged,
     })
+
+    // Fold the latest lines into each character's rolling memory when enough
+    // have accrued. Best-effort and self-healing: the per-character cursor only
+    // advances on success, so a dropped run is retried on the next line. Not
+    // awaited — it must never delay the speaker's response.
+    void refreshCharacterMemoriesIfStale(stageId)
 
     return Response.json({ ok: true, eventId: event.id })
   } catch (err) {

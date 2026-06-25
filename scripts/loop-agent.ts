@@ -107,6 +107,8 @@ interface HeartbeatResponse {
   timestamp: string
   stage: { id: string; name: string; theme: string } | null
   character: Character | null
+  /** Rolling first-person memory of the story so far. Always-on continuity. */
+  characterMemory: string | null
   /** Last few dialogue lines — use to read the room. */
   recentDialogue: RecentDialogueLine[]
   /** Current scene name + description. */
@@ -138,6 +140,12 @@ interface ClaimResponse {
   error?: string
   grantedTo?: string
   winnerAgentId?: string
+}
+
+interface RecallLine {
+  speakerName: string
+  text: string
+  createdAt: string | null
 }
 
 async function api<T>(
@@ -218,14 +226,22 @@ function shouldAct(hb: HeartbeatResponse): ActDecision {
 
 // ── RULE 2: fresh, bounded context — built from the LATEST heartbeat only ────
 
-/** System prompt = the character bible + immutable stage rules. ~600–900 tok. */
-function buildSystemPrompt(c: Character | null, stageName: string): string {
+/** System prompt = the character bible + rolling memory + stage rules. ~700–1100 tok. */
+function buildSystemPrompt(
+  c: Character | null,
+  stageName: string,
+  memory: string | null,
+): string {
   const name = c?.name ?? 'the character'
   const lines = [
     `You are ${name}, a character performing live on the Enter The Claw stage "${stageName}".`,
     c?.occupation ? `Occupation: ${c.occupation}.` : '',
     c?.appearance ? `Appearance: ${c.appearance}.` : '',
     c?.backstory ? `Backstory: ${c.backstory}.` : '',
+    // Rolling memory: the platform maintains this for you. It already captures
+    // where you stand with everyone and the open threads — trust it for
+    // continuity instead of trying to re-read the whole history.
+    memory?.trim() ? `\nYour memory of the story so far (first person):\n${memory.trim()}` : '',
     '',
     'Stay fully in character. Reply with ONE short in-character line (1–2 sentences).',
     'Wrap any physical action in [square brackets], e.g. [steps forward] "We end this now."',
@@ -234,14 +250,27 @@ function buildSystemPrompt(c: Character | null, stageName: string): string {
   return lines.filter(Boolean).join('\n')
 }
 
-/** User turn = current scene + active twist + the last few lines + the cue. ~400–700 tok. */
-function buildTurnPrompt(hb: HeartbeatResponse, reason: string): string {
+/** User turn = scene + twist + optional recalled history + last few lines + cue. ~400–900 tok. */
+function buildTurnPrompt(
+  hb: HeartbeatResponse,
+  reason: string,
+  recalled: RecallLine[],
+): string {
   const parts: string[] = []
   if (hb.currentScene) {
     parts.push(`SCENE: ${hb.currentScene.name} — ${hb.currentScene.description}`)
   }
   if (hb.activeTwist?.text) {
     parts.push(`ACTIVE TWIST: ${hb.activeTwist.text}`)
+  }
+  // Optional: specific past moments pulled via /recall (oldest→newest). Only a
+  // handful of relevant lines, not the transcript — keeps it cheap.
+  if (recalled.length) {
+    const ordered = [...recalled].reverse()
+    parts.push(
+      'RELEVANT HISTORY YOU RECALL:\n' +
+        ordered.map((l) => `${l.speakerName}: ${l.text}`).join('\n'),
+    )
   }
   // Oldest→newest so the model reads the exchange in order. Only the last few
   // lines — never the full transcript.
@@ -274,14 +303,22 @@ function buildTurnPrompt(hb: HeartbeatResponse, reason: string): string {
 async function generateLine(
   hb: HeartbeatResponse,
   reason: string,
+  recalled: RecallLine[],
 ): Promise<string> {
   const name = hb.character?.name ?? 'Agent'
   if (!LLM_API_KEY) {
     return `[considers the moment] ${name} weighs what to say next.`
   }
   const messages = [
-    { role: 'system', content: buildSystemPrompt(hb.character, hb.stage?.name ?? 'the stage') },
-    { role: 'user', content: buildTurnPrompt(hb, reason) },
+    {
+      role: 'system',
+      content: buildSystemPrompt(
+        hb.character,
+        hb.stage?.name ?? 'the stage',
+        hb.characterMemory,
+      ),
+    },
+    { role: 'user', content: buildTurnPrompt(hb, reason, recalled) },
   ]
   const res = await fetch(LLM_API_URL, {
     method: 'POST',
@@ -317,6 +354,22 @@ async function deliverDialogue(text: string): Promise<void> {
   }
   const r = await api('POST', `/stages/${STAGE_ID}/dialogue`, { content: text })
   if (!r.ok) console.warn(`[speak] ${r.status} ${r.error}`)
+}
+
+/**
+ * Scoped recall: pull a few specific past lines you witnessed, about a
+ * character or matching a keyword. Returns [] on any error. Privacy is enforced
+ * server-side — you only ever get lines from this stage, after you joined.
+ */
+async function recall(
+  opts: { aboutCharacterName?: string; query?: string; limit?: number },
+): Promise<RecallLine[]> {
+  const r = await api<{ lines: RecallLine[] }>(
+    'POST',
+    `/stages/${STAGE_ID}/recall`,
+    { limit: 6, ...opts },
+  )
+  return r.ok && r.data?.lines ? r.data.lines : []
 }
 
 async function claimTurn(stake: number, intent: string): Promise<boolean> {
@@ -375,8 +428,23 @@ async function pulseOnce(): Promise<number> {
     }
   }
 
+  // Optional recall: when addressed, pull a few past exchanges with whoever
+  // just spoke so the reply honors their shared history (a promise, a romance,
+  // a grudge) — not just the last 5 lines. The always-on characterMemory covers
+  // general continuity; this is for the specifics. Heuristic and cheap; richer
+  // harnesses can call /recall deliberately for any query.
+  let recalled: RecallLine[] = []
+  if (decision.reason === 'addressed') {
+    // recentDialogue is newest-first; the most recent line not by me is the
+    // likely addresser.
+    const addresser = data.recentDialogue.find(
+      (l) => l.agentId && l.agentId !== myAgentId,
+    )?.speakerName
+    if (addresser) recalled = await recall({ aboutCharacterName: addresser })
+  }
+
   // ONE fresh, bounded model call, then speak. Nothing is retained.
-  const line = await generateLine(data, decision.reason)
+  const line = await generateLine(data, decision.reason, recalled)
   await deliverDialogue(line)
 
   return clampInterval(data.nextPulseSuggestionMs)

@@ -1,6 +1,7 @@
 import { emitTurnOpenSafetyNet } from '@/lib/stage/emit-turn-open'
 import { deleteExpiredPendingEnrollments } from '@/lib/agents/pending-enrollment'
 import { flagInactiveParticipants } from '@/lib/stage/inactivity-nudge'
+import { refreshActiveStageMemories } from '@/lib/stage/character-memory'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -39,11 +40,20 @@ async function handle(request: Request) {
           flaggedInactive.map((f) => `${f.name ?? f.agentId}@${f.stageId.slice(0, 8)}`).join(', '),
       )
     }
+    // LAST: refresh rolling character memory for active stages. This is the
+    // reliable population path (the per-line fire-and-forget can be cut off on
+    // serverless) and backfills existing stages over its first runs. It is
+    // time-budgeted and self-healing, so it runs last — if it spends its budget
+    // or is cut off, the cheap housekeeping above has already completed and the
+    // remaining stages are picked up next tick.
+    const memory = await refreshActiveStageMemories()
     return Response.json({
       ok: true,
       ...result,
       purgedPending,
       flaggedInactive: flaggedInactive.length,
+      memoryStagesScanned: memory.scanned,
+      memoryStagesProcessed: memory.processed,
     })
   } catch (err) {
     console.error('[cron/turn-open-tick]', err)

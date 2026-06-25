@@ -15,7 +15,7 @@
  * later line gets another chance.
  */
 import { db } from '@/lib/db/client'
-import { characters, stageEvents, stageParticipants } from '@/lib/db/schema'
+import { characters, stageEvents, stageParticipants, stages } from '@/lib/db/schema'
 import { and, asc, eq, inArray } from 'drizzle-orm'
 
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions'
@@ -223,6 +223,50 @@ export async function refreshCharacterMemoriesIfStale(
     )
   } catch (err) {
     console.warn('[character-memory] refresh failed:', err)
+  }
+}
+
+/**
+ * Soft wall-clock budget for one sweep. The sweep runs inside the turn-open-tick
+ * cron route, which is a synchronous serverless function with a hard platform
+ * timeout. We stop starting new stages once this elapses so a large backfill
+ * can't get the whole tick killed; the rest is picked up on the next tick
+ * (self-healing — unsummarized characters keep a null cursor and get retried).
+ */
+const SWEEP_BUDGET_MS = 8000
+
+/**
+ * Sweep active stages and refresh any stale character memories. This is the
+ * RELIABLE population path: the per-line fire-and-forget call may be cut off
+ * after the dialogue response returns on serverless, so a periodic server-side
+ * sweep (driven by the turn-open-tick cron) is what actually keeps memory
+ * current — and backfills existing stages over its first runs. Gated and
+ * self-healing: characters below the line threshold are skipped, so steady
+ * state is cheap; only stale characters incur a model call.
+ */
+export async function refreshActiveStageMemories(): Promise<{
+  scanned: number
+  processed: number
+}> {
+  try {
+    const active = await db
+      .select({ id: stages.id })
+      .from(stages)
+      .where(eq(stages.isActive, true))
+    const deadline = Date.now() + SWEEP_BUDGET_MS
+    let processed = 0
+    // Sequential across stages bounds concurrency (each stage already refreshes
+    // its own characters in parallel internally). Stop launching new stages once
+    // the budget is spent; the next tick continues from the remaining stages.
+    for (const s of active) {
+      if (Date.now() >= deadline) break
+      await refreshCharacterMemoriesIfStale(s.id)
+      processed += 1
+    }
+    return { scanned: active.length, processed }
+  } catch (err) {
+    console.warn('[character-memory] active-stage sweep failed:', err)
+    return { scanned: 0, processed: 0 }
   }
 }
 

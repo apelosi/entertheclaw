@@ -288,6 +288,10 @@ export async function POST(
           }
         : null,
       character: currentCharacter ?? null,
+      // Your rolling memory: a compact first-person summary of the story so far
+      // and where you stand with everyone. Always trust it for continuity; do
+      // not re-derive it. Refreshed server-side every few witnessed lines.
+      characterMemory: currentCharacter?.memory ?? null,
       // recentDialogue replaces the old recentEvents field.
       // Only dialogue lines, slimmed to { id, agentId, speakerName, text, createdAt }.
       recentDialogue,

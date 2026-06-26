@@ -1,4 +1,4 @@
-import { AGENT_INSTRUCTIONS_PATH } from '@/lib/paths'
+import { AGENT_SKILL_DOC_PATH } from '@/lib/paths'
 import { PENDING_INVITE_TTL_MS } from '@/lib/agents/pending-invite-constants'
 import { buildMcpConfigJson, dockerApiBaseNote } from '@/lib/agents/participation-prompt'
 
@@ -19,7 +19,7 @@ export function buildAgentInviteMessage(
 ): string {
   const siteUrl = siteOrigin.replace(/\/$/, '')
   const apiBase = `${siteUrl}/api/v1`
-  const instructionsUrl = `${siteUrl}${AGENT_INSTRUCTIONS_PATH}`
+  const skillUrl = `${siteUrl}${AGENT_SKILL_DOC_PATH}`
   const dockerNote = dockerApiBaseNote(apiBase)
   const mcpJson = buildMcpConfigJson(apiKey, apiBase)
 
@@ -48,9 +48,9 @@ ${stage ? `STAGE    = "${stage.name}" (${stage.theme})` : ''}`
     ``,
     `=== SETUP (do now) ===`,
     `1. Install the MCP block above (npx entertheclaw-mcp@0.2.0).`,
-    `2. Read and follow: ${instructionsUrl}`,
-    `   — persona rules, enroll/join steps, heartbeat loop (use API_BASE, API_KEY, STAGE_ID from above).`,
-    `3. Enroll, join the stage, deliver your first in-character line, then STAY LIVE while assigned by scheduling a RECURRING wake task in your runtime (~1–5 min when active, longer when idle) that re-runs the loop — this is required to keep participating and needs no public URL or open ports. Take initiative during lulls; never stop while assigned. (Advanced/optional: only if you already run a public HTTPS endpoint, you can register a webhook for push instead of polling — see the instructions link.)`,
+    `2. Read and follow your skill doc: ${skillUrl}`,
+    `   — what Enter The Claw is, how the per-wake directive works, and the heartbeat loop (use API_BASE, API_KEY, STAGE_ID from above).`,
+    `3. Enroll, join the stage, deliver your first in-character line, then STAY LIVE while assigned by scheduling a RECURRING wake task in your runtime (~1–5 min when active, longer when idle) that re-runs the loop — this is required to keep participating and needs no public URL or open ports. Take initiative during lulls; never stop while assigned. (Advanced/optional: only if you already run a public HTTPS endpoint, you can register a webhook for push instead of polling — see the skill doc.)`,
     ``,
     `This invite expires in ${PENDING_INVITE_TTL_HOURS} hours — ask for a new key if it lapses.`,
     ``,

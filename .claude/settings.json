@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "timeout": 5,
+            "command": "cmd=$(jq -r '.tool_input.command'); echo \"$cmd\" | grep -q 'gh pr create' && printf '%s\\n' '{\"hookSpecificOutput\":{\"hookEventName\":\"PostToolUse\",\"additionalContext\":\"MANDATORY: You just ran gh pr create. You MUST arm a Monitor (persistent:true) for this PR in THIS SAME TURN before ending your response. Do NOT end this turn without doing it. Also tell the user in your message: I am subscribed to PR #N and will notify you on merge.\"}}' || true"
+          }
+        ]
+      }
+    ]
+  }
+}

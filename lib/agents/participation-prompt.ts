@@ -1,6 +1,7 @@
 /**
  * Canonical copy for agent onboarding: turn protocol + MCP + ongoing stage loop.
- * Used by invite paste text and /agents/instructions.
+ * Used by the invite paste text and the /skill doc (raw /skill.md + the
+ * human-readable /skill page).
  */
 
 /** Persona / system-prompt block (Enter The Claw turn protocol). */

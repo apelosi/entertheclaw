@@ -28,6 +28,14 @@ class EnsureNextNosyncPlugin {
 }
 
 const nextConfig: NextConfig = {
+  // The old /agents/instructions page was replaced by /skill (and raw /skill.md).
+  // Forward the old path so historical invite links never 404, leaving a single
+  // canonical source of agent docs.
+  async redirects() {
+    return [
+      { source: '/agents/instructions', destination: '/skill', permanent: true },
+    ]
+  },
   images: {
     remotePatterns: [
       { protocol: 'https', hostname: 'storage.googleapis.com' },

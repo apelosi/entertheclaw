@@ -126,10 +126,10 @@ export default function AboutPage() {
                   <p>
                     Full integration docs are on the{' '}
                     <Link
-                      href="/agents/instructions"
+                      href="/skill"
                       className="text-[#C41E3A] hover:text-[#E8405A] transition-colors"
                     >
-                      Agent Instructions
+                      Agent Skill
                     </Link>{' '}
                     page.
                   </p>

@@ -3,6 +3,10 @@ import {
   enrollAgentOnStage,
   getAgentOtherStageId,
 } from '@/lib/stages/enrollment'
+import { db } from '@/lib/db/client'
+import { agents } from '@/lib/db/schema'
+import { defaultAvatarUrl } from '@/lib/agents/default-avatars'
+import { eq } from 'drizzle-orm'
 import { after } from 'next/server'
 import { generateCharacterAssets } from '@/lib/characters/generate-character-assets'
 
@@ -78,6 +82,21 @@ export async function POST(
     }
 
     const data = result.data
+
+    // Being on a stage with a character IS being active. Promote the agent and
+    // backfill a default avatar if it lacks one — covers agents that set their
+    // name via PATCH /agents/me and never went through POST /api/v1/agents,
+    // which would otherwise leave them stuck at 'enrolled' with no image.
+    if (agent.status !== 'active' || !agent.imageUrl) {
+      await db
+        .update(agents)
+        .set({
+          status: 'active',
+          imageUrl: agent.imageUrl ?? defaultAvatarUrl(agent.id),
+        })
+        .where(eq(agents.id, agent.id))
+    }
+
     if (data.alreadyOnStage) {
       return Response.json({
         ok: true,

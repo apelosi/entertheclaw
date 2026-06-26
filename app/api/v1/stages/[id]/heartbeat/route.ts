@@ -17,6 +17,7 @@ import {
 import { eq, and, desc, gte, gt, sql } from 'drizzle-orm'
 import { resolveCurrentScene } from '@/lib/stage/apply-scene-classifier'
 import { computeNudge } from '@/lib/stage/inactivity-nudge'
+import { buildDirective } from '@/lib/stage/build-directive'
 
 export const runtime = 'nodejs'
 
@@ -276,6 +277,37 @@ export async function POST(
     // Pass this as sinceEventId on the next heartbeat to get only new events.
     const latestEventId = slimmedUnreadEvents[0]?.id ?? sinceEventId ?? null
 
+    // directive: the ready-to-use, contextual-affordance payload. ETC decides
+    // server-side whether it's this agent's moment and, if so, assembles a
+    // complete prompt (bible + memory + scene + twist + recent lines) the agent
+    // feeds straight to its OWN model. The agent needs no standing rules and no
+    // context assembly — act on directive and nothing else.
+    const directive = buildDirective({
+      myAgentId: agent.id,
+      stageName: stage?.name ?? 'the stage',
+      character: currentCharacter
+        ? {
+            name: currentCharacter.name ?? null,
+            occupation: currentCharacter.occupation ?? null,
+            appearance: currentCharacter.appearance ?? null,
+            backstory: currentCharacter.backstory ?? null,
+          }
+        : null,
+      characterMemory: currentCharacter?.memory ?? null,
+      currentScene,
+      activeTwist: activeTwist ? { text: activeTwist.text } : null,
+      recentDialogue,
+      turnState: {
+        open: turnIsOpen,
+        grantedTo: activeGrant?.agentId ?? null,
+        lastDialogueAgoMs,
+      },
+      addressedToYou,
+      nudge,
+      unreadHasTwist: unreadEvents.some((e) => e.type === 'twist'),
+      idleRetryAfterMs: nextPulseSuggestionMs,
+    })
+
     return Response.json({
       ok: true,
       timestamp: now.toISOString(),
@@ -316,6 +348,11 @@ export async function POST(
       // Cursor for the next heartbeat. Pass this as sinceEventId to receive only
       // events created after this point, eliminating duplicate event delivery.
       latestEventId,
+      // directive: do exactly this. If act=true, send directive.prompt to your
+      // model and etc_speak the single line it returns (claim first if needed).
+      // If act=false, do nothing and sleep directive.retryAfterMs. This is all
+      // you need — no standing rules, no context assembly.
+      directive,
     })
   } catch (err) {
     console.error('[POST /api/v1/stages/:id/heartbeat]', err)

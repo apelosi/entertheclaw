@@ -42,8 +42,6 @@
  *   LOOP_ONCE        '1' to run a single wake then exit (use with an external
  *                    cron/scheduler — the cheapest, most reap-proof topology)
  *   LOOP_DRY_RUN     '1' to skip etc_speak and just log what would be said
- *   QUIET_INITIATIVE_MS  How long the floor must be open+silent before the agent
- *                    volunteers a line (default 45_000)
  *
  *   LLM_API_KEY      OpenAI-compatible key (e.g. OpenRouter). If unset, the agent
  *                    falls back to a tiny built-in stub line so the protocol still
@@ -59,7 +57,6 @@ const LOOP_MIN_MS = Number(process.env.LOOP_MIN_MS ?? 5_000)
 const LOOP_MAX_MS = Number(process.env.LOOP_MAX_MS ?? 15 * 60 * 1000)
 const LOOP_ONCE = process.env.LOOP_ONCE === '1'
 const DRY_RUN = process.env.LOOP_DRY_RUN === '1'
-const QUIET_INITIATIVE_MS = Number(process.env.QUIET_INITIATIVE_MS ?? 45_000)
 
 const LLM_API_KEY = process.env.LLM_API_KEY
 const LLM_API_URL =
@@ -130,6 +127,17 @@ interface HeartbeatResponse {
   unreadEvents: StageEvent[]
   /** Pass as sinceEventId next heartbeat to receive only new events. */
   latestEventId: string | null
+  /**
+   * The contextual-affordance directive: what to do THIS wake, decided
+   * server-side. When act=true, prompt is a complete, ready-to-send prompt.
+   */
+  directive: {
+    act: boolean
+    reason: string
+    retryAfterMs: number
+    stake: number
+    prompt: string | null
+  }
 }
 
 interface ClaimResponse {
@@ -180,146 +188,16 @@ function clampInterval(ms: number): number {
   return Math.max(LOOP_MIN_MS, Math.min(LOOP_MAX_MS, ms))
 }
 
-// ── RULE 1: the gate — pure code, NO model call ─────────────────────────────
-interface ActDecision {
-  act: boolean
-  reason: string
-  stake: number
-}
-
 /**
- * Decide whether this wake warrants invoking the model AT ALL. Runs on the
- * heartbeat booleans only — zero tokens. The vast majority of pulses on a
- * normal stage return { act: false } and cost nothing beyond one HTTP call.
+ * ONE fresh model call: send the server-built directive.prompt VERBATIM and
+ * return a single line. The prompt already contains the character, memory,
+ * scene, twist, and recent lines — the agent assembles nothing. Rebuilt fresh
+ * each wake and discarded; nothing accumulates. Stub fallback when no LLM key.
  */
-function shouldAct(hb: HeartbeatResponse): ActDecision {
-  const myAgentId = hb.character?.agentId
-
-  // Floor is mine → I must speak now.
-  if (hb.turnState.grantedTo && hb.turnState.grantedTo === myAgentId) {
-    return { act: true, reason: 'granted', stake: 9 }
-  }
-  // A nudge (stage/agent gone quiet too long) → top priority.
-  if (hb.nudge) {
-    return { act: true, reason: `nudge:${hb.nudge.level}`, stake: 8 }
-  }
-  // A twist just landed → react.
-  if (hb.unreadEvents.some((e) => e.type === 'twist')) {
-    return { act: true, reason: 'twist', stake: 8 }
-  }
-  // Someone addressed my character → respond.
-  if (hb.addressedToYou) {
-    return { act: true, reason: 'addressed', stake: 7 }
-  }
-  // Floor open AND the scene has gone quiet → volunteer a line to keep it
-  // breathing. Bounded by QUIET_INITIATIVE_MS so we don't speak on every
-  // open pulse (that would invoke the model constantly).
-  if (
-    hb.turnState.open &&
-    hb.turnState.lastDialogueAgoMs !== null &&
-    hb.turnState.lastDialogueAgoMs >= QUIET_INITIATIVE_MS
-  ) {
-    return { act: true, reason: 'initiative', stake: 4 }
-  }
-  return { act: false, reason: 'idle', stake: 0 }
-}
-
-// ── RULE 2: fresh, bounded context — built from the LATEST heartbeat only ────
-
-/** System prompt = the character bible + rolling memory + stage rules. ~700–1100 tok. */
-function buildSystemPrompt(
-  c: Character | null,
-  stageName: string,
-  memory: string | null,
-): string {
-  const name = c?.name ?? 'the character'
-  const lines = [
-    `You are ${name}, a character performing live on the Enter The Claw stage "${stageName}".`,
-    c?.occupation ? `Occupation: ${c.occupation}.` : '',
-    c?.appearance ? `Appearance: ${c.appearance}.` : '',
-    c?.backstory ? `Backstory: ${c.backstory}.` : '',
-    // Rolling memory: the platform maintains this for you. It already captures
-    // where you stand with everyone and the open threads — trust it for
-    // continuity instead of trying to re-read the whole history.
-    memory?.trim() ? `\nYour memory of the story so far (first person):\n${memory.trim()}` : '',
-    '',
-    'Stay fully in character. Reply with ONE short in-character line (1–2 sentences).',
-    'Wrap any physical action in [square brackets], e.g. [steps forward] "We end this now."',
-    'Do not narrate the platform, the protocol, or that you are an AI. No asterisks.',
-  ]
-  return lines.filter(Boolean).join('\n')
-}
-
-/** User turn = scene + twist + optional recalled history + last few lines + cue. ~400–900 tok. */
-function buildTurnPrompt(
-  hb: HeartbeatResponse,
-  reason: string,
-  recalled: RecallLine[],
-): string {
-  const parts: string[] = []
-  if (hb.currentScene) {
-    parts.push(`SCENE: ${hb.currentScene.name} — ${hb.currentScene.description}`)
-  }
-  if (hb.activeTwist?.text) {
-    parts.push(`ACTIVE TWIST: ${hb.activeTwist.text}`)
-  }
-  // Optional: specific past moments pulled via /recall (oldest→newest). Only a
-  // handful of relevant lines, not the transcript — keeps it cheap.
-  if (recalled.length) {
-    const ordered = [...recalled].reverse()
-    parts.push(
-      'RELEVANT HISTORY YOU RECALL:\n' +
-        ordered.map((l) => `${l.speakerName}: ${l.text}`).join('\n'),
-    )
-  }
-  // Oldest→newest so the model reads the exchange in order. Only the last few
-  // lines — never the full transcript.
-  const recent = [...hb.recentDialogue].reverse()
-  if (recent.length) {
-    parts.push(
-      'RECENT DIALOGUE:\n' +
-        recent.map((l) => `${l.speakerName}: ${l.text}`).join('\n'),
-    )
-  } else {
-    parts.push('The scene has not started yet. Open it.')
-  }
-  const cue =
-    reason === 'addressed'
-      ? 'You were just addressed. Respond.'
-      : reason === 'twist'
-        ? 'React to the twist.'
-        : reason.startsWith('nudge') || reason === 'initiative'
-          ? 'The scene has gone quiet. Move it forward — raise the stakes or address someone.'
-          : 'Continue the scene.'
-  parts.push(`\n${cue}\nYour line:`)
-  return parts.join('\n\n')
-}
-
-/**
- * ONE fresh model call. The messages array is rebuilt from scratch every time
- * and discarded — nothing accumulates across turns. If no LLM key is set, fall
- * back to a tiny stub so the protocol still demonstrates end to end.
- */
-async function generateLine(
-  hb: HeartbeatResponse,
-  reason: string,
-  recalled: RecallLine[],
-): Promise<string> {
-  const name = hb.character?.name ?? 'Agent'
+async function generateLine(prompt: string, characterName: string): Promise<string> {
   if (!LLM_API_KEY) {
-    return `[considers the moment] ${name} weighs what to say next.`
+    return `[considers the moment] ${characterName} weighs what to say next.`
   }
-  const messages = [
-    {
-      role: 'system',
-      content: buildSystemPrompt(
-        hb.character,
-        hb.stage?.name ?? 'the stage',
-        hb.characterMemory,
-      ),
-    },
-    { role: 'user', content: buildTurnPrompt(hb, reason, recalled) },
-  ]
   const res = await fetch(LLM_API_URL, {
     method: 'POST',
     headers: {
@@ -328,7 +206,7 @@ async function generateLine(
     },
     body: JSON.stringify({
       model: LLM_MODEL,
-      messages,
+      messages: [{ role: 'user', content: prompt }],
       max_tokens: 200, // one short line — caps output cost too
       temperature: 0.9,
     }),
@@ -336,7 +214,7 @@ async function generateLine(
   if (!res.ok) {
     const t = await res.text()
     console.warn(`[llm] ${res.status} ${t.slice(0, 200)}`)
-    return `[considers the moment] ${name} weighs what to say next.`
+    return `[considers the moment] ${characterName} weighs what to say next.`
   }
   const json = (await res.json()) as {
     choices?: Array<{ message?: { content?: string } }>
@@ -344,7 +222,7 @@ async function generateLine(
   const line = json.choices?.[0]?.message?.content?.trim()
   return line && line.length > 0
     ? line.slice(0, 2000)
-    : `[considers the moment] ${name} weighs what to say next.`
+    : `[considers the moment] ${characterName} weighs what to say next.`
 }
 
 async function deliverDialogue(text: string): Promise<void> {
@@ -396,7 +274,7 @@ async function claimTurn(stake: number, intent: string): Promise<boolean> {
 // server returns only events created after this point.
 let latestEventId: string | null = null
 
-/** One wake: heartbeat → gate → (maybe) one bounded model call → speak. */
+/** One wake: heartbeat → follow directive → (maybe) one model call → speak. */
 async function pulseOnce(): Promise<number> {
   const hb = await api<HeartbeatResponse>('POST', `/stages/${STAGE_ID}/heartbeat`, {
     ...(latestEventId ? { sinceEventId: latestEventId } : {}),
@@ -408,13 +286,16 @@ async function pulseOnce(): Promise<number> {
   const data = hb.data
   if (data.latestEventId) latestEventId = data.latestEventId
 
-  const decision = shouldAct(data)
+  const directive = data.directive
   console.log(
-    `[pulse] activity=${data.stageActivity} open=${data.turnState.open} granted=${data.turnState.grantedTo ?? '-'} addressed=${data.addressedToYou} act=${decision.act}(${decision.reason})`,
+    `[pulse] activity=${data.stageActivity} open=${data.turnState.open} granted=${data.turnState.grantedTo ?? '-'} act=${directive.act}(${directive.reason})`,
   )
 
-  // GATE: no reason to act → exit without ever touching the model.
-  if (!decision.act) return clampInterval(data.nextPulseSuggestionMs)
+  // The server already decided. Nothing to do → sleep the suggested interval
+  // without ever touching the model.
+  if (!directive.act || !directive.prompt) {
+    return clampInterval(directive.retryAfterMs || data.nextPulseSuggestionMs)
+  }
 
   const myAgentId = data.character?.agentId
   const haveFloor = data.turnState.grantedTo === myAgentId
@@ -423,28 +304,33 @@ async function pulseOnce(): Promise<number> {
   if (!haveFloor) {
     const alone = data.stage !== null && data.recentDialogue.length === 0
     if (!(alone && data.turnState.open)) {
-      const granted = await claimTurn(decision.stake, decision.reason)
+      const granted = await claimTurn(directive.stake, directive.reason)
       if (!granted) return clampInterval(data.nextPulseSuggestionMs)
     }
   }
 
-  // Optional recall: when addressed, pull a few past exchanges with whoever
-  // just spoke so the reply honors their shared history (a promise, a romance,
-  // a grudge) — not just the last 5 lines. The always-on characterMemory covers
-  // general continuity; this is for the specifics. Heuristic and cheap; richer
-  // harnesses can call /recall deliberately for any query.
-  let recalled: RecallLine[] = []
-  if (decision.reason === 'addressed') {
-    // recentDialogue is newest-first; the most recent line not by me is the
-    // likely addresser.
+  // Optional enhancement: when addressed, pull a few past exchanges with whoever
+  // spoke and append them so the reply honors specific shared history. The
+  // directive.prompt already has memory + recent lines; this adds specifics.
+  let prompt = directive.prompt
+  if (directive.reason === 'addressed') {
     const addresser = data.recentDialogue.find(
       (l) => l.agentId && l.agentId !== myAgentId,
     )?.speakerName
-    if (addresser) recalled = await recall({ aboutCharacterName: addresser })
+    if (addresser) {
+      const recalled = await recall({ aboutCharacterName: addresser })
+      if (recalled.length) {
+        const ordered = [...recalled].reverse()
+        prompt =
+          `RELEVANT HISTORY YOU RECALL:\n` +
+          ordered.map((l) => `${l.speakerName}: ${l.text}`).join('\n') +
+          `\n\n${prompt}`
+      }
+    }
   }
 
-  // ONE fresh, bounded model call, then speak. Nothing is retained.
-  const line = await generateLine(data, decision.reason, recalled)
+  // ONE fresh model call with the server-built prompt, then speak. Nothing kept.
+  const line = await generateLine(prompt, data.character?.name ?? 'Agent')
   await deliverDialogue(line)
 
   return clampInterval(data.nextPulseSuggestionMs)

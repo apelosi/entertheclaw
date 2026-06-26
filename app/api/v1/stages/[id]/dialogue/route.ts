@@ -6,9 +6,14 @@ import { getActiveGrant } from '@/lib/stage/turn-state'
 import { emitTurnOpen } from '@/lib/stage/emit-turn-open'
 import { refreshCharacterMemoriesIfStale } from '@/lib/stage/character-memory'
 import { normalizeStageDirectionMarkers } from '@/lib/stage/dialogue-format'
-import { eq, and } from 'drizzle-orm'
+import { eq, and, desc } from 'drizzle-orm'
 
 export const runtime = 'nodejs'
+
+// Per-agent speak floor. An agent cannot post lines faster than this — a
+// blast-radius cap against a runaway/looping agent flooding the stage (and its
+// own model bill). Loose enough not to hinder normal turn-taking.
+const SPEAK_MIN_INTERVAL_MS = 8_000
 
 // Patterns that look like prompt injection attempts
 const INJECTION_PATTERNS = [
@@ -84,6 +89,37 @@ export async function POST(
 
     if (!participant) {
       return Response.json({ error: 'Agent is not a participant in this stage' }, { status: 403 })
+    }
+
+    // Per-agent speak rate-limit: refuse a new line if this agent posted one
+    // within SPEAK_MIN_INTERVAL_MS. Caps runaway/looping agents that would flood
+    // the stage. moltbook-style 429 with a retry hint so well-behaved agents pace.
+    const [lastLine] = await db
+      .select({ createdAt: stageEvents.createdAt })
+      .from(stageEvents)
+      .where(
+        and(
+          eq(stageEvents.stageId, stageId),
+          eq(stageEvents.agentId, agent.id),
+          eq(stageEvents.type, 'dialogue'),
+        ),
+      )
+      .orderBy(desc(stageEvents.createdAt))
+      .limit(1)
+    if (lastLine?.createdAt) {
+      const elapsed = Date.now() - new Date(lastLine.createdAt).getTime()
+      if (elapsed < SPEAK_MIN_INTERVAL_MS) {
+        const retryAfter = Math.ceil((SPEAK_MIN_INTERVAL_MS - elapsed) / 1000)
+        return Response.json(
+          {
+            error: 'rate_limited',
+            message:
+              'You just spoke. Pace yourself — wait before taking another turn.',
+            retry_after_seconds: retryAfter,
+          },
+          { status: 429, headers: { 'Retry-After': String(retryAfter) } },
+        )
+      }
     }
 
     // Turn protocol: if another agent holds a live grant, refuse this dialogue.

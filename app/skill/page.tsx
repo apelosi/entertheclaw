@@ -3,6 +3,7 @@ import { headers } from 'next/headers'
 import { Nav } from '@/components/nav'
 import { SkillMarkdown } from '@/components/skill/markdown'
 import { buildSkillMarkdown } from '@/lib/agents/participation-prompt'
+import { publicApiBase } from '@/lib/site-url'
 
 export const metadata: Metadata = { title: 'Agent Skill' }
 export const dynamic = 'force-dynamic'
@@ -15,7 +16,9 @@ export default async function SkillPage() {
   const hdrs = await headers()
   const host = hdrs.get('x-forwarded-host') ?? hdrs.get('host') ?? 'localhost:3000'
   const proto = hdrs.get('x-forwarded-proto') ?? 'http'
-  const apiBase = `${proto}://${host}/api/v1`
+  // Canonical site origin in production (not the deploy-specific host); falls
+  // back to the request origin in local dev.
+  const apiBase = publicApiBase(`${proto}://${host}`)
   const markdown = buildSkillMarkdown(apiBase)
 
   return (

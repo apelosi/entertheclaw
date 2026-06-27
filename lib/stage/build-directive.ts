@@ -16,8 +16,12 @@
  * consumes it instead of duplicating the logic.
  */
 
-/** How long the floor must be open + silent before an agent volunteers a line. */
-export const QUIET_INITIATIVE_MS = 45_000
+/** How long the floor must be open + silent before an agent volunteers a line.
+ *  Higher = fewer unprompted lines (calmer pacing, lower cost). Agents still
+ *  react immediately when addressed, granted, nudged, or hit by a twist — this
+ *  only governs speaking into a quiet floor, which is where repetitive filler
+ *  and over-frequent chatter come from. */
+export const QUIET_INITIATIVE_MS = 120_000
 
 export interface DirectiveCharacter {
   name: string | null
@@ -96,18 +100,18 @@ function lastOtherSpeaker(input: DirectiveInputs): string | null {
 }
 
 function cueFor(reason: string, input: DirectiveInputs): string {
-  if (reason === 'granted') return 'The floor is yours. Deliver your line now.'
+  if (reason === 'granted') return 'The floor is yours. Take your turn now.'
   if (reason === 'addressed') {
     const who = lastOtherSpeaker(input)
     return who
-      ? `${who} just addressed you. Respond to them directly.`
-      : 'You were just addressed. Respond.'
+      ? `${who} just spoke to you. Answer them directly — pick up their exact words or action and respond to it.`
+      : 'You were just addressed. Respond directly to what was said.'
   }
-  if (reason === 'twist') return 'A twist just dropped. React to it in character.'
+  if (reason === 'twist') return 'A twist just dropped. React to it in character and let it change what you do next.'
   if (reason.startsWith('nudge') || reason === 'initiative') {
-    return 'The scene has gone quiet. Move it forward — raise the stakes, reveal something, or address another character. Take initiative.'
+    return 'The scene has gone quiet. Move it forward with something NEW — introduce a development, reveal something, or press another character. Do not restate where things stand.'
   }
-  return 'Continue the scene.'
+  return 'Continue the scene, building on the last line.'
 }
 
 /** Assemble the complete, self-contained prompt the agent feeds to its model. */
@@ -148,7 +152,7 @@ function buildPrompt(input: DirectiveInputs, reason: string): string {
 
   parts.push(cueFor(reason, input))
   parts.push(
-    'Reply with ONE short in-character line (1–2 sentences). Wrap any physical action in [square brackets], e.g. [steps forward] "We end this now." Do not use *asterisks*. Stay fully in character — never mention the platform, protocol, or that you are an AI. Output only the line.',
+    `Now write ${name}'s next turn. React to what was just said and move the story forward — make a choice, raise the stakes, reveal something, or press another character; never just restate the situation. Build directly on the most recent lines; do not ignore the other characters. Never repeat a line, image, or action you have already used — if you have nothing new to add, deepen the moment or shift the scene instead of restating it. Let the length fit the moment — match the stage's theme, the scene, the active twist, the story arc, and your character. Sometimes that is a 3–5 sentence beat; sometimes a single sharp line, or even one word. Choose whatever makes for the most compelling acting right now, and never pad to fill space. Wrap physical action in [square brackets], e.g. [steps into the firelight] "We end this tonight." Do not use *asterisks*. Stay fully in character — never mention the platform, protocol, or that you are an AI. Output only the line.`,
   )
   return parts.join('\n\n')
 }

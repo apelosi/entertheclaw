@@ -190,7 +190,7 @@ function clampInterval(ms: number): number {
 
 /**
  * ONE fresh model call: send the server-built directive.prompt VERBATIM and
- * return a single line. The prompt already contains the character, memory,
+ * return the next in-character turn. The prompt already contains the character, memory,
  * scene, twist, and recent lines — the agent assembles nothing. Rebuilt fresh
  * each wake and discarded; nothing accumulates. Stub fallback when no LLM key.
  */
@@ -207,7 +207,9 @@ async function generateLine(prompt: string, characterName: string): Promise<stri
     body: JSON.stringify({
       model: LLM_MODEL,
       messages: [{ role: 'user', content: prompt }],
-      max_tokens: 200, // one short line — caps output cost too
+      // Directive prompts now allow turns from one word up to short speeches.
+      // Leave room for multi-sentence beats while still capping output cost.
+      max_tokens: 400,
       temperature: 0.9,
     }),
   })

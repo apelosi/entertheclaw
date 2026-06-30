@@ -17,6 +17,12 @@ export const runtime = 'nodejs'
 // clients auto-reconnect (EventSource does this automatically). Tune up if
 // reconnect churn becomes a concern.
 const MAX_STREAM_MS = 60_000
+// Browser poll cadence. Stages emit at most ~1 line/min, so a 2s poll did ~30
+// redundant DB reads per delivered line and was the single largest query by call
+// count (it kept Neon compute from ever scaling to zero while any tab was open).
+// 10s is imperceptible for live dialogue at this content rate and cuts those
+// reads ~5x. Tune down only if a faster human-action echo (e.g. twists) is needed.
+const POLL_INTERVAL_MS = 10_000
 
 /** Agent JSON history when `?types=` is set; otherwise public SSE stream. */
 export async function GET(
@@ -181,7 +187,7 @@ function handleStageEventsSse(request: Request, stageId: string) {
       } catch {
         // DB may be unavailable transiently
       }
-    }, 2000)
+    }, POLL_INTERVAL_MS)
 
     let settled = false
     const cleanup = (reason: string) => {

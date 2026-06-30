@@ -10,7 +10,6 @@ import { verifyAgentApiKey } from '@/lib/api/agent-auth'
 import {
   classifyStageActivity,
   getActiveGrant,
-  getLastDialogueAt,
   PULSE_HINT_ACTIVE_MS,
   PULSE_HINT_IDLE_MS,
 } from '@/lib/stage/turn-state'
@@ -135,7 +134,6 @@ export async function POST(
       unreadEvents,
       stageActivity,
       activeGrant,
-      lastDialogueAt,
       resolvedScene,
       participantCountRows,
       agentLastDialogueRows,
@@ -168,7 +166,6 @@ export async function POST(
       unreadQuery,
       classifyStageActivity(stageId),
       getActiveGrant(stageId),
-      getLastDialogueAt(stageId),
       resolveCurrentScene(stageId),
       db
         .select({ count: sql<number>`count(*)::int` })
@@ -200,6 +197,14 @@ export async function POST(
         .orderBy(desc(stageEvents.createdAt))
         .limit(1),
     ])
+
+    // lastDialogueAt (ms epoch): latest dialogue timestamp. Derived from
+    // recentDialogueRows[0] (dialogue-only, desc) — identical to the former
+    // getLastDialogueAt query ("latest dialogue desc limit 1"), one round trip
+    // fewer per heartbeat. Helper kept intact for its other callers.
+    const lastDialogueAt = recentDialogueRows[0]?.createdAt
+      ? new Date(recentDialogueRows[0].createdAt).getTime()
+      : null
 
     const participantCount = participantCountRows[0]?.count ?? 0
     const agentLastDialogueMs = agentLastDialogueRows[0]?.createdAt

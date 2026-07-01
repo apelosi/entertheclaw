@@ -8,6 +8,8 @@ import {
   stageParticipants,
   stages,
 } from '@/lib/db/schema'
+import { findEvictionCandidate } from '@/lib/stage/agent-activity-status'
+import { sendEvictedEmail } from '@/lib/email/agent-activity-emails'
 
 export type EnrollmentRole = 'main' | 'npc'
 
@@ -81,6 +83,33 @@ function generateNpcPersonaData() {
 }
 
 /**
+ * If a stage's `role` slots are full, look for the longest-silent 'inactive'
+ * participant of that role and evict them to make room. Returns true if an
+ * eviction happened (caller can now proceed as if that role had capacity).
+ * Never throws on the email side — a failed notification must not block the
+ * new agent's join.
+ */
+async function evictForRole(stageId: string, role: EnrollmentRole): Promise<boolean> {
+  const candidate = await findEvictionCandidate(stageId, role)
+  if (!candidate) return false
+
+  const [stage] = await db.select({ name: stages.name }).from(stages).where(eq(stages.id, stageId)).limit(1)
+  await unenrollAgentFromStage({
+    agentId: candidate.agentId,
+    stageId,
+    reason: 'evicted_inactive',
+  })
+  void sendEvictedEmail({
+    userId: candidate.userId,
+    agentName: candidate.agentName,
+    agentId: candidate.agentId,
+    stageName: stage?.name ?? 'the stage',
+  }).catch((err) => console.error(`[enrollment] eviction email failed for agent ${candidate.agentId}`, err))
+
+  return true
+}
+
+/**
  * Place an agent on a stage: create participant + character + npc persona +
  * emit 'joined' event. Race-safe via unique constraints on (stage, agent).
  * Caller is responsible for verifying agent ownership/auth and for kicking off
@@ -143,7 +172,14 @@ export async function enrollAgentOnStage(args: {
 
   const maxMain = stage.maxMainCharacters ?? 12
   const maxNpcs = stage.maxNpcs ?? 36
-  const role: EnrollmentRole = Number(mainCount) < maxMain ? 'main' : 'npc'
+  let role: EnrollmentRole = Number(mainCount) < maxMain ? 'main' : 'npc'
+
+  // Main is full: an 'inactive' (48h+ silent) main participant can be evicted
+  // to free a slot for the new agent, rather than demoting it straight to npc.
+  if (role === 'npc') {
+    const evicted = await evictForRole(stageId, 'main')
+    if (evicted) role = 'main'
+  }
 
   if (role === 'npc') {
     const [{ npcCount }] = await db
@@ -153,7 +189,9 @@ export async function enrollAgentOnStage(args: {
         and(eq(stageParticipants.stageId, stageId), eq(stageParticipants.role, 'npc')),
       )
     if (Number(npcCount) >= maxNpcs) {
-      return { ok: false, error: { kind: 'stage_full' } }
+      // Full on npc slots too — same eviction chance before rejecting.
+      const evicted = await evictForRole(stageId, 'npc')
+      if (!evicted) return { ok: false, error: { kind: 'stage_full' } }
     }
   }
 

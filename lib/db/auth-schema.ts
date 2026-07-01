@@ -1,19 +1,21 @@
-import { pgTable, text, timestamp, boolean } from 'drizzle-orm/pg-core'
+import { pgTable, pgSchema, text, timestamp, boolean } from 'drizzle-orm/pg-core'
 
-export const users = pgTable('users', {
+// Neon Auth's own user table — externally managed (not a table this app's
+// migrations create or own), lives in the `neon_auth` schema as `"user"`
+// (singular), with camelCase column names as literal Postgres identifiers
+// (not the snake_case this app's own tables use). Verified directly against
+// a real database: `SELECT table_schema, table_name FROM information_schema.tables
+// WHERE table_name = 'user'` -> neon_auth.user; columns confirmed via
+// information_schema.columns. Read-only from this app's perspective.
+const neonAuthSchema = pgSchema('neon_auth')
+export const users = neonAuthSchema.table('user', {
   id: text('id').primaryKey(),
-  name: text('name').notNull(),
-  email: text('email').notNull().unique(),
-  emailVerified: boolean('email_verified')
-    .$defaultFn(() => false)
-    .notNull(),
+  name: text('name'),
+  email: text('email').notNull(),
+  emailVerified: boolean('emailVerified'),
   image: text('image'),
-  createdAt: timestamp('created_at')
-    .$defaultFn(() => new Date())
-    .notNull(),
-  updatedAt: timestamp('updated_at')
-    .$defaultFn(() => new Date())
-    .notNull(),
+  createdAt: timestamp('createdAt', { withTimezone: true }),
+  updatedAt: timestamp('updatedAt', { withTimezone: true }),
 })
 
 export const sessions = pgTable('sessions', {

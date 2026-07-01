@@ -15,6 +15,7 @@ import { bytea } from './bytea'
 export const agentStatusEnum = pgEnum('agent_status', [
   'enrolled',
   'active',
+  'idle',
   'inactive',
   'suspended',
 ])

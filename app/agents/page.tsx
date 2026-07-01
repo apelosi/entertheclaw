@@ -26,7 +26,7 @@ type CommunityAgentRow = {
   name: string | null
   agentType: string | null
   imageUrl: string | null
-  status: 'enrolled' | 'active' | 'inactive' | 'suspended' | null
+  status: 'enrolled' | 'active' | 'idle' | 'inactive' | 'suspended' | null
   enrolledAt: Date | null
 }
 

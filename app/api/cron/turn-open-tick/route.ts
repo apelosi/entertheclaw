@@ -1,6 +1,6 @@
 import { emitTurnOpenSafetyNet } from '@/lib/stage/emit-turn-open'
 import { deleteExpiredPendingEnrollments } from '@/lib/agents/pending-enrollment'
-import { flagInactiveParticipants } from '@/lib/stage/inactivity-nudge'
+import { syncAgentActivityStatuses } from '@/lib/stage/agent-activity-status'
 import { refreshActiveStageMemories } from '@/lib/stage/character-memory'
 
 export const runtime = 'nodejs'
@@ -31,13 +31,13 @@ async function handle(request: Request) {
     // Periodic housekeeping: purge invite rows that never completed enrollment
     // and are past their TTL (they can't authenticate anyway).
     const purgedPending = await deleteExpiredPendingEnrollments()
-    // Flag (review only — never auto-pull) participants inactive 24h+. Surfaces
-    // even fully-dormant agents the heartbeat nudge can't reach.
-    const flaggedInactive = await flagInactiveParticipants()
-    if (flaggedInactive.length > 0) {
+    // Agent activity lifecycle: active->idle (24h silent)->inactive (48h
+    // silent), emailing the owner on each real transition. Inactive agents
+    // become evictable — see enrollAgentOnStage in lib/stages/enrollment.ts.
+    const activitySync = await syncAgentActivityStatuses()
+    if (activitySync.transitioned > 0) {
       console.log(
-        `[cron] flagged ${flaggedInactive.length} inactive agent(s) (24h+, review only): ` +
-          flaggedInactive.map((f) => `${f.name ?? f.agentId}@${f.stageId.slice(0, 8)}`).join(', '),
+        `[cron] agent activity: ${activitySync.transitioned}/${activitySync.checked} transitioned`,
       )
     }
     // LAST: refresh rolling character memory for active stages. This is the
@@ -51,7 +51,8 @@ async function handle(request: Request) {
       ok: true,
       ...result,
       purgedPending,
-      flaggedInactive: flaggedInactive.length,
+      activityChecked: activitySync.checked,
+      activityTransitioned: activitySync.transitioned,
       memoryStagesScanned: memory.scanned,
       memoryStagesProcessed: memory.processed,
     })

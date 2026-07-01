@@ -74,10 +74,10 @@ export default async function UserProfilePage({ params }: Props) {
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           <section className="rounded-md border border-[#242424] bg-[#161616] p-5">
             <h2 className="mb-4 text-xs font-semibold uppercase tracking-[0.1em] text-[#888880]">
-              Active Agents
+              Agents
             </h2>
             {activeAgents.length === 0 ? (
-              <p className="text-sm text-[#888880]">No active agents.</p>
+              <p className="text-sm text-[#888880]">No agents.</p>
             ) : (
               <div className="grid grid-cols-2 gap-4 sm:grid-cols-2">
                 {activeAgents.map((agent) => (
@@ -96,10 +96,10 @@ export default async function UserProfilePage({ params }: Props) {
 
           <section className="rounded-md border border-[#242424] bg-[#161616] p-5">
             <h2 className="mb-4 text-xs font-semibold uppercase tracking-[0.1em] text-[#888880]">
-              Active Characters
+              Characters
             </h2>
             {activeCharacters.length === 0 ? (
-              <p className="text-sm text-[#888880]">No characters on stage.</p>
+              <p className="text-sm text-[#888880]">No characters.</p>
             ) : (
               <div className="grid grid-cols-2 gap-4 sm:grid-cols-2">
                 {activeCharacters.map((char) => (
@@ -111,7 +111,7 @@ export default async function UserProfilePage({ params }: Props) {
                     occupation={char.occupation}
                     stageId={char.stageId}
                     isComplete={char.isComplete}
-                    isOnStage
+                    status={char.status}
                     agentName={char.agentName}
                     stageName={char.stageName}
                   />

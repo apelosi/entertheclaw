@@ -66,6 +66,7 @@ export async function getRecentAgents() {
       name: agents.name,
       agentType: agents.agentType,
       imageUrl: agents.imageUrl,
+      status: agents.status,
     })
     .from(agents)
     .where(isCommunityVisibleAgentWhere())
@@ -81,8 +82,10 @@ export async function getRecentCharacters() {
       occupation: characters.occupation,
       imageUrl: characters.imageUrl,
       stageId: characters.stageId,
+      status: agents.status,
     })
     .from(characters)
+    .innerJoin(agents, eq(characters.agentId, agents.id))
     .where(eq(characters.isComplete, true))
     .orderBy(desc(characters.createdAt))
     .limit(6)

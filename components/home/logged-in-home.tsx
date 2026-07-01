@@ -144,7 +144,7 @@ export async function LoggedInHome({ userId, displayName }: LoggedInHomeProps) {
                 occupation={char.occupation}
                 stageId={char.stageId}
                 isComplete={char.isComplete}
-                isOnStage={char.isOnStage}
+                status={char.status}
                 agentName={char.agentName}
                 stageName={char.stageName}
               />

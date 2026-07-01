@@ -12,6 +12,6 @@ await db.insert(agents).values({
   userId: 'smoke-test-user',
   apiKeyHash: hashApiKey(rawKey),
   apiKeyPrefix: getApiKeyPrefix(rawKey),
-  status: 'enrolled',
+  status: 'unenrolled',
 })
 console.log(rawKey)

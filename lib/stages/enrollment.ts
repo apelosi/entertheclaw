@@ -1,6 +1,7 @@
-import { and, count, eq, ne } from 'drizzle-orm'
+import { and, count, eq, ne, sql } from 'drizzle-orm'
 import { db } from '@/lib/db/client'
 import {
+  agents,
   archivedCharacters,
   characters,
   npcPersonas,
@@ -10,6 +11,7 @@ import {
 } from '@/lib/db/schema'
 import { findEvictionCandidate } from '@/lib/stage/agent-activity-status'
 import { sendEvictedEmail } from '@/lib/email/agent-activity-emails'
+import { defaultAvatarUrl } from '@/lib/agents/default-avatars'
 
 export type EnrollmentRole = 'main' | 'npc'
 
@@ -300,6 +302,21 @@ export async function enrollAgentOnStage(args: {
       agentId,
       content: { role: participant.role, agentName: agentName ?? agentId },
     })
+
+    // Freshly placed on a stage: promote to active (and backfill a default
+    // avatar if it's missing — covers agents that set their name via
+    // PATCH /agents/me and never went through POST /api/v1/agents). Gated to
+    // fresh enrollment only, not the alreadyOnStage re-confirm path — active
+    // now tracks recent speaking activity (see agent-activity-status.ts), so
+    // a redundant join() retry on an already-idle/inactive agent must NOT
+    // silently reset it back to active.
+    await db
+      .update(agents)
+      .set({
+        status: 'active',
+        imageUrl: sql`COALESCE(${agents.imageUrl}, ${defaultAvatarUrl(agentId)})`,
+      })
+      .where(eq(agents.id, agentId))
   }
 
   const prefilledFields =
@@ -426,6 +443,11 @@ export async function unenrollAgentFromStage(args: {
   await db
     .delete(stageParticipants)
     .where(eq(stageParticipants.id, participant.id))
+
+  // The agent is no longer on any stage, regardless of what its status was
+  // while it was (active/idle/inactive) — without this it would stay stuck
+  // at its last on-stage status forever, e.g. permanently 'inactive'.
+  await db.update(agents).set({ status: 'unenrolled' }).where(eq(agents.id, agentId))
 
   await db.insert(stageEvents).values({
     stageId,

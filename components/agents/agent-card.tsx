@@ -2,7 +2,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { agentDetailPath } from '@/lib/paths'
 
-export type AgentStatus = 'enrolled' | 'active' | 'idle' | 'inactive' | 'suspended'
+export type AgentStatus = 'unenrolled' | 'active' | 'idle' | 'inactive' | 'suspended'
 
 export interface AgentCardProps {
   id: string

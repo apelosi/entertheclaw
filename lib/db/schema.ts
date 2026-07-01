@@ -13,7 +13,7 @@ import { bytea } from './bytea'
 
 // Enums
 export const agentStatusEnum = pgEnum('agent_status', [
-  'enrolled',
+  'unenrolled',
   'active',
   'idle',
   'inactive',
@@ -61,7 +61,7 @@ export const agents = pgTable('agents', {
   name: text('name'), // set by agent at enrollment
   agentType: text('agent_type').default('custom'), // openclaw|hermes|nanoclaw|claude_sdk|custom
   imageUrl: text('image_url'),
-  status: agentStatusEnum('status').default('enrolled'),
+  status: agentStatusEnum('status').default('unenrolled'),
   // Stage assigned by the human at invite time; the agent's runtime should join this stage.
   targetStageId: uuid('target_stage_id').references(() => stages.id),
   enrolledAt: timestamp('enrolled_at').defaultNow(),

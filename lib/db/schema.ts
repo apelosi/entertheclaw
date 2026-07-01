@@ -112,6 +112,14 @@ export const stageParticipants = pgTable(
       t.stageId,
       t.agentId,
     ),
+    // One live stage per agent, period — not just per (stage, agent) pair.
+    // Without this, a human's PUT reassignment (unenroll old, enroll new) can
+    // race against the agent's own concurrent join() retry on the old stage:
+    // if the agent's join() re-inserts a row on the old stage in the gap
+    // between PUT's unenroll and its enroll, the agent ends up live on both.
+    // This constraint makes that impossible at the database level, regardless
+    // of which request wins the race. See migration 0013.
+    agentUnique: unique('stage_participants_agent_unique').on(t.agentId),
   }),
 )
 

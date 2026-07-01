@@ -1,0 +1,1 @@
+ALTER TABLE "stage_participants" ADD CONSTRAINT "stage_participants_agent_unique" UNIQUE("agent_id");

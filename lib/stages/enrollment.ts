@@ -15,6 +15,10 @@ export type EnrollmentError =
   | { kind: 'stage_not_found' }
   | { kind: 'stage_full' }
   | { kind: 'character_row_missing' }
+  // Hit the stageParticipants agentId-unique constraint: a concurrent request
+  // (typically the agent's own runtime retrying a stale join()) re-enrolled
+  // this agent elsewhere in the gap between this caller's own steps.
+  | { kind: 'agent_already_on_another_stage'; otherStageId: string }
 
 export interface EnrollPrefill {
   name?: string | null
@@ -153,13 +157,27 @@ export async function enrollAgentOnStage(args: {
     }
   }
 
-  const insertedParticipants = await db
-    .insert(stageParticipants)
-    .values({ stageId, agentId, role })
-    .onConflictDoNothing({
-      target: [stageParticipants.stageId, stageParticipants.agentId],
-    })
-    .returning()
+  let insertedParticipants: (typeof stageParticipants.$inferSelect)[]
+  try {
+    insertedParticipants = await db
+      .insert(stageParticipants)
+      .values({ stageId, agentId, role })
+      .onConflictDoNothing({
+        target: [stageParticipants.stageId, stageParticipants.agentId],
+      })
+      .returning()
+  } catch (err) {
+    // onConflictDoNothing only suppresses conflicts on the (stageId, agentId)
+    // target above — a conflict on the separate agentId-only constraint (this
+    // agent already has a live row on a DIFFERENT stage, created by a request
+    // that raced this one) still throws. Confirm that's really what happened
+    // before treating it as such, so an unrelated DB error isn't misreported.
+    const otherStageId = await getAgentOtherStageId(agentId, stageId)
+    if (otherStageId) {
+      return { ok: false, error: { kind: 'agent_already_on_another_stage', otherStageId } }
+    }
+    throw err
+  }
 
   let participant = insertedParticipants[0]
   let alreadyOnStage = false

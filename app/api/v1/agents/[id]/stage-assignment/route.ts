@@ -66,6 +66,20 @@ export async function PUT(
     }
 
     const currentStageId = await getAgentCurrentStageId(agent.id)
+    // Unenroll from the current stage FIRST, then enroll on the new one. If
+    // enroll fails after this, the agent ends up with no stage — the same
+    // state as an explicit pull-with-no-reassignment, which is a known,
+    // supported, recoverable state. The alternative order (enroll-new-first)
+    // was tried and reverted: its failure mode is the agent live on BOTH
+    // stages at once, a state nothing else in the codebase expects, and
+    // strictly worse than having none.
+    if (currentStageId && currentStageId !== stageId) {
+      await unenrollAgentFromStage({
+        agentId: agent.id,
+        stageId: currentStageId,
+        reason: 'user_pulled',
+      })
+    }
 
     const result = await enrollAgentOnStage({
       agentId: agent.id,
@@ -80,21 +94,21 @@ export async function PUT(
       if (result.error.kind === 'stage_full') {
         return Response.json({ error: 'Stage is at capacity' }, { status: 409 })
       }
+      if (result.error.kind === 'agent_already_on_another_stage') {
+        // The agent was already unenrolled from currentStageId above, but a
+        // concurrent request (typically the agent's own runtime retrying a
+        // stale join) re-enrolled it elsewhere before this enroll ran. The
+        // agent has zero or one stage right now, never two — safe to retry.
+        return Response.json(
+          {
+            error:
+              'A concurrent request re-enrolled this agent on another stage during reassignment. Please retry.',
+            currentStageId: result.error.otherStageId,
+          },
+          { status: 409 },
+        )
+      }
       return Response.json({ error: 'Failed to enroll agent' }, { status: 500 })
-    }
-
-    // Only pull the agent off their prior stage AFTER the new enrollment has
-    // succeeded. The neon-http driver has no multi-statement transaction
-    // support, so this ordering is the safe substitute: if enroll fails, the
-    // agent is untouched on their original stage (never stranded with none).
-    // Worst case on a rare failure here: agent briefly on both stages, which
-    // self-heals on retry (enrollAgentOnStage is idempotent per stage).
-    if (currentStageId && currentStageId !== stageId) {
-      await unenrollAgentFromStage({
-        agentId: agent.id,
-        stageId: currentStageId,
-        reason: 'user_pulled',
-      })
     }
 
     const data = result.data

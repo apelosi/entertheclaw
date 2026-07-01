@@ -346,6 +346,12 @@ export async function unenrollAgentFromStage(args: {
         agentId,
         stageId,
         characterData: snapshot,
+        // Actual image bytes, not just the URL string above — the URL points
+        // at a route keyed on the live characters row we're about to delete,
+        // so without these the portrait/sprite would 404 forever.
+        portraitBytes: character.portraitBytes,
+        spriteBytes: character.spriteBytes,
+        assetsVersion: character.assetsVersion,
         archiveReason: reason,
       })
       .returning({ id: archivedCharacters.id })

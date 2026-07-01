@@ -173,6 +173,13 @@ export const archivedCharacters = pgTable('archived_characters', {
     .notNull()
     .references(() => stages.id),
   characterData: jsonb('character_data').notNull(), // full character snapshot
+  // Actual image bytes, copied at archive time. characterData.imageUrl/spriteUrl
+  // are just URL strings pointing at the (now-deleted) live characters row's
+  // portrait/sprite route — without these, that URL 404s forever. The image
+  // route falls back to these columns when the live characters lookup misses.
+  portraitBytes: bytea('portrait_bytes'),
+  spriteBytes: bytea('sprite_bytes'),
+  assetsVersion: integer('assets_version'),
   archivedAt: timestamp('archived_at').defaultNow(),
   archiveReason: text('archive_reason'), // user_pulled|timeout_24h
   statsTotalLines: integer('stats_total_lines').default(0),

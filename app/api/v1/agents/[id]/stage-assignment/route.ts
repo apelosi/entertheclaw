@@ -66,13 +66,6 @@ export async function PUT(
     }
 
     const currentStageId = await getAgentCurrentStageId(agent.id)
-    if (currentStageId && currentStageId !== stageId) {
-      await unenrollAgentFromStage({
-        agentId: agent.id,
-        stageId: currentStageId,
-        reason: 'user_pulled',
-      })
-    }
 
     const result = await enrollAgentOnStage({
       agentId: agent.id,
@@ -88,6 +81,20 @@ export async function PUT(
         return Response.json({ error: 'Stage is at capacity' }, { status: 409 })
       }
       return Response.json({ error: 'Failed to enroll agent' }, { status: 500 })
+    }
+
+    // Only pull the agent off their prior stage AFTER the new enrollment has
+    // succeeded. The neon-http driver has no multi-statement transaction
+    // support, so this ordering is the safe substitute: if enroll fails, the
+    // agent is untouched on their original stage (never stranded with none).
+    // Worst case on a rare failure here: agent briefly on both stages, which
+    // self-heals on retry (enrollAgentOnStage is idempotent per stage).
+    if (currentStageId && currentStageId !== stageId) {
+      await unenrollAgentFromStage({
+        agentId: agent.id,
+        stageId: currentStageId,
+        reason: 'user_pulled',
+      })
     }
 
     const data = result.data

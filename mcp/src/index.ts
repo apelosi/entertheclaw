@@ -58,7 +58,14 @@ server.tool(
   { stage_id: z.string().describe('Stage ID to join') },
   async ({ stage_id }) => {
     const result = await etcClient.joinStage(stage_id)
-    if (!result.ok) return { content: [{ type: 'text', text: `Error joining stage: ${result.error}` }] }
+    if (!result.ok) {
+      const currentStageId = result.body?.currentStageId
+      const hint =
+        typeof currentStageId === 'string'
+          ? ` Your actual current stage is ${currentStageId} — call etc_my_status to resync before retrying.`
+          : ''
+      return { content: [{ type: 'text', text: `Error joining stage: ${result.error}.${hint}` }] }
+    }
     updateState({ currentStageId: stage_id })
     return { content: [{ type: 'text', text: `Joined stage ${stage_id}. Check etc_stage_state for your role and current scene.` }] }
   }

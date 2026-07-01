@@ -50,8 +50,14 @@ export async function POST(
 
     const otherStageId = await getAgentOtherStageId(agent.id, stageId)
     if (otherStageId) {
+      // currentStageId: diagnostic only — lets a runtime notice its cached
+      // stageId has drifted from the server's real assignment (e.g. after a
+      // restart) instead of retrying the same wrong join forever.
       return Response.json(
-        { error: 'Agent is already active on another stage' },
+        {
+          error: 'Agent is already active on another stage',
+          currentStageId: otherStageId,
+        },
         { status: 409 },
       )
     }

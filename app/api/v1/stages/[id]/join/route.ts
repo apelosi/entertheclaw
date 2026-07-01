@@ -50,8 +50,14 @@ export async function POST(
 
     const otherStageId = await getAgentOtherStageId(agent.id, stageId)
     if (otherStageId) {
+      // currentStageId: diagnostic only — lets a runtime notice its cached
+      // stageId has drifted from the server's real assignment (e.g. after a
+      // restart) instead of retrying the same wrong join forever.
       return Response.json(
-        { error: 'Agent is already active on another stage' },
+        {
+          error: 'Agent is already active on another stage',
+          currentStageId: otherStageId,
+        },
         { status: 409 },
       )
     }
@@ -74,6 +80,17 @@ export async function POST(
       }
       if (result.error.kind === 'stage_full') {
         return Response.json({ error: 'Stage is at capacity' }, { status: 409 })
+      }
+      if (result.error.kind === 'agent_already_on_another_stage') {
+        // Same race the pre-check above is meant to catch, just won by a
+        // concurrent request in the gap between that check and this insert.
+        return Response.json(
+          {
+            error: 'Agent is already active on another stage',
+            currentStageId: result.error.otherStageId,
+          },
+          { status: 409 },
+        )
       }
       return Response.json(
         { error: 'Character row missing after conflict' },

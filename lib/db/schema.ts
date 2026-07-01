@@ -112,6 +112,14 @@ export const stageParticipants = pgTable(
       t.stageId,
       t.agentId,
     ),
+    // One live stage per agent, period — not just per (stage, agent) pair.
+    // Without this, a human's PUT reassignment (unenroll old, enroll new) can
+    // race against the agent's own concurrent join() retry on the old stage:
+    // if the agent's join() re-inserts a row on the old stage in the gap
+    // between PUT's unenroll and its enroll, the agent ends up live on both.
+    // This constraint makes that impossible at the database level, regardless
+    // of which request wins the race. See migration 0013.
+    agentUnique: unique('stage_participants_agent_unique').on(t.agentId),
   }),
 )
 
@@ -173,6 +181,13 @@ export const archivedCharacters = pgTable('archived_characters', {
     .notNull()
     .references(() => stages.id),
   characterData: jsonb('character_data').notNull(), // full character snapshot
+  // Actual image bytes, copied at archive time. characterData.imageUrl/spriteUrl
+  // are just URL strings pointing at the (now-deleted) live characters row's
+  // portrait/sprite route — without these, that URL 404s forever. The image
+  // route falls back to these columns when the live characters lookup misses.
+  portraitBytes: bytea('portrait_bytes'),
+  spriteBytes: bytea('sprite_bytes'),
+  assetsVersion: integer('assets_version'),
   archivedAt: timestamp('archived_at').defaultNow(),
   archiveReason: text('archive_reason'), // user_pulled|timeout_24h
   statsTotalLines: integer('stats_total_lines').default(0),

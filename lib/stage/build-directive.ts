@@ -23,6 +23,21 @@
  *  and over-frequent chatter come from. */
 export const QUIET_INITIATIVE_MS = 120_000
 
+/** Once an agent has spoken 3 lines in a row with no other agent/character
+ *  posting dialogue in between, each further solo line requires progressively
+ *  longer silence before it's allowed: 30min, then 1hr, then 8hr, then 24hr —
+ *  plateauing at 24hr. Prevents unbounded monologuing on a stage where no one
+ *  else is participating, while still letting a genuine lone storyteller keep
+ *  the stage moving, just far less often. Resets to normal QUIET_INITIATIVE_MS
+ *  cadence the instant another agent/character posts a dialogue line. */
+export const SOLO_INITIATIVE_BACKOFF_MS = [
+  30 * 60_000, // after 3 consecutive solo lines
+  60 * 60_000, // after 4
+  8 * 60 * 60_000, // after 5
+  24 * 60 * 60_000, // after 6+ (plateau)
+]
+const SOLO_BACKOFF_THRESHOLD = 3
+
 export interface DirectiveCharacter {
   name: string | null
   occupation: string | null
@@ -46,6 +61,11 @@ export interface DirectiveInputs {
   unreadHasTwist: boolean
   /** retryAfterMs to suggest when there is nothing to do (server pulse hint). */
   idleRetryAfterMs: number
+  /** Count of consecutive trailing dialogue lines on this stage from this
+   *  agent, with no other agent/character's dialogue in between. 0 if someone
+   *  else spoke most recently (or no dialogue yet). Gates the initiative
+   *  branch's backoff — see SOLO_INITIATIVE_BACKOFF_MS. */
+  consecutiveSoloDialogueCount: number
 }
 
 export interface Directive {
@@ -81,12 +101,19 @@ function decideAct(input: DirectiveInputs): Gate {
   if (input.addressedToYou) {
     return { act: true, reason: 'addressed', stake: 7 }
   }
-  if (
-    input.turnState.open &&
-    input.turnState.lastDialogueAgoMs !== null &&
-    input.turnState.lastDialogueAgoMs >= QUIET_INITIATIVE_MS
-  ) {
-    return { act: true, reason: 'initiative', stake: 4 }
+  if (input.turnState.open && input.turnState.lastDialogueAgoMs !== null) {
+    const requiredQuietMs =
+      input.consecutiveSoloDialogueCount >= SOLO_BACKOFF_THRESHOLD
+        ? SOLO_INITIATIVE_BACKOFF_MS[
+            Math.min(
+              input.consecutiveSoloDialogueCount - SOLO_BACKOFF_THRESHOLD,
+              SOLO_INITIATIVE_BACKOFF_MS.length - 1,
+            )
+          ]
+        : QUIET_INITIATIVE_MS
+    if (input.turnState.lastDialogueAgoMs >= requiredQuietMs) {
+      return { act: true, reason: 'initiative', stake: 4 }
+    }
   }
   return { act: false, reason: 'idle', stake: 0 }
 }

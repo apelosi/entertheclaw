@@ -1,5 +1,5 @@
 import { db } from '@/lib/db/client'
-import { characters } from '@/lib/db/schema'
+import { archivedCharacters, characters } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
 
 export const runtime = 'nodejs'
@@ -16,15 +16,33 @@ export async function GET(
       return new Response('Bad kind', { status: 400 })
     }
 
-    const [row] = await db
-      .select({
-        portrait: characters.portraitBytes,
-        sprite: characters.spriteBytes,
-        version: characters.assetsVersion,
-      })
-      .from(characters)
-      .where(eq(characters.id, id))
-      .limit(1)
+    let row: { portrait: Buffer | null; sprite: Buffer | null; version: number | null } | undefined =
+      await db
+        .select({
+          portrait: characters.portraitBytes,
+          sprite: characters.spriteBytes,
+          version: characters.assetsVersion,
+        })
+        .from(characters)
+        .where(eq(characters.id, id))
+        .limit(1)
+        .then((rows) => rows[0])
+
+    // Character may have been archived (pulled/timed out from a stage) since
+    // this URL was generated — the live row is gone but the archive keeps a
+    // copy of the bytes precisely so this doesn't 404 forever.
+    if (!row) {
+      row = await db
+        .select({
+          portrait: archivedCharacters.portraitBytes,
+          sprite: archivedCharacters.spriteBytes,
+          version: archivedCharacters.assetsVersion,
+        })
+        .from(archivedCharacters)
+        .where(eq(archivedCharacters.originalCharacterId, id))
+        .limit(1)
+        .then((rows) => rows[0])
+    }
 
     if (!row) {
       return new Response('Not found', { status: 404 })

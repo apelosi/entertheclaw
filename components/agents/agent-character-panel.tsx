@@ -1,7 +1,7 @@
-import Image from 'next/image'
 import Link from 'next/link'
 import { characterDetailPath } from '@/lib/paths'
 import { detailPageLinkClass } from '@/components/ui/animated-underline-link'
+import { CharacterPortrait } from '@/components/agents/character-portrait'
 
 export type AgentCharacterPanelProps = {
   characterId?: string | null
@@ -43,17 +43,7 @@ export function AgentCharacterPanel({
       <div className="flex items-start gap-4">
         <div className="relative aspect-square w-28 shrink-0 overflow-hidden rounded-md border border-[#242424] bg-[#111111]">
           {visualUrl ? (
-            <Image
-              src={visualUrl}
-              alt={name ?? 'Character'}
-              fill
-              sizes="112px"
-              className={
-                isSprite
-                  ? 'object-contain p-1 image-pixelated'
-                  : 'object-cover object-top'
-              }
-            />
+            <CharacterPortrait src={visualUrl} alt={name ?? 'Character'} isSprite={isSprite} />
           ) : (
             <div className="flex h-full w-full items-center justify-center text-3xl text-[#444440]">
               ◈

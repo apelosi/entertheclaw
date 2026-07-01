@@ -22,7 +22,10 @@ export const runtime = 'nodejs'
 
 const ADDRESSED_LOOKBACK = 5 // last N dialogue events to scan for character name
 const UNREAD_CAP = 30
-const RECENT_DIALOGUE_LIMIT = 5
+// 7, not 5: the solo-monologue backoff (build-directive.ts) needs to tell "6
+// consecutive solo lines" from "7+" to know it has reached the 24hr plateau
+// tier; 5 rows couldn't distinguish 5 from 6+ and would never plateau.
+const RECENT_DIALOGUE_LIMIT = 7
 
 function isAddressed(text: unknown, characterName: string | null): boolean {
   if (!characterName || typeof text !== 'string') return false
@@ -206,6 +209,19 @@ export async function POST(
       ? new Date(recentDialogueRows[0].createdAt).getTime()
       : null
 
+    // consecutiveSoloDialogueCount: how many trailing dialogue lines (newest
+    // first) came from this agent with no other agent/character's dialogue in
+    // between. Feeds build-directive's solo-monologue backoff. Resets to 0 the
+    // instant a different agentId (or a null/system agentId) appears.
+    let consecutiveSoloDialogueCount = 0
+    for (const row of recentDialogueRows) {
+      if (row.agentId === agent.id) {
+        consecutiveSoloDialogueCount++
+      } else {
+        break
+      }
+    }
+
     const participantCount = participantCountRows[0]?.count ?? 0
     const agentLastDialogueMs = agentLastDialogueRows[0]?.createdAt
       ? new Date(agentLastDialogueRows[0].createdAt).getTime()
@@ -311,6 +327,7 @@ export async function POST(
       nudge,
       unreadHasTwist: unreadEvents.some((e) => e.type === 'twist'),
       idleRetryAfterMs: nextPulseSuggestionMs,
+      consecutiveSoloDialogueCount,
     })
 
     return Response.json({

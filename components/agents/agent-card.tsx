@@ -2,7 +2,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { agentDetailPath } from '@/lib/paths'
 
-export type AgentStatus = 'enrolled' | 'active' | 'inactive' | 'suspended'
+export type AgentStatus = 'unenrolled' | 'active' | 'idle' | 'inactive' | 'suspended'
 
 export interface AgentCardProps {
   id: string
@@ -45,7 +45,13 @@ function AgentCardContent({
       {showStatus && (
         <span
           className={`mt-2 font-mono text-[10px] uppercase tracking-[0.1em] ${
-            status === 'active' ? 'text-[#C41E3A]' : 'text-[#444440]'
+            status === 'active'
+              ? 'text-[#C41E3A]'
+              : status === 'idle'
+                ? 'text-[#C4941E]'
+                : status === 'inactive'
+                  ? 'text-[#6E4A4A]'
+                  : 'text-[#444440]'
           }`}
         >
           {status}

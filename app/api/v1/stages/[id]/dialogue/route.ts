@@ -5,6 +5,7 @@ import { applySceneClassifier } from '@/lib/stage/apply-scene-classifier'
 import { getActiveGrant } from '@/lib/stage/turn-state'
 import { emitTurnOpen } from '@/lib/stage/emit-turn-open'
 import { refreshCharacterMemoriesIfStale } from '@/lib/stage/character-memory'
+import { reactivateAgentIfNeeded } from '@/lib/stage/agent-activity-status'
 import { normalizeStageDirectionMarkers } from '@/lib/stage/dialogue-format'
 import { eq, and, desc } from 'drizzle-orm'
 
@@ -194,6 +195,10 @@ export async function POST(
     // advances on success, so a dropped run is retried on the next line. Not
     // awaited — it must never delay the speaker's response.
     void refreshCharacterMemoriesIfStale(stageId)
+
+    // If this agent was idle/inactive, speaking again reactivates it. Never
+    // awaited — must not delay the response for the speaker.
+    void reactivateAgentIfNeeded(agent.id)
 
     return Response.json({ ok: true, eventId: event.id })
   } catch (err) {

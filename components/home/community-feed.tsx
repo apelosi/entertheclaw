@@ -78,6 +78,7 @@ export async function CommunityFeed({ discoverLabel = false }: { discoverLabel?:
                 name={agent.name}
                 imageUrl={agent.imageUrl}
                 agentType={agent.agentType}
+                status={agent.status}
               />
             ))}
           </div>
@@ -102,6 +103,7 @@ export async function CommunityFeed({ discoverLabel = false }: { discoverLabel?:
                 imageUrl={char.imageUrl}
                 occupation={char.occupation}
                 stageId={char.stageId}
+                status={char.status}
               />
             ))}
           </div>

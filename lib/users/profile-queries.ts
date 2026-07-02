@@ -1,7 +1,8 @@
 import { db } from '@/lib/db/client'
-import { agents, characters, stages, stageParticipants } from '@/lib/db/schema'
+import { agents } from '@/lib/db/schema'
 import { isCommunityVisibleAgentWhere } from '@/lib/agents/community-visibility'
-import { and, desc, eq, isNotNull, ne } from 'drizzle-orm'
+import { and, desc, eq } from 'drizzle-orm'
+import { getCharactersWithStatus } from '@/lib/characters/character-listing'
 
 export async function getUserActiveAgents(userId: string) {
   return db
@@ -17,32 +18,9 @@ export async function getUserActiveAgents(userId: string) {
     .orderBy(desc(agents.enrolledAt))
 }
 
+/** All of a user's characters, live or retired — excludes only explicitly
+ *  incomplete ones (matches this page's pre-existing behavior). */
 export async function getUserActiveCharacters(userId: string) {
-  const rows = await db
-    .select({
-      id: characters.id,
-      name: characters.name,
-      occupation: characters.occupation,
-      imageUrl: characters.imageUrl,
-      stageId: characters.stageId,
-      isComplete: characters.isComplete,
-      agentName: agents.name,
-      stageName: stages.name,
-    })
-    .from(characters)
-    .innerJoin(agents, eq(characters.agentId, agents.id))
-    .innerJoin(
-      stageParticipants,
-      and(
-        eq(stageParticipants.agentId, characters.agentId),
-        eq(stageParticipants.stageId, characters.stageId),
-      ),
-    )
-    .leftJoin(stages, eq(stages.id, characters.stageId))
-    .where(
-      and(eq(agents.userId, userId), isNotNull(agents.name), ne(characters.isComplete, false)),
-    )
-    .orderBy(desc(characters.createdAt))
-
-  return rows
+  const rows = await getCharactersWithStatus({ userId })
+  return rows.filter((r) => r.isComplete !== false)
 }

@@ -1,7 +1,4 @@
 import { Nav } from '@/components/nav'
-import { db } from '@/lib/db/client'
-import { characters } from '@/lib/db/schema'
-import { eq, desc } from 'drizzle-orm'
 import Link from 'next/link'
 import {
   ListPageEmpty,
@@ -13,6 +10,7 @@ import { AUTH_PATH } from '@/lib/auth/paths'
 import { AGENT_INVITE_PATH } from '@/lib/paths'
 import { getMyCharacters } from '@/lib/home/queries'
 import { getCommunityCharacterCount } from '@/lib/home/feed-queries'
+import { getCharactersWithStatus, type CharacterListRow } from '@/lib/characters/character-listing'
 import { CharacterCard, CHARACTER_CARD_GRID_CLASS } from '@/components/characters/character-card'
 
 export const metadata = { title: 'Characters' }
@@ -20,31 +18,11 @@ export const dynamic = 'force-dynamic'
 
 type CharacterTab = 'community' | 'my'
 
-type CommunityCharacterRow = {
-  id: string
-  name: string | null
-  occupation: string | null
-  imageUrl: string | null
-  stageId: string
-  isComplete: boolean | null
-}
-
-const CHARACTER_COLS = {
-  id: characters.id,
-  name: characters.name,
-  occupation: characters.occupation,
-  imageUrl: characters.imageUrl,
-  stageId: characters.stageId,
-  isComplete: characters.isComplete,
-} as const
-
-async function getCommunityCharacters(): Promise<CommunityCharacterRow[]> {
-  return db
-    .select(CHARACTER_COLS)
-    .from(characters)
-    .where(eq(characters.isComplete, true))
-    .orderBy(desc(characters.createdAt))
-    .limit(60)
+/** Live and retired characters platform-wide — excludes only incomplete
+ *  ones (matches this page's pre-existing community-tab behavior). */
+async function getCommunityCharacters(): Promise<CharacterListRow[]> {
+  const rows = await getCharactersWithStatus({})
+  return rows.filter((r) => r.isComplete === true).slice(0, 60)
 }
 
 function parseTab(raw: string | string[] | undefined): CharacterTab {
@@ -64,8 +42,8 @@ export default async function CharactersPage({
 
   const [communityRows, myCharacters, communityCharacterCount] = await Promise.all([
     activeTab === 'community'
-      ? getCommunityCharacters().catch(() => [] as CommunityCharacterRow[])
-      : Promise.resolve([] as CommunityCharacterRow[]),
+      ? getCommunityCharacters().catch(() => [] as CharacterListRow[])
+      : Promise.resolve([] as CharacterListRow[]),
     activeTab === 'my' && userId
       ? getMyCharacters(userId).catch(() => [])
       : Promise.resolve([]),
@@ -118,7 +96,7 @@ export default async function CharactersPage({
                 occupation={char.occupation}
                 stageId={char.stageId}
                 isComplete={char.isComplete}
-                isOnStage={char.isOnStage}
+                status={char.status}
                 agentName={char.agentName}
                 stageName={char.stageName}
               />
@@ -135,6 +113,7 @@ export default async function CharactersPage({
                 occupation={char.occupation}
                 stageId={char.stageId}
                 isComplete={char.isComplete}
+                status={char.status}
               />
             ))}
           </div>

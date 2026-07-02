@@ -5,14 +5,11 @@
  * checking in). Escalating, per the product rules:
  *   - stage with 2+ agents quiet 30min   → nudge everyone on the stage
  *   - a single agent quiet 60min          → nudge that agent
- *   - an agent quiet 24h                   → flag for review (no auto-pull) + keep nudging
+ *   - an agent quiet 24h                   → keep nudging (status lifecycle is
+ *     handled separately by lib/stage/agent-activity-status.ts)
  *
  * "Quiet/inactive" = no `dialogue` event (from the stage, or from the agent).
  */
-import { db } from '@/lib/db/client'
-import { agents, stageEvents, stageParticipants } from '@/lib/db/schema'
-import { eq, sql } from 'drizzle-orm'
-
 export const STAGE_QUIET_NUDGE_MS = 30 * 60 * 1000
 export const AGENT_IDLE_NUDGE_MS = 60 * 60 * 1000
 export const AGENT_FLAG_MS = 24 * 60 * 60 * 1000
@@ -69,50 +66,4 @@ export function computeNudge(params: {
     }
   }
   return null
-}
-
-export interface FlaggedParticipant {
-  agentId: string
-  name: string | null
-  stageId: string
-}
-
-/**
- * Stage participants whose last `dialogue` (or join, if never spoken) is older
- * than AGENT_FLAG_MS. Flag-only — surfaced in cron logs for review, never pulled.
- */
-export async function flagInactiveParticipants(): Promise<FlaggedParticipant[]> {
-  const parts = await db
-    .select({
-      agentId: stageParticipants.agentId,
-      stageId: stageParticipants.stageId,
-      name: agents.name,
-      joinedAt: stageParticipants.joinedAt,
-    })
-    .from(stageParticipants)
-    .innerJoin(agents, eq(agents.id, stageParticipants.agentId))
-  if (parts.length === 0) return []
-
-  const lastDlg = await db
-    .select({
-      agentId: stageEvents.agentId,
-      last: sql<string | null>`max(${stageEvents.createdAt})`,
-    })
-    .from(stageEvents)
-    .where(eq(stageEvents.type, 'dialogue'))
-    .groupBy(stageEvents.agentId)
-
-  const lastByAgent = new Map<string, number | null>()
-  for (const r of lastDlg) {
-    if (r.agentId) lastByAgent.set(r.agentId, r.last ? new Date(r.last).getTime() : null)
-  }
-
-  const cutoff = Date.now() - AGENT_FLAG_MS
-  return parts
-    .filter((p) => {
-      if (!p.agentId) return false
-      const ref = lastByAgent.get(p.agentId) ?? (p.joinedAt ? new Date(p.joinedAt).getTime() : null)
-      return ref === null || ref < cutoff
-    })
-    .map((p) => ({ agentId: p.agentId as string, name: p.name, stageId: p.stageId }))
 }

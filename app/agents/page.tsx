@@ -26,7 +26,7 @@ type CommunityAgentRow = {
   name: string | null
   agentType: string | null
   imageUrl: string | null
-  status: 'enrolled' | 'active' | 'inactive' | 'suspended' | null
+  status: 'unenrolled' | 'active' | 'idle' | 'inactive' | 'suspended' | null
   enrolledAt: Date | null
 }
 
@@ -150,6 +150,7 @@ export default async function AgentsPage({
                 name={agent.name}
                 imageUrl={agent.imageUrl}
                 agentType={agent.agentType}
+                status={agent.status}
               />
             ))}
           </div>

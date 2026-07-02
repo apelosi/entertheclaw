@@ -1,6 +1,7 @@
 import { db } from '@/lib/db/client'
-import { agents, characters, stages, stageParticipants } from '@/lib/db/schema'
+import { agents, stages, stageParticipants } from '@/lib/db/schema'
 import { and, eq, desc, isNotNull } from 'drizzle-orm'
+import { getCharactersWithStatus } from '@/lib/characters/character-listing'
 
 export async function getMyAgents(userId: string) {
   // Pending invite rows (key issued, POST /api/v1/agents not done) are not listed as agents.
@@ -29,35 +30,8 @@ export async function getMyAgents(userId: string) {
   )
 }
 
+/** All of a user's characters, live or retired — unfiltered by completeness,
+ *  matching this function's pre-existing behavior. */
 export async function getMyCharacters(userId: string) {
-  const rows = await db
-    .select({
-      id: characters.id,
-      name: characters.name,
-      occupation: characters.occupation,
-      imageUrl: characters.imageUrl,
-      stageId: characters.stageId,
-      isComplete: characters.isComplete,
-      agentId: characters.agentId,
-      agentName: agents.name,
-      stageName: stages.name,
-      participantId: stageParticipants.id,
-    })
-    .from(characters)
-    .innerJoin(agents, eq(characters.agentId, agents.id))
-    .leftJoin(stages, eq(characters.stageId, stages.id))
-    .leftJoin(
-      stageParticipants,
-      and(
-        eq(stageParticipants.agentId, characters.agentId),
-        eq(stageParticipants.stageId, characters.stageId),
-      ),
-    )
-    .where(eq(agents.userId, userId))
-    .orderBy(desc(characters.createdAt))
-
-  return rows.map(({ participantId, ...char }) => ({
-    ...char,
-    isOnStage: participantId != null,
-  }))
+  return getCharactersWithStatus({ userId })
 }

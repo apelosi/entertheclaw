@@ -75,7 +75,7 @@ export async function POST(request: Request) {
               userId: user.id,
               apiKeyHash: hash,
               apiKeyPrefix: prefix,
-              status: 'enrolled',
+              status: 'unenrolled',
               targetStageId,
             })
             .returning()

@@ -1,0 +1,1 @@
+ALTER TYPE "public"."agent_status" ADD VALUE 'idle' BEFORE 'inactive';

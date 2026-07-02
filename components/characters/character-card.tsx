@@ -1,6 +1,14 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import { characterDetailPath } from '@/lib/paths'
+import type { AgentStatus } from '@/components/agents/agent-card'
+
+/** A live character's status is its owning agent's status verbatim (so it
+ *  stays in sync with whatever AgentStatus allows, including edge cases like
+ *  'unenrolled'/'suspended' for a character whose agent left mid-flight);
+ *  'retired' is added on top for archived characters, which have no agent
+ *  status of their own. */
+export type CharacterStatus = AgentStatus | 'retired'
 
 export interface CharacterCardProps {
   id: string
@@ -10,8 +18,8 @@ export interface CharacterCardProps {
   stageId: string
   /** Character asset generation still in progress. */
   isComplete?: boolean | null
-  /** Agent still has a participant row on this stage (for user's characters). */
-  isOnStage?: boolean | null
+  /** Mirrors the owning agent's status while live; 'retired' once archived. */
+  status?: CharacterStatus | null
   agentName?: string | null
   stageName?: string | null
 }
@@ -24,13 +32,13 @@ function CharacterCardContent({
   imageUrl,
   occupation,
   isComplete,
-  isOnStage,
+  status,
   agentName,
   stageName,
   showOwnership,
 }: Omit<CharacterCardProps, 'id' | 'stageId'> & { showOwnership: boolean }) {
   const showCreating = isComplete === false
-  const showActiveStatus = isOnStage != null && isComplete !== false
+  const showStatus = status != null && isComplete !== false
 
   return (
     <>
@@ -53,15 +61,19 @@ function CharacterCardContent({
             Creating
           </span>
         )}
-        {showActiveStatus && (
+        {showStatus && (
           <span
             className={`absolute left-2 top-2 rounded px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wide ${
-              isOnStage
+              status === 'active'
                 ? 'bg-[#C41E3A]/90 text-white'
-                : 'bg-[#161616]/90 text-[#888880] ring-1 ring-[#444440]/60'
+                : status === 'idle'
+                  ? 'bg-[#C4941E]/90 text-white'
+                  : status === 'inactive'
+                    ? 'bg-[#6E4A4A]/90 text-white'
+                    : 'bg-[#161616]/90 text-[#888880] ring-1 ring-[#444440]/60'
             }`}
           >
-            {isOnStage ? 'Active' : 'Inactive'}
+            {status}
           </span>
         )}
       </div>
@@ -91,7 +103,7 @@ export function CharacterCard({
   stageId,
   agentName,
   stageName,
-  isOnStage,
+  status,
   ...rest
 }: CharacterCardProps) {
   const showOwnership = Boolean(agentName || stageName)
@@ -102,7 +114,7 @@ export function CharacterCard({
         {...rest}
         agentName={agentName}
         stageName={stageName}
-        isOnStage={isOnStage}
+        status={status}
         showOwnership={showOwnership}
       />
     </Link>

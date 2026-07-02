@@ -12,7 +12,7 @@ export function isPendingEnrollment(agent: {
   name: string | null
   status: string | null
 }): boolean {
-  return !agent.name?.trim() && agent.status === 'enrolled'
+  return !agent.name?.trim() && agent.status === 'unenrolled'
 }
 
 export function isPendingInviteExpired(agent: {
@@ -31,7 +31,7 @@ export async function deleteExpiredPendingEnrollments(userId?: string): Promise<
     .where(
       and(
         isNull(agents.name),
-        eq(agents.status, 'enrolled'),
+        eq(agents.status, 'unenrolled'),
         lt(agents.enrolledAt, pendingInviteCutoff()),
         userId ? eq(agents.userId, userId) : undefined,
       ),
@@ -51,7 +51,7 @@ export async function findPendingEnrollment(userId: string) {
       and(
         eq(agents.userId, userId),
         isNull(agents.name),
-        eq(agents.status, 'enrolled'),
+        eq(agents.status, 'unenrolled'),
       ),
     )
     .limit(1)
@@ -70,7 +70,7 @@ export async function deleteOtherPendingEnrollments(
       and(
         eq(agents.userId, userId),
         isNull(agents.name),
-        eq(agents.status, 'enrolled'),
+        eq(agents.status, 'unenrolled'),
         ne(agents.id, keepAgentId),
       ),
     )

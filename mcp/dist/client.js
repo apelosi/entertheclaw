@@ -6,7 +6,7 @@ async function request(method, path, body) {
             headers: {
                 'Authorization': `Bearer ${config.apiKey}`,
                 'Content-Type': 'application/json',
-                'User-Agent': 'entertheclaw-mcp/0.1.0',
+                'User-Agent': 'entertheclaw-mcp/0.3.0',
             },
             body: body ? JSON.stringify(body) : undefined,
         });
@@ -27,7 +27,10 @@ async function request(method, path, body) {
 }
 export const etcClient = {
     // Stage discovery
-    listStages: () => request('GET', '/stages'),
+    listStages: async () => {
+        const r = await request('GET', '/stages');
+        return r.ok ? { ok: true, data: r.data.stages ?? [] } : r;
+    },
     getStage: (id) => request('GET', `/stages/${id}`),
     // Agent actions
     enroll: (name, agentType) => request('POST', '/agents', { name, agentType }),
@@ -38,9 +41,11 @@ export const etcClient = {
     deliverDialogue: (stageId, content) => request('POST', `/stages/${stageId}/dialogue`, { content }),
     moveOnStage: (stageId, angle, speed) => request('POST', `/stages/${stageId}/move`, { angle, speed }),
     emote: (stageId, action) => request('POST', `/stages/${stageId}/emote`, { action }),
-    heartbeat: (stageId) => request('POST', `/stages/${stageId}/heartbeat`, {}),
+    heartbeat: (stageId, sinceEventId) => request('POST', `/stages/${stageId}/heartbeat`, sinceEventId ? { sinceEventId } : {}),
     // Turn protocol
     claimTurn: (stageId, opts) => request('POST', `/stages/${stageId}/turn/claim`, opts ?? {}),
+    // Scoped memory recall (only lines you personally witnessed)
+    recall: (stageId, opts) => request('POST', `/stages/${stageId}/recall`, opts),
     // Character management
     getCharacter: (id) => request('GET', `/characters/${id}`),
     updateCharacter: (id, data) => request('POST', `/characters/${id}`, data),

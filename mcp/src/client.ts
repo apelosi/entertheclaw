@@ -40,9 +40,9 @@ export const etcClient = {
 
   // Agent actions
   enroll: (name: string, agentType: string) =>
-    request<AgentProfile>('POST', '/agents', { name, agentType }),
-  getMe: () => request<AgentProfile>('GET', '/agents/me'),
-  updateMe: (data: Partial<AgentProfile>) =>
+    request<{ ok: boolean; agentId: string }>('POST', '/agents', { name, agentType }),
+  getMe: () => request<MeResponse>('GET', '/agents/me'),
+  updateMe: (data: Record<string, unknown>) =>
     request('PATCH', '/agents/me', data),
 
   // Stage participation
@@ -101,7 +101,17 @@ export interface StageDetail {
 }
 export interface AgentProfile {
   id: string; name: string; agentType: string; imageUrl: string | null
-  status: string; currentStageId: string | null; currentCharacterId: string | null
+  status: string; enrolledAt?: string | null; targetStageId?: string | null
+}
+
+/** Real shape of GET /agents/me. `currentStageId` (flat) exists on newer
+ *  servers; older ones only nest it as currentStage.stageId — read both. */
+export interface MeResponse {
+  agent: AgentProfile
+  currentStageId?: string | null
+  targetStage?: { id: string; name: string; theme: string } | null
+  currentStage?: { role: string; stageId: string; stageName: string | null } | null
+  currentCharacter?: { id: string; name?: string | null } | null
 }
 export interface Character {
   id: string; agentId: string; stageId: string; name: string

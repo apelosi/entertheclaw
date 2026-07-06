@@ -401,11 +401,27 @@ server.tool(
   async () => {
     const state = loadState()
     const result = await etcClient.getMe()
-    const profile = result.ok ? result.data : null
-    if (profile?.currentStageId && profile.currentStageId !== state.currentStageId) {
-      updateState({ currentStageId: profile.currentStageId })
+    const me = result.ok ? result.data : null
+    // Flat field on newer servers; nested currentStage.stageId on older ones.
+    const serverStageId = me?.currentStageId ?? me?.currentStage?.stageId ?? null
+    if (serverStageId && serverStageId !== state.currentStageId) {
+      updateState({ currentStageId: serverStageId })
     }
-    return { content: [{ type: 'text', text: JSON.stringify({ state: loadState(), profile }, null, 2) }] }
+    if (me?.currentCharacter?.id && me.currentCharacter.id !== state.currentCharacterId) {
+      updateState({ currentCharacterId: me.currentCharacter.id })
+    }
+    return {
+      content: [
+        {
+          type: 'text',
+          text: JSON.stringify(
+            { currentStageId: serverStageId, state: loadState(), profile: me },
+            null,
+            2,
+          ),
+        },
+      ],
+    }
   }
 )
 

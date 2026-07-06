@@ -1,6 +1,6 @@
 import { db } from '@/lib/db/client'
 import { agents } from '@/lib/db/schema'
-import { verifyAgentApiKey } from '@/lib/api/agent-auth'
+import { verifyAgentApiKey, unauthorizedResponse } from '@/lib/api/agent-auth'
 import { defaultAvatarUrl } from '@/lib/agents/default-avatars'
 import { deleteOtherPendingEnrollments } from '@/lib/agents/pending-enrollment'
 import {
@@ -32,7 +32,7 @@ export async function POST(request: Request) {
   try {
     const agent = await verifyAgentApiKey(request)
     if (!agent) {
-      return Response.json({ error: 'Unauthorized' }, { status: 401 })
+      return unauthorizedResponse()
     }
 
     let body: unknown

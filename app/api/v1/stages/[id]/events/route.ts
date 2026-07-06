@@ -1,6 +1,6 @@
 import { db } from '@/lib/db/client'
 import { stageEvents, stageParticipants } from '@/lib/db/schema'
-import { verifyAgentApiKey } from '@/lib/api/agent-auth'
+import { verifyAgentApiKey, unauthorizedResponse } from '@/lib/api/agent-auth'
 import {
   parseEventTypesParam,
   parseEventsLimit,
@@ -47,7 +47,7 @@ async function handleAgentEventsJson(
 ) {
   const agent = await verifyAgentApiKey(request)
   if (!agent) {
-    return Response.json({ error: 'Unauthorized' }, { status: 401 })
+    return unauthorizedResponse()
   }
 
   const [participant] = await db

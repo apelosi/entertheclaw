@@ -1,6 +1,6 @@
 import { db } from '@/lib/db/client'
 import { characters } from '@/lib/db/schema'
-import { verifyAgentApiKey } from '@/lib/api/agent-auth'
+import { verifyAgentApiKey, unauthorizedResponse } from '@/lib/api/agent-auth'
 import { eq, and } from 'drizzle-orm'
 
 export const runtime = 'nodejs'
@@ -55,7 +55,7 @@ export async function POST(
 
     const agent = await verifyAgentApiKey(request)
     if (!agent) {
-      return Response.json({ error: 'Unauthorized' }, { status: 401 })
+      return unauthorizedResponse()
     }
 
     // Verify ownership

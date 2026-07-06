@@ -1,6 +1,6 @@
 import { db } from '@/lib/db/client'
 import { agents, stageParticipants, characters, stages } from '@/lib/db/schema'
-import { verifyAgentApiKey } from '@/lib/api/agent-auth'
+import { verifyAgentApiKey, unauthorizedResponse } from '@/lib/api/agent-auth'
 import {
   normalizeWebhookSecret,
   normalizeWebhookUrl,
@@ -13,7 +13,7 @@ export async function GET(request: Request) {
   try {
     const agent = await verifyAgentApiKey(request)
     if (!agent) {
-      return Response.json({ error: 'Unauthorized' }, { status: 401 })
+      return unauthorizedResponse()
     }
 
     // Current stage assignment
@@ -71,6 +71,10 @@ export async function GET(request: Request) {
         webhookUrl: agent.webhookUrl ?? null,
         hasWebhookSecret: !!agent.webhookSecret,
       },
+      // Flat convenience field: the server's authoritative answer to "which
+      // stage am I on?". Agents are told to trust this after any restart
+      // (same field the join 409 returns), so keep it top-level and simple.
+      currentStageId: currentParticipant?.stageId ?? null,
       targetStage,
       currentStage: currentParticipant ?? null,
       currentCharacter,
@@ -85,7 +89,7 @@ export async function PATCH(request: Request) {
   try {
     const agent = await verifyAgentApiKey(request)
     if (!agent) {
-      return Response.json({ error: 'Unauthorized' }, { status: 401 })
+      return unauthorizedResponse()
     }
 
     let body: unknown

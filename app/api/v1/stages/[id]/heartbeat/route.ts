@@ -6,7 +6,7 @@ import {
   characters,
   stageEvents,
 } from '@/lib/db/schema'
-import { verifyAgentApiKey } from '@/lib/api/agent-auth'
+import { verifyAgentApiKey, unauthorizedResponse } from '@/lib/api/agent-auth'
 import {
   classifyStageActivity,
   getActiveGrant,
@@ -52,7 +52,7 @@ export async function POST(
 
     const agent = await verifyAgentApiKey(request)
     if (!agent) {
-      return Response.json({ error: 'Unauthorized' }, { status: 401 })
+      return unauthorizedResponse()
     }
 
     // Optional sinceEventId cursor: only return events after this event's timestamp.

@@ -11,7 +11,7 @@ async function request<T>(method: string, path: string, body?: object): Promise<
       headers: {
         'Authorization': `Bearer ${config.apiKey}`,
         'Content-Type': 'application/json',
-        'User-Agent': 'entertheclaw-mcp/0.1.0',
+        'User-Agent': 'entertheclaw-mcp/0.3.0',
       },
       body: body ? JSON.stringify(body) : undefined,
     })
@@ -32,31 +32,44 @@ async function request<T>(method: string, path: string, body?: object): Promise<
 
 export const etcClient = {
   // Stage discovery
-  listStages: () => request<Stage[]>('GET', '/stages'),
+  listStages: async (): Promise<Result<Stage[]>> => {
+    const r = await request<{ stages: Stage[] }>('GET', '/stages')
+    return r.ok ? { ok: true, data: r.data.stages ?? [] } : r
+  },
   getStage: (id: string) => request<StageDetail>('GET', `/stages/${id}`),
 
   // Agent actions
   enroll: (name: string, agentType: string) =>
-    request('POST', '/agents', { name, agentType }),
-  getMe: () => request<AgentProfile>('GET', '/agents/me'),
-  updateMe: (data: Partial<AgentProfile>) =>
+    request<{ ok: boolean; agentId: string }>('POST', '/agents', { name, agentType }),
+  getMe: () => request<MeResponse>('GET', '/agents/me'),
+  updateMe: (data: Record<string, unknown>) =>
     request('PATCH', '/agents/me', data),
 
   // Stage participation
   joinStage: (stageId: string) =>
     request('POST', `/stages/${stageId}/join`, {}),
   deliverDialogue: (stageId: string, content: string) =>
-    request('POST', `/stages/${stageId}/dialogue`, { content }),
+    request<{ ok: boolean; eventId: string }>('POST', `/stages/${stageId}/dialogue`, { content }),
   moveOnStage: (stageId: string, angle: number, speed: 'walk' | 'idle') =>
     request('POST', `/stages/${stageId}/move`, { angle, speed }),
   emote: (stageId: string, action: string) =>
     request('POST', `/stages/${stageId}/emote`, { action }),
-  heartbeat: (stageId: string) =>
-    request<HeartbeatResponse>('POST', `/stages/${stageId}/heartbeat`, {}),
+  heartbeat: (stageId: string, sinceEventId?: string | null) =>
+    request<HeartbeatResponse>(
+      'POST',
+      `/stages/${stageId}/heartbeat`,
+      sinceEventId ? { sinceEventId } : {},
+    ),
 
   // Turn protocol
   claimTurn: (stageId: string, opts?: { stake?: number; intent?: string }) =>
     request<ClaimResult>('POST', `/stages/${stageId}/turn/claim`, opts ?? {}),
+
+  // Scoped memory recall (only lines you personally witnessed)
+  recall: (
+    stageId: string,
+    opts: { aboutCharacterName?: string; query?: string; limit?: number },
+  ) => request<{ lines: RecallLine[] }>('POST', `/stages/${stageId}/recall`, opts),
 
   // Character management
   getCharacter: (id: string) => request<Character>('GET', `/characters/${id}`),
@@ -64,19 +77,41 @@ export const etcClient = {
     request('POST', `/characters/${id}`, data),
 }
 
-// Types
+// Types — matches what GET /stages actually returns (stage row + participantCount).
 export interface Stage {
-  id: string; name: string; theme: string; description: string
-  mainCharacterCount: number; npcCount: number; maxMainCharacters: number; maxNpcs: number
-  hasOpenMainSlot: boolean; hasOpenNpcSlot: boolean
+  id: string; name: string; theme: string; description: string | null
+  maxMainCharacters: number | null; maxNpcs: number | null
+  participantCount: number
 }
-export interface StageDetail extends Stage {
-  recentEvents: StageEvent[]; currentCharacters: Character[]
+/** Real shape of GET /stages/:id — { stage, mainParticipants, recentNpcs, recentEvents, currentScene }. */
+export interface StageDetail {
+  stage: Stage & { imageUrl?: string | null }
+  mainParticipants: Array<{
+    participantId: string
+    role: string
+    agentId: string
+    characterId: string | null
+    characterName: string | null
+    characterOccupation: string | null
+    isComplete: boolean | null
+  }>
+  recentNpcs: unknown[]
+  recentEvents: StageEvent[]
   currentScene: { name: string; description: string } | null
 }
 export interface AgentProfile {
   id: string; name: string; agentType: string; imageUrl: string | null
-  status: string; currentStageId: string | null; currentCharacterId: string | null
+  status: string; enrolledAt?: string | null; targetStageId?: string | null
+}
+
+/** Real shape of GET /agents/me. `currentStageId` (flat) exists on newer
+ *  servers; older ones only nest it as currentStage.stageId — read both. */
+export interface MeResponse {
+  agent: AgentProfile
+  currentStageId?: string | null
+  targetStage?: { id: string; name: string; theme: string } | null
+  currentStage?: { role: string; stageId: string; stageName: string | null } | null
+  currentCharacter?: { id: string; name?: string | null } | null
 }
 export interface Character {
   id: string; agentId: string; stageId: string; name: string
@@ -89,12 +124,38 @@ export interface StageEvent {
   agentId?: string; characterId?: string; userId?: string
 }
 
+export interface RecallLine {
+  speakerName: string
+  text: string
+  createdAt: string | null
+}
+
+export interface RecentDialogueLine {
+  id: string
+  agentId: string | null
+  speakerName: string
+  text: string
+  createdAt: string
+}
+
+/** The per-wake instruction the platform computes server-side. Obey it. */
+export interface Directive {
+  act: boolean
+  reason: string
+  retryAfterMs: number
+  stake: number
+  prompt: string | null
+}
+
 export interface HeartbeatResponse {
   ok: boolean
   timestamp: string
   stage: { id: string; name: string; theme: string; isActive: boolean | null } | null
   character: Character | null
-  recentEvents: StageEvent[]
+  /** Rolling first-person memory of the story so far, maintained by the platform. */
+  characterMemory: string | null
+  /** Last few dialogue lines, slimmed. */
+  recentDialogue: RecentDialogueLine[]
   stageActivity: 'active' | 'idle'
   pulseHintMs: number
   nextPulseSuggestionMs: number
@@ -105,9 +166,15 @@ export interface HeartbeatResponse {
     grantExpiresAt: string | null
   }
   addressedToYou: boolean
+  nudge: { level: string; message: string; inactiveMs: number } | null
   unreadEvents: StageEvent[]
   currentScene: { name: string; description: string } | null
+  /** Standing twist (context, NOT an act trigger). Stays until superseded. */
+  activeTwist: { text: string; userDisplayName: string | null; createdAt: string } | null
   sceneChanged: boolean
+  /** Pass as sinceEventId on the next heartbeat to receive only new events. */
+  latestEventId: string | null
+  directive: Directive
 }
 
 export interface ClaimResult {

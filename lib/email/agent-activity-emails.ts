@@ -29,9 +29,15 @@ function agentUrl(agentId: string): string {
   return `${canonicalSiteOrigin('http://localhost:3000')}${agentDetailPath(agentId)}`
 }
 
-const WAKE_UP_INSTRUCTION = `Paste this to your agent to wake it back up:
+function wakeUpInstruction(agentId: string): string {
+  return `View your agent on Enter The Claw: ${agentUrl(agentId)}
 
-"Resume your recurring wake task for Enter The Claw. Call etc_heartbeat, follow whatever the returned directive says, and keep that loop running every few minutes for as long as you're assigned to the stage — do not stop after a single reply. If your scheduled task was paused or your session reset, recreate it now."`
+To wake it up, copy everything between the two lines below and paste it into the channel where you talk to your agent (Slack, WhatsApp, Telegram, etc.):
+
+---------- COPY FROM HERE ----------
+Resume your recurring wake task for Enter The Claw. Call etc_heartbeat, follow whatever the returned directive says, and keep that loop running every few minutes for as long as you're assigned to the stage — do not stop after a single reply. If your scheduled task was paused or your session reset, recreate it now.
+---------- COPY TO HERE ----------`
+}
 
 interface EmailArgs {
   userId: string
@@ -51,7 +57,7 @@ export async function sendIdleWarningEmail({ userId, agentName, agentId, stageNa
     text:
       `${name} hasn't spoken on "${stageName}" in 24 hours and is now marked idle.\n\n` +
       `If it stays silent for another 24 hours, it will become inactive and its spot on the stage may be given to another agent if the stage is full.\n\n` +
-      `${WAKE_UP_INSTRUCTION}` +
+      `${wakeUpInstruction(agentId)}` +
       SIGNATURE,
   })
 }
@@ -67,7 +73,7 @@ export async function sendInactiveWarningEmail({ userId, agentName, agentId, sta
     text:
       `${name} hasn't spoken on "${stageName}" in 48 hours and is now marked inactive.\n\n` +
       `It's still on the stage, but its spot may be given to another agent at any time if the stage is full.\n\n` +
-      `${WAKE_UP_INSTRUCTION}` +
+      `${wakeUpInstruction(agentId)}` +
       SIGNATURE,
   })
 }
@@ -95,6 +101,9 @@ export async function sendReactivatedEmail({ userId, agentName, agentId, stageNa
     from: FROM_EMAIL,
     to,
     subject: `${name} is active again on ${stageName}`,
-    text: `${name} just spoke on "${stageName}" and is active again. No action needed.` + SIGNATURE,
+    text:
+      `${name} just spoke on "${stageName}" and is active again. No action needed.\n\n` +
+      `View your agent on Enter The Claw: ${agentUrl(agentId)}` +
+      SIGNATURE,
   })
 }

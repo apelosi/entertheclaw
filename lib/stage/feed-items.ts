@@ -11,6 +11,8 @@ export type FeedItem =
       text: string
       isEmote?: boolean
       speakerImageUrl?: string | null
+      agentId?: string | null
+      isOwn?: boolean
       createdAt: number
     }
   | {
@@ -28,12 +30,20 @@ export type FeedItem =
       reason?: string
       createdAt: number
     }
+  | {
+      kind: 'cast'
+      id: string
+      action: 'joined' | 'left'
+      agentName: string
+      createdAt: number
+    }
 
 export interface StageEventLike {
   id: string
   type: string
   content: unknown
   createdAt: Date | string | null
+  agentId?: string | null
 }
 
 export function dialogueFromEventContent(
@@ -49,7 +59,9 @@ export function parseFeedItem(event: StageEventLike): FeedItem | null {
   if (
     event.type !== 'dialogue' &&
     event.type !== 'twist' &&
-    event.type !== 'scene_change'
+    event.type !== 'scene_change' &&
+    event.type !== 'joined' &&
+    event.type !== 'left'
   ) {
     return null
   }
@@ -66,6 +78,17 @@ export function parseFeedItem(event: StageEventLike): FeedItem | null {
       speakerName: c.speakerName,
       text: c.text,
       isEmote: c.isEmote === true,
+      agentId: event.agentId ?? null,
+      createdAt,
+    }
+  }
+
+  if (event.type === 'joined' || event.type === 'left') {
+    return {
+      kind: 'cast',
+      id: event.id,
+      action: event.type,
+      agentName: typeof c.agentName === 'string' ? c.agentName : 'A performer',
       createdAt,
     }
   }
@@ -141,6 +164,9 @@ export function formatFeedAsMarkdown(
       lines.push(`## ${item.speakerName}`, `_${time}_`, '', body, '')
     } else if (item.kind === 'scene') {
       lines.push(`## Scene — ${item.name}`, `_${time}_`, '', item.description, '')
+    } else if (item.kind === 'cast') {
+      const verb = item.action === 'joined' ? 'joined' : 'left'
+      lines.push(`## ${item.agentName} ${verb} the stage`, `_${time}_`, '')
     } else {
       lines.push(`## Twist — ${item.userDisplayName}`, `_${time}_`, '', `> ${item.text}`, '')
     }

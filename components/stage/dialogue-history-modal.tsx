@@ -172,7 +172,7 @@ export function DialogueHistoryModal({
                         </p>
                       )}
                     </>
-                  ) : (
+                  ) : item.kind === 'twist' ? (
                     <>
                       <p className={cn(MONO_LABEL, 'tracking-[0.15em] text-[#B8860B]')}>
                         Twist · {item.userDisplayName}
@@ -184,7 +184,7 @@ export function DialogueHistoryModal({
                         “{item.text}”
                       </p>
                     </>
-                  )}
+                  ) : null}
                   <time className="mt-1 block font-mono text-[9px] uppercase tracking-[0.12em] text-[#444440] max-md:text-[8px]">
                     {new Date(item.createdAt).toLocaleString()}
                   </time>

@@ -100,15 +100,18 @@ function RecentScriptList({
             </li>
           )
         }
-        return (
-          <li
-            key={item.id}
-            className={enterClass}
-            style={{ animationDelay: `${index * 40}ms` }}
-          >
-            <TwistScriptMarker userDisplayName={item.userDisplayName} text={item.text} />
-          </li>
-        )
+        if (item.kind === 'twist') {
+          return (
+            <li
+              key={item.id}
+              className={enterClass}
+              style={{ animationDelay: `${index * 40}ms` }}
+            >
+              <TwistScriptMarker userDisplayName={item.userDisplayName} text={item.text} />
+            </li>
+          )
+        }
+        return null
       })}
     </ul>
   )

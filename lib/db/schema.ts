@@ -197,6 +197,10 @@ export const archivedCharacters = pgTable('archived_characters', {
 })
 
 // All stage events (powers SSE + history)
+// Composite indexes on (stage_id, created_at) and (stage_id, type, created_at)
+// were applied out-of-band in prod and dev during the Neon cost-reduction work
+// and are intentionally not declared here so drizzle-kit doesn't generate
+// duplicates. The feed's backward-pagination query depends on them.
 export const stageEvents = pgTable('stage_events', {
   id: uuid('id').primaryKey().defaultRandom(),
   stageId: uuid('stage_id')

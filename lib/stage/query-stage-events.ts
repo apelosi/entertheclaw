@@ -151,6 +151,12 @@ export async function queryStageEventsBefore(opts: {
   const beforeId = before?.trim() || null
   let beforeAt: Date | null = null
   if (beforeId) {
+    // Reject a malformed cursor before it reaches the query — comparing the
+    // uuid `id` column against a non-uuid string throws a Postgres cast error
+    // (surfaced as a 500) rather than resolving to "not found".
+    if (!UUID_RE.test(beforeId)) {
+      return { error: 'invalid_before' as const }
+    }
     beforeAt = await resolveBeforeCursor(stageId, beforeId)
     if (!beforeAt) {
       return { error: 'invalid_before' as const }

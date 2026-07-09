@@ -193,7 +193,6 @@ export function StageFeed({ feed, currentLine, speakerImageByName, variant = 'pa
     loadingOlder,
     following,
     unread,
-    loadOlder,
     jumpToLatest,
     scrollRef,
     sentinelRef,

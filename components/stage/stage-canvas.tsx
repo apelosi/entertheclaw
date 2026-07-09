@@ -6,19 +6,18 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { CharactersRail, type RailCharacter } from './characters-rail'
 import { NarrativeTwist } from './narrative-twist'
-import { DialoguePanel, type CurrentDialogue } from './dialogue-panel'
+import { DialoguePanel } from './dialogue-panel'
 import { CharacterOnStage, layoutPositions, type OnStageCharacter } from './character-on-stage'
 import { type ActiveTwist } from './active-twist'
 import { StageAboutPanel } from './stage-about-panel'
 import { SceneChangeOverlay } from './scene-change-overlay'
 import type { CurrentScene } from './scene-banner'
+import type { CurrentLine } from './stage-feed'
 import { useStageEvents } from './use-stage-events'
+import { useStageFeed } from './use-stage-feed'
 import {
   feedItemsFromEvents,
   parseFeedItem,
-  RECENT_SCRIPT_DIALOGUE_TOTAL_DESKTOP,
-  RECENT_SCRIPT_DIALOGUE_TOTAL_MOBILE,
-  selectRecentScriptPreview,
   type FeedItem,
   type StageEventLike,
 } from '@/lib/stage/feed-items'
@@ -102,22 +101,15 @@ export default function StageCanvas({
   initialActiveTwist,
 }: StageCanvasProps) {
   const router = useRouter()
-  const [dialogue, setDialogue] = useState<CurrentDialogue | null>(null)
+  const [dialogue, setDialogue] = useState<CurrentLine | null>(null)
   const [activeAgentId, setActiveAgentId] = useState<string | null>(null)
   const [activeTwist, setActiveTwist] = useState<ActiveTwist | null>(initialActiveTwist)
-  const [feedItems, setFeedItems] = useState<FeedItem[]>(() => {
-    const all = feedItemsFromEvents(initialEvents as StageEventLike[])
-    const activeDialogueEvent = initialEvents.find((e) => e.type === 'dialogue')
-    if (!activeDialogueEvent) return all
-    return all.filter((i) => i.id !== activeDialogueEvent.id)
-  })
-  const [feedBumpKey, setFeedBumpKey] = useState(0)
   const [liveLastTwistAt, setLiveLastTwistAt] = useState<number | null>(lastTwistAt)
   const [aboutOpen, setAboutOpen] = useState(false)
   const [currentScene, setCurrentScene] = useState<CurrentScene | null>(initialScene)
   const [pendingSceneOverlay, setPendingSceneOverlay] = useState<CurrentScene | null>(null)
   const typewriterRef = useRef<ReturnType<typeof setInterval> | null>(null)
-  const dialogueRef = useRef<CurrentDialogue | null>(null)
+  const dialogueRef = useRef<CurrentLine | null>(null)
   dialogueRef.current = dialogue
   const seenEventIdsRef = useRef<Set<string>>(new Set(initialEvents.map((e) => e.id)))
 
@@ -141,20 +133,28 @@ export default function StageCanvas({
     [currentUserId],
   )
 
-  const bumpFeed = useCallback(() => {
-    setFeedBumpKey((k) => k + 1)
+  const isDialogueMine = useCallback(
+    (agentId: string | null | undefined) => {
+      if (!agentId) return false
+      return isMine(participantByAgentId.get(agentId)?.agentUserId ?? null)
+    },
+    [isMine, participantByAgentId],
+  )
+
+  // Recent events from the server, minus the one currently animating (it lives
+  // in `dialogue`, not the completed feed). Ownership on dialogue lines is
+  // resolved from current participants. Seeded once; live updates flow through
+  // the feed hook.
+  const initialFeedItems = useMemo(() => {
+    const activeDialogueEvent = initialEvents.find((e) => e.type === 'dialogue')
+    return feedItemsFromEvents(initialEvents as StageEventLike[])
+      .filter((i) => i.id !== activeDialogueEvent?.id)
+      .map((i) => (i.kind === 'dialogue' && isDialogueMine(i.agentId) ? { ...i, isOwn: true } : i))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const prependFeed = useCallback(
-    (item: FeedItem) => {
-      setFeedItems((prev) => {
-        if (prev.some((p) => p.id === item.id)) return prev
-        return [item, ...prev]
-      })
-      bumpFeed()
-    },
-    [bumpFeed],
-  )
+  const feed = useStageFeed({ stageId, initialItems: initialFeedItems })
+  const { pushLive, allItems } = feed
 
   const archiveCurrentDialogue = useCallback(() => {
     const current = dialogueRef.current
@@ -164,7 +164,7 @@ export default function StageCanvas({
         ? current.text
         : current.displayedText
     if (!text.trim()) return
-    prependFeed({
+    pushLive({
       kind: 'dialogue',
       id: current.eventId,
       speakerName: current.speakerName,
@@ -172,8 +172,9 @@ export default function StageCanvas({
       isEmote: current.isEmote,
       createdAt: current.createdAt,
       speakerImageUrl: current.speakerImageUrl ?? null,
+      ...(current.isOwn ? { isOwn: true } : {}),
     })
-  }, [prependFeed])
+  }, [pushLive])
 
   const showDialogue = useCallback(
     (
@@ -210,6 +211,7 @@ export default function StageCanvas({
         displayedText: '',
         isEmote: opts?.isEmote,
         speakerImageUrl: speaker?.characterImageUrl ?? null,
+        isOwn: isMine(speaker?.agentUserId ?? null),
       })
 
       let i = 0
@@ -224,7 +226,7 @@ export default function StageCanvas({
         }
       }, TYPEWRITER_INTERVAL_MS)
     },
-    [participantBySpeakerName, participantByAgentId, archiveCurrentDialogue],
+    [participantBySpeakerName, participantByAgentId, archiveCurrentDialogue, isMine],
   )
 
   const applyTwist = useCallback(
@@ -233,9 +235,9 @@ export default function StageCanvas({
         text: item.text,
         userDisplayName: item.userDisplayName,
       })
-      prependFeed(item)
+      pushLive(item)
     },
-    [prependFeed],
+    [pushLive],
   )
 
   useEffect(() => {
@@ -310,7 +312,7 @@ export default function StageCanvas({
       if (!seenEventIdsRef.current.has(raw.id)) {
         seenEventIdsRef.current.add(raw.id)
         const createdAt = raw.createdAt ? new Date(raw.createdAt).getTime() : Date.now()
-        prependFeed({
+        pushLive({
           kind: 'scene',
           id: raw.id,
           name: data.name,
@@ -328,37 +330,16 @@ export default function StageCanvas({
     }
   }, [])
 
-  const activeDialogueId = dialogue?.eventId
-
-  const recentScriptItemsDesktop = useMemo(
-    () =>
-      selectRecentScriptPreview(
-        feedItems,
-        activeDialogueId,
-        RECENT_SCRIPT_DIALOGUE_TOTAL_DESKTOP,
-      ),
-    [feedItems, activeDialogueId],
-  )
-
-  const recentScriptItemsMobile = useMemo(
-    () =>
-      selectRecentScriptPreview(
-        feedItems,
-        activeDialogueId,
-        RECENT_SCRIPT_DIALOGUE_TOTAL_MOBILE,
-      ),
-    [feedItems, activeDialogueId],
-  )
-
-  // Twist-only feed for the twist panel
+  // Twist-only and scene-only slices for the rail/scene panels (still fed by
+  // the unified timeline until they become standalone cards in PR 3).
   const recentTwistItems = useMemo(
-    () => feedItems.filter((i) => i.kind === 'twist').slice(0, RECENT_FEED_LIMIT),
-    [feedItems],
+    () => allItems.filter((i) => i.kind === 'twist').slice(0, RECENT_FEED_LIMIT),
+    [allItems],
   )
 
   const recentSceneItems = useMemo(
-    () => feedItems.filter((i) => i.kind === 'scene').slice(0, RECENT_FEED_LIMIT),
-    [feedItems],
+    () => allItems.filter((i) => i.kind === 'scene').slice(0, RECENT_FEED_LIMIT),
+    [allItems],
   )
 
   const onStageChars: OnStageCharacter[] = useMemo(
@@ -408,9 +389,9 @@ export default function StageCanvas({
   const sharedDialogueProps = {
     stageId,
     stageName,
-    dialogue,
-    allHistoryItems: feedItems,
-    feedBumpKey,
+    feed,
+    currentLine: dialogue,
+    allHistoryItems: allItems,
     currentScene,
     recentScenes: recentSceneItems,
     speakerImageByName,
@@ -438,6 +419,7 @@ export default function StageCanvas({
         id: twist.eventId,
         text: twist.text,
         userDisplayName: twist.userDisplayName,
+        isOwn: true,
         createdAt: twist.createdAt,
       })
     },
@@ -541,11 +523,7 @@ export default function StageCanvas({
 
       {/* Panels — single column on mobile, dialogue (wide) + twist/characters (narrow) on lg */}
       <div className="grid gap-3 p-4 max-md:gap-2 max-md:p-3 lg:grid-cols-[1fr_22rem] lg:items-start lg:gap-5 lg:p-6">
-        <DialoguePanel
-          {...sharedDialogueProps}
-          recentItemsDesktop={recentScriptItemsDesktop}
-          recentItemsMobile={recentScriptItemsMobile}
-        />
+        <DialoguePanel {...sharedDialogueProps} />
         <div className="flex flex-col gap-3 max-md:gap-2">
           <NarrativeTwist {...sharedNarrativeProps} collapsible defaultOpen={false} />
           <CharactersRail

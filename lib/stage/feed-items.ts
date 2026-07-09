@@ -20,6 +20,7 @@ export type FeedItem =
       id: string
       text: string
       userDisplayName: string
+      isOwn?: boolean
       createdAt: number
     }
   | {
@@ -44,6 +45,8 @@ export interface StageEventLike {
   content: unknown
   createdAt: Date | string | null
   agentId?: string | null
+  /** Server-computed ownership flag (the /feed endpoint sets it). */
+  isOwn?: boolean
 }
 
 export function dialogueFromEventContent(
@@ -79,6 +82,7 @@ export function parseFeedItem(event: StageEventLike): FeedItem | null {
       text: c.text,
       isEmote: c.isEmote === true,
       agentId: event.agentId ?? null,
+      ...(event.isOwn ? { isOwn: true as const } : {}),
       createdAt,
     }
   }
@@ -112,6 +116,7 @@ export function parseFeedItem(event: StageEventLike): FeedItem | null {
     text: c.text,
     userDisplayName:
       typeof c.userDisplayName === 'string' ? c.userDisplayName : 'Anonymous Director',
+    ...(event.isOwn ? { isOwn: true as const } : {}),
     createdAt,
   }
 }

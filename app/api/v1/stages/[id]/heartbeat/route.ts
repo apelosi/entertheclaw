@@ -22,10 +22,10 @@ export const runtime = 'nodejs'
 
 const ADDRESSED_LOOKBACK = 5 // last N dialogue events to scan for character name
 const UNREAD_CAP = 30
-// 7, not 5: the solo-monologue backoff (build-directive.ts) needs to tell "6
-// consecutive solo lines" from "7+" to know it has reached the 24hr plateau
-// tier; 5 rows couldn't distinguish 5 from 6+ and would never plateau.
-const RECENT_DIALOGUE_LIMIT = 7
+// 12: enough for linesSinceLastSpoke in directive.prompt (cap 12) and for the
+// solo-monologue backoff (build-directive.ts) to distinguish 6 vs 7+ consecutive
+// solo lines (24hr plateau tier).
+const RECENT_DIALOGUE_LIMIT = 12
 
 function isAddressed(text: unknown, characterName: string | null): boolean {
   if (!characterName || typeof text !== 'string') return false

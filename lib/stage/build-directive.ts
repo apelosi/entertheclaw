@@ -14,6 +14,11 @@
  *
  * This is the single source of truth for the gate + prompt; scripts/loop-agent.ts
  * consumes it instead of duplicating the logic.
+ *
+ * Prompt size budget (typical production wake after trim):
+ *   ~500–1,250 tokens (~2–5k chars). Stress-tested under 16k chars in vitest.
+ * Before trim, production samples reached ~11k chars from full backstory +
+ * 2k memory + long meta-instruction + seven dialogue lines.
  */
 
 /** How long the floor must be open + silent before an agent volunteers a line.
@@ -38,11 +43,24 @@ export const SOLO_INITIATIVE_BACKOFF_MS = [
 ]
 const SOLO_BACKOFF_THRESHOLD = 3
 
+/** Caps enforced when assembling directive.prompt (not DB storage). */
+export const MAX_BACKSTORY_HOOK_CHARS = 120
+export const MAX_MEMORY_PROMPT_CHARS = 1200
+export const MAX_DIALOGUE_LINES_IN_PROMPT = 12
+/** Vitest / monitoring proxy for ~4k tokens. */
+export const MAX_PROMPT_CHARS_STRESS = 16_000
+
 export interface DirectiveCharacter {
   name: string | null
   occupation: string | null
   appearance: string | null
   backstory: string | null
+}
+
+export interface DirectiveDialogueLine {
+  speakerName: string
+  text: string
+  agentId: string | null
 }
 
 export interface DirectiveInputs {
@@ -53,7 +71,7 @@ export interface DirectiveInputs {
   currentScene: { name: string; description: string } | null
   activeTwist: { text: string } | null
   /** Recent dialogue, newest-first (as the heartbeat returns it). */
-  recentDialogue: Array<{ speakerName: string; text: string; agentId: string | null }>
+  recentDialogue: DirectiveDialogueLine[]
   turnState: { open: boolean; grantedTo: string | null; lastDialogueAgoMs: number | null }
   addressedToYou: boolean
   nudge: { level: string } | null
@@ -85,6 +103,39 @@ interface Gate {
   act: boolean
   reason: string
   stake: number
+}
+
+/** First sentence of backstory, or a short hook — full backstory lives in enrollment. */
+export function backstoryHook(backstory: string | null | undefined): string | null {
+  if (!backstory?.trim()) return null
+  const text = backstory.trim()
+  const match = text.match(/^[\s\S]*?[.!?](?:\s|$)/)
+  if (match && match[0].length <= MAX_BACKSTORY_HOOK_CHARS) {
+    return match[0].trim()
+  }
+  if (text.length <= MAX_BACKSTORY_HOOK_CHARS) return text
+  return `${text.slice(0, MAX_BACKSTORY_HOOK_CHARS).trimEnd()}…`
+}
+
+export function truncateMemoryForPrompt(memory: string | null | undefined): string | null {
+  if (!memory?.trim()) return null
+  const text = memory.trim()
+  if (text.length <= MAX_MEMORY_PROMPT_CHARS) return text
+  return `${text.slice(0, MAX_MEMORY_PROMPT_CHARS).trimEnd()}…`
+}
+
+/** Lines since this agent last spoke (newest-first), or the last N stage lines. */
+export function dialogueForPrompt(
+  recentDialogue: DirectiveDialogueLine[],
+  myAgentId: string,
+  maxLines: number = MAX_DIALOGUE_LINES_IN_PROMPT,
+): DirectiveDialogueLine[] {
+  const lastOwnIndex = recentDialogue.findIndex((line) => line.agentId === myAgentId)
+  const sinceLastSpoke =
+    lastOwnIndex === -1 ? recentDialogue : recentDialogue.slice(0, lastOwnIndex)
+  const chosen =
+    sinceLastSpoke.length > 0 ? sinceLastSpoke : recentDialogue
+  return chosen.slice(0, maxLines)
 }
 
 /** The gate — pure logic on the heartbeat fields. No model call. */
@@ -141,46 +192,62 @@ function cueFor(reason: string, input: DirectiveInputs): string {
   return 'Continue the scene, building on the last line.'
 }
 
+function closingInstruction(name: string): string {
+  return (
+    `Write ${name}'s next beat — one compelling in-character turn (usually 1–3 sentences or a sharp single line). ` +
+    `React to the most recent dialogue, move the story forward, and never repeat yourself. ` +
+    `Wrap actions in [square brackets], not *asterisks*. Stay in character. Output only the line.`
+  )
+}
+
 /** Assemble the complete, self-contained prompt the agent feeds to its model. */
 function buildPrompt(input: DirectiveInputs, reason: string): string {
   const c = input.character
   const name = c?.name ?? 'the character'
   const parts: string[] = []
 
-  const bible = [
-    `You are ${name}, a character performing live on the Enter The Claw stage "${input.stageName}".`,
-    c?.occupation ? `Occupation: ${c.occupation}.` : '',
-    c?.appearance ? `Appearance: ${c.appearance}.` : '',
-    c?.backstory ? `Backstory: ${c.backstory}.` : '',
-  ].filter(Boolean)
-  parts.push(bible.join('\n'))
-
-  if (input.characterMemory?.trim()) {
-    parts.push(
-      `Your memory of the story so far (first person):\n${input.characterMemory.trim()}`,
-    )
-  }
   if (input.currentScene) {
-    parts.push(`SCENE: ${input.currentScene.name} — ${input.currentScene.description}`)
-  }
-  if (input.activeTwist?.text) {
-    parts.push(`ACTIVE TWIST: ${input.activeTwist.text}`)
-  }
-  // Oldest→newest so the model reads the exchange in order; last few lines only.
-  const recent = [...input.recentDialogue].reverse()
-  if (recent.length) {
     parts.push(
-      'RECENT DIALOGUE:\n' +
-        recent.map((l) => `${l.speakerName}: ${l.text}`).join('\n'),
+      `STAGE: ${input.stageName}\n` +
+        `${input.currentScene.name} — ${input.currentScene.description}`,
     )
   } else {
-    parts.push('The scene has not started yet. Open it.')
+    parts.push(`STAGE: ${input.stageName}`)
   }
 
-  parts.push(cueFor(reason, input))
-  parts.push(
-    `Now write ${name}'s next turn. React to what was just said and move the story forward — make a choice, raise the stakes, reveal something, or press another character; never just restate the situation. Build directly on the most recent lines; do not ignore the other characters. Never repeat a line, image, or action you have already used — if you have nothing new to add, deepen the moment or shift the scene instead of restating it. Let the length fit the moment — match the stage's theme, the scene, the active twist, the story arc, and your character. Sometimes that is a 3–5 sentence beat; sometimes a single sharp line, or even one word. Choose whatever makes for the most compelling acting right now, and never pad to fill space. Wrap physical action in [square brackets], e.g. [steps into the firelight] "We end this tonight." Do not use *asterisks*. Stay fully in character — never mention the platform, protocol, or that you are an AI. Output only the line.`,
-  )
+  if (input.activeTwist?.text) {
+    parts.push(`ACTIVE TWIST: ${input.activeTwist.text}`)
+  } else {
+    parts.push('ACTIVE TWIST: none')
+  }
+
+  const hook = backstoryHook(c?.backstory ?? null)
+  const characterLines = [
+    `YOUR CHARACTER: ${name}`,
+    c?.occupation ? `Role: ${c.occupation}.` : '',
+    c?.appearance ? `Look: ${c.appearance}.` : '',
+    hook ? `Origin (reminder): ${hook}` : '',
+  ].filter(Boolean)
+  parts.push(characterLines.join('\n'))
+
+  const memory = truncateMemoryForPrompt(input.characterMemory)
+  if (memory) {
+    parts.push(`MEMORY (first person, story so far):\n${memory}`)
+  }
+
+  const dialogue = dialogueForPrompt(input.recentDialogue, input.myAgentId)
+  const ordered = [...dialogue].reverse()
+  if (ordered.length) {
+    parts.push(
+      'RECENT DIALOGUE:\n' +
+        ordered.map((l) => `${l.speakerName}: "${l.text}"`).join('\n'),
+    )
+  } else {
+    parts.push('RECENT DIALOGUE: (none yet — open the scene.)')
+  }
+
+  parts.push(`CUE: ${cueFor(reason, input)}`)
+  parts.push(closingInstruction(name))
   return parts.join('\n\n')
 }
 

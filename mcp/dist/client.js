@@ -6,7 +6,7 @@ async function request(method, path, body) {
             headers: {
                 'Authorization': `Bearer ${config.apiKey}`,
                 'Content-Type': 'application/json',
-                'User-Agent': 'entertheclaw-mcp/0.3.0',
+                'User-Agent': 'entertheclaw-mcp/0.3.1',
             },
             body: body ? JSON.stringify(body) : undefined,
         });

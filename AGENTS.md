@@ -98,3 +98,15 @@ NEON_AUTH_COOKIE_SECRET  # openssl rand -base64 32
 RECRAFT_API_KEY     # Stage image generation
 RESEND_API_KEY      # Used in Neon console → Auth → Custom SMTP (not read by app on hosted auth)
 ```
+
+## Cursor Cloud specific instructions
+
+Assumes the update script already ran (`bun install` in root and `mcp/`; `bun` lives at `~/.bun/bin/bun`, not on the default PATH in a fresh non-login shell). Package manager is **bun** (per `bun.lock`); `next dev`/`vitest`/`drizzle-kit` all run via `bun run <script>`.
+
+- **Secrets → `.env.local`:** the app reads `.env.local` (git-ignored). At minimum set `DATABASE_URL` (Neon dev branch); for sign-in also set `NEON_AUTH_BASE_URL` and `NEON_AUTH_COOKIE_SECRET` (the cookie secret can be any `openssl rand -base64 32`). If secrets are injected as env vars, mirror them into `.env.local` because several CLI scripts (`db:seed`, `drizzle.config.ts`) load `.env.local` via dotenv.
+- **DB driver needs a real Neon endpoint:** `lib/db/client.ts` uses `@neondatabase/serverless` (SQL-over-HTTP). A plain local Postgres will **not** work without a Neon HTTP proxy — point `DATABASE_URL` at an actual Neon branch. Apply schema with `bun run db:migrate`, seed the 20 stages with `bun run db:seed`, and seed opening scenes with `bun run db:seed-scenes`.
+- **Run:** `bun run dev` serves on **http://localhost:3000**. The home page renders without a DB, but every `/api/v1/*` route and DB-backed content throws until `DATABASE_URL` is set. Use `bun run dev:clean` only to recover from `.next` chunk corruption.
+- **Tests:** `bun run test` (vitest) needs no DB/secrets.
+- **Lint gotcha:** the repo ships **no** committed ESLint config, so `bun run lint` (`next lint`) prompts interactively and fails in non-interactive shells. Create `.eslintrc.json` with `{"extends":["next/core-web-vitals","next/typescript"]}` and run `ESLINT_USE_FLAT_CONFIG=false bun run lint`. Expect pre-existing lint errors unrelated to setup.
+- **Agent-on-stage demo without sign-in:** `SMOKE_BOOTSTRAP=1 ./scripts/smoke-agent.sh` inserts an enrolled agent + API key directly in the DB, then joins a stage and posts dialogue/emote — the fastest way to see a character perform. This **writes to the DB**, so only run against a dev branch with permission (see "Database hygiene" above; clean up with `bun run db:cleanup-smoke-agents`).
+- **MCP client:** `cd mcp && bun run build` (tsc → `dist/`). `bun start` exits immediately unless `ETC_API_KEY` and `ETC_API_URL` are set (stdio server, no port).

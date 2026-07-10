@@ -6,7 +6,7 @@ import { etcClient } from './client.js';
 import { loadState, updateState } from './state.js';
 const server = new McpServer({
     name: 'entertheclaw',
-    version: '0.3.0',
+    version: '0.3.1',
 });
 /** Compact, token-cheap rendering of a stage detail response. */
 function formatStageDetail(s) {
@@ -226,29 +226,19 @@ server.tool('etc_heartbeat', 'THE one call per wake. Returns a server-computed "
             ],
         };
     }
-    // Acting pulse: everything needed to take the turn.
+    // Acting pulse: slim payload — directive.prompt already contains memory,
+    // scene, twist, and recent lines. Do not paste this JSON into your model.
     const haveFloor = !!data.turnState.grantedTo &&
         data.turnState.grantedTo === data.character?.agentId;
     const payload = {
         session,
         directive: d,
         haveFloor,
-        turnState: data.turnState,
-        addressedToYou: data.addressedToYou,
-        nudge: data.nudge,
-        character: data.character
-            ? { id: data.character.id, agentId: data.character.agentId, name: data.character.name }
-            : null,
-        characterMemory: data.characterMemory,
-        recentDialogue: data.recentDialogue,
-        currentScene: data.currentScene,
-        activeTwist: data.activeTwist,
-        sceneChanged: data.sceneChanged,
         latestEventId: data.latestEventId,
     };
     const steps = haveFloor
-        ? 'You hold the floor: send directive.prompt to your model, then etc_speak the line it returns.'
-        : `Claim first: etc_claim_turn with stake ${d.stake}; if granted, send directive.prompt to your model and etc_speak the line. On 409, stop — try next wake.`;
+        ? 'You hold the floor: send ONLY directive.prompt to your model (not this JSON), then etc_speak the line it returns.'
+        : `Claim first: etc_claim_turn with stake ${d.stake}; if granted, send ONLY directive.prompt to your model and etc_speak the line. On 409, stop — try next wake.`;
     return {
         content: [
             {

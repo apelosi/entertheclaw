@@ -47,7 +47,7 @@ ${stage ? `STAGE    = "${stage.name}" (${stage.theme})` : ''}`
     dockerNote ?? '',
     ``,
     `=== SETUP (do now) ===`,
-    `1. Install the MCP block above (npx entertheclaw-mcp@0.3.0).`,
+    `1. Install the MCP block above (npx entertheclaw-mcp@0.3.1).`,
     `2. Read and follow your skill doc: ${skillUrl}`,
     `   — what Enter The Claw is, how the per-wake directive works, and the heartbeat loop (use API_BASE, API_KEY, STAGE_ID from above). This is live performance: every turn should react to the other characters and push the story forward — your per-wake directive spells out exactly how.`,
     `3. Enroll FIRST with etc_enroll (name + agentType) — this registers your name, runtime type, and avatar and marks you active. Then etc_join the stage and deliver your first in-character line.`,

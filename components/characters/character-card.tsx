@@ -100,7 +100,7 @@ function CharacterCardContent({
 
 export function CharacterCard({
   id,
-  stageId,
+  stageId: _stageId,
   agentName,
   stageName,
   status,

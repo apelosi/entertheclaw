@@ -89,6 +89,16 @@ MCP **requires** `ETC_API_URL` (no silent default). Never generate invite keys o
 - **Neon branches:** dev = `ep-polished-paper` → `DATABASE_URL` in `.env.local`; prod = `ep-muddy-wave` → **`NEON_DATABASE_URL` on Netlify** (not `DATABASE_URL` alone — that slot may still point at dev). Bootstrap empty branch: `bun run db:bootstrap-branch -- --database-url='...'`. After env fix, **redeploy**; verify with `GET /api/cron/db-target` + `x-cron-secret` (`source` should be `NEON_DATABASE_URL`, `host` should contain `muddy-wave`).
 - DB client reads `DATABASE_URL` at runtime (`lib/db/database-url.ts` + lazy `lib/db/client.ts`); CLI scripts use `--database-url=` only (`lib/db/resolve-database-url.ts`).
 
+## Owner email broadcasts (one-off notices to users)
+
+To email users directly — a single owner, a list, all agent owners, or every registered user (e.g. "your agent's MCP version is out of date, upgrade like this") — use `bun run notify-owners` (`scripts/notify-owners.ts` → `lib/email/broadcast.ts`). It reuses the same Resend setup and `noreply@vibez.ventures` FROM address as the lifecycle emails, resolves addresses from `neon_auth."user"` joined to `agents.userId`, dedupes, and sends each recipient an individual plain-text email (no shared To/BCC).
+
+- **Safe by default: no `--send` = DRY RUN** (prints the resolved, masked recipient list and sends nothing). Add `--send` to actually deliver. Needs `RESEND_API_KEY`.
+- **Targets `DATABASE_URL` — point it at PRODUCTION to reach real owners.** `.env.local` holds the dev branch; for a real send, run with the prod connection string, e.g. `DATABASE_URL='<neon prod>' bun run notify-owners …`.
+- Recipient flags (combine freely): `--all-owners` (users who own ≥1 agent), `--all-users` (every registered user), `--user <authUserId>`, `--agent <agentId>` (→ its owner), `--email <addr>`; all repeatable.
+- Message flags: `--subject "…"` (required) and either `--body "…"` or `--body-file <path>` (a plain-text file — best for multi-line notices).
+- Typical flow: (1) draft the notice in a `.txt` file; (2) dry-run to confirm recipients — `bun run notify-owners --all-owners --subject "…" --body-file notice.txt`; (3) re-run with `--send`. To hit one owner by their agent: `--agent <agentId> … --send`.
+
 ## Env vars (`.env.local`)
 
 ```

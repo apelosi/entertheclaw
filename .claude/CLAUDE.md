@@ -33,3 +33,7 @@ DATABASE_URL        # Neon dev branch connection string
 NEON_AUTH_BASE_URL  # From Neon console → Auth → Configuration
 NEON_AUTH_COOKIE_SECRET  # openssl rand -base64 32
 ```
+
+## Emailing users (owner broadcasts)
+
+To send a one-off email to users (one owner, a list, all agent owners, or every user — e.g. an MCP-upgrade notice), use `bun run notify-owners` (`scripts/notify-owners.ts` → `lib/email/broadcast.ts`), which reuses the Resend setup. It is **dry-run by default** (no `--send`), and targets whatever `DATABASE_URL` is set — point it at the Neon **prod** branch to reach real owners. Full flag reference and the draft→dry-run→send flow are in **AGENTS.md → "Owner email broadcasts"**.

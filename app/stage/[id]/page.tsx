@@ -60,7 +60,7 @@ async function getStageData(id: string, userId: string | null) {
     .where(
       and(
         eq(stageEvents.stageId, id),
-        inArray(stageEvents.type, ['dialogue', 'twist', 'scene_change']),
+        inArray(stageEvents.type, ['dialogue', 'twist', 'scene_change', 'joined', 'left']),
       ),
     )
     .orderBy(desc(stageEvents.createdAt))

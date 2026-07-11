@@ -1,4 +1,24 @@
 {
+  "permissions": {
+    "allow": [
+      "Bash(bunx tsc *)",
+      "Bash(bun run tsc *)",
+      "Bash(npx tsc *)",
+      "Bash(bun run build)",
+      "Bash(bun run test)",
+      "Bash(git --no-pager log *)",
+      "Bash(git --no-pager diff *)",
+      "Bash(gws docs documents get *)",
+      "Bash(gws drive files list *)",
+      "mcp__d9fa44eb-8286-4b32-9e9e-13077f078a52__slack_read_thread",
+      "mcp__d9fa44eb-8286-4b32-9e9e-13077f078a52__slack_read_channel",
+      "mcp__Claude_Preview__preview_start",
+      "mcp__Claude_Preview__preview_stop",
+      "mcp__Claude_Preview__preview_snapshot",
+      "mcp__Claude_Preview__preview_console_logs",
+      "mcp__puppeteer__puppeteer_navigate"
+    ]
+  },
   "hooks": {
     "PostToolUse": [
       {

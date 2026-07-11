@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect } from 'react'
-import type { CurrentScene } from './scene-banner'
+import type { CurrentScene } from './scene-card'
 
 interface Props {
   scene: CurrentScene | null

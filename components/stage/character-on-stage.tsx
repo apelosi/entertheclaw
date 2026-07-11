@@ -27,8 +27,10 @@ interface Props {
 export function CharacterOnStage({ character, x, y, isActive }: Props) {
   const sprite = character.characterSpriteUrl ?? character.characterImageUrl
   const title = character.isMine
-    ? `${character.characterName ?? 'Your character'} — view profile`
-    : (character.characterName ?? 'Character')
+    ? `${character.characterName ?? 'Your character'} — your character${isActive ? ', speaking now' : ''}, view profile`
+    : isActive
+      ? `${character.characterName ?? 'Character'} — speaking now`
+      : (character.characterName ?? 'Character')
 
   const className = cn(
     'group pointer-events-auto absolute z-10 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center transition-transform duration-200',
@@ -41,11 +43,14 @@ export function CharacterOnStage({ character, x, y, isActive }: Props) {
       <div
         className={cn(
           'relative h-16 w-16 max-md:h-8 max-md:w-8 overflow-hidden rounded-sm image-pixelated transition-all',
+          // Border = ownership (gold, persistent). Motion = active speaker
+          // (pulsing red glow), so a speaking owned character shows both.
+          character.isMine
+            ? 'ring-2 max-md:ring-1 ring-[#B8860B]'
+            : '',
           isActive
-            ? 'ring-2 max-md:ring-1 ring-[#C41E3A] shadow-[0_0_36px_rgba(196,30,58,0.55)] max-md:shadow-[0_0_18px_rgba(196,30,58,0.55)]'
-            : character.isMine
-              ? 'ring-2 max-md:ring-1 ring-[#B8860B] shadow-[0_4px_14px_rgba(0,0,0,0.6)] max-md:shadow-[0_2px_8px_rgba(0,0,0,0.6)]'
-              : 'shadow-[0_4px_14px_rgba(0,0,0,0.6)] max-md:shadow-[0_2px_8px_rgba(0,0,0,0.6)] group-hover:shadow-[0_4px_18px_rgba(0,0,0,0.8)]',
+            ? 'animate-speaker-glow'
+            : 'shadow-[0_4px_14px_rgba(0,0,0,0.6)] max-md:shadow-[0_2px_8px_rgba(0,0,0,0.6)] group-hover:shadow-[0_4px_18px_rgba(0,0,0,0.8)]',
         )}
       >
         {sprite ? (
@@ -61,10 +66,10 @@ export function CharacterOnStage({ character, x, y, isActive }: Props) {
             <span className="text-3xl max-md:text-xl text-[#C41E3A]/60">◈</span>
           </div>
         )}
-        {character.isMine && !isActive && (
+        {character.isMine && (
           <span
             className="absolute right-1 top-1 max-md:right-0.5 max-md:top-0.5 inline-block h-1.5 w-1.5 max-md:h-1 max-md:w-1 rounded-full bg-[#B8860B] shadow-[0_0_6px_#B8860B] max-md:shadow-[0_0_4px_#B8860B]"
-            aria-label="Your agent"
+            aria-label="Your character"
           />
         )}
       </div>

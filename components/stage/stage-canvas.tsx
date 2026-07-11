@@ -4,14 +4,16 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import Link from 'next/link'
-import { CharactersRail, type RailCharacter } from './characters-rail'
-import { NarrativeTwist } from './narrative-twist'
+import { CastCard, type RailCharacter } from './cast-card'
+import { TwistComposer } from './twist-composer'
+import { SceneCard, type CurrentScene } from './scene-card'
 import { DialoguePanel } from './dialogue-panel'
+import { StageActionBar } from './stage-action-bar'
+import { BottomSheet } from '@/components/ui/bottom-sheet'
 import { CharacterOnStage, layoutPositions, type OnStageCharacter } from './character-on-stage'
 import { type ActiveTwist } from './active-twist'
 import { StageAboutPanel } from './stage-about-panel'
 import { SceneChangeOverlay } from './scene-change-overlay'
-import type { CurrentScene } from './scene-banner'
 import type { CurrentLine } from './stage-feed'
 import { useStageEvents } from './use-stage-events'
 import { useStageFeed } from './use-stage-feed'
@@ -62,7 +64,6 @@ interface StageCanvasProps {
 }
 
 const TYPEWRITER_INTERVAL_MS = 35
-const RECENT_FEED_LIMIT = 5
 
 const THEME_LABELS: Record<string, string> = {
   mythology: 'Mythology',
@@ -106,6 +107,7 @@ export default function StageCanvas({
   const [activeTwist, setActiveTwist] = useState<ActiveTwist | null>(initialActiveTwist)
   const [liveLastTwistAt, setLiveLastTwistAt] = useState<number | null>(lastTwistAt)
   const [aboutOpen, setAboutOpen] = useState(false)
+  const [activeSheet, setActiveSheet] = useState<'scene' | 'twist' | 'cast' | null>(null)
   const [currentScene, setCurrentScene] = useState<CurrentScene | null>(initialScene)
   const [pendingSceneOverlay, setPendingSceneOverlay] = useState<CurrentScene | null>(null)
   const typewriterRef = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -330,18 +332,6 @@ export default function StageCanvas({
     }
   }, [])
 
-  // Twist-only and scene-only slices for the rail/scene panels (still fed by
-  // the unified timeline until they become standalone cards in PR 3).
-  const recentTwistItems = useMemo(
-    () => allItems.filter((i) => i.kind === 'twist').slice(0, RECENT_FEED_LIMIT),
-    [allItems],
-  )
-
-  const recentSceneItems = useMemo(
-    () => allItems.filter((i) => i.kind === 'scene').slice(0, RECENT_FEED_LIMIT),
-    [allItems],
-  )
-
   const onStageChars: OnStageCharacter[] = useMemo(
     () =>
       participants.map((p) => ({
@@ -385,21 +375,17 @@ export default function StageCanvas({
 
   const themeLabel = THEME_LABELS[stageTheme] ?? stageTheme
 
-  // Shared panel props
-  const sharedDialogueProps = {
+  const dialogueProps = {
     stageId,
     stageName,
     feed,
     currentLine: dialogue,
     allHistoryItems: allItems,
-    currentScene,
-    recentScenes: recentSceneItems,
     speakerImageByName,
   }
 
-  const sharedNarrativeProps = {
+  const twistProps = {
     stageId,
-    stageName,
     isLoggedIn,
     twistsEnabled,
     lastTwistAt,
@@ -424,7 +410,12 @@ export default function StageCanvas({
       })
     },
     activeTwist,
-    recentTwists: recentTwistItems,
+  }
+
+  const castProps = {
+    stageId,
+    mainCharacters,
+    activeAgentId,
   }
 
   return (
@@ -521,20 +512,51 @@ export default function StageCanvas({
         onClose={() => setAboutOpen(false)}
       />
 
-      {/* Panels — single column on mobile, dialogue (wide) + twist/characters (narrow) on lg */}
+      {/* Mobile-only sticky action bar: current scene + cast + the twist/invite
+          CTAs, each opening a bottom sheet. Hidden on lg where the rail shows
+          these as always-expanded cards. */}
+      <StageActionBar
+        sceneName={currentScene?.name ?? null}
+        castCount={mainCharacters.length}
+        twistsEnabled={twistsEnabled}
+        onOpenScene={() => setActiveSheet('scene')}
+        onOpenCast={() => setActiveSheet('cast')}
+        onOpenTwist={() => setActiveSheet('twist')}
+      />
+
+      {/* Panels — feed (wide) on the left, current-state rail (narrow) on the right.
+          The rail is hidden on mobile, where its cards open as bottom sheets. */}
       <div className="grid gap-3 p-4 max-md:gap-2 max-md:p-3 lg:grid-cols-[1fr_22rem] lg:items-start lg:gap-5 lg:p-6">
-        <DialoguePanel {...sharedDialogueProps} />
-        <div className="flex flex-col gap-3 max-md:gap-2">
-          <NarrativeTwist {...sharedNarrativeProps} collapsible defaultOpen={false} />
-          <CharactersRail
-            stageId={stageId}
-            mainCharacters={mainCharacters}
-            activeAgentId={activeAgentId}
-            collapsible
-            defaultOpen={false}
-          />
+        <DialoguePanel {...dialogueProps} />
+        <div className="flex flex-col gap-3 max-lg:hidden">
+          <SceneCard scene={currentScene} />
+          <TwistComposer {...twistProps} />
+          <CastCard {...castProps} />
         </div>
       </div>
+
+      {/* Mobile bottom sheets — render the same rail cards in `bare` mode. */}
+      <BottomSheet
+        open={activeSheet === 'scene'}
+        onClose={() => setActiveSheet(null)}
+        title="Scene"
+      >
+        <SceneCard scene={currentScene} bare />
+      </BottomSheet>
+      <BottomSheet
+        open={activeSheet === 'twist'}
+        onClose={() => setActiveSheet(null)}
+        title="Twists"
+      >
+        <TwistComposer {...twistProps} bare />
+      </BottomSheet>
+      <BottomSheet
+        open={activeSheet === 'cast'}
+        onClose={() => setActiveSheet(null)}
+        title="Cast"
+      >
+        <CastCard {...castProps} bare />
+      </BottomSheet>
     </main>
   )
 }

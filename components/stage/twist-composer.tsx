@@ -4,25 +4,19 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { cn } from '@/lib/utils'
 import { AUTH_PATH } from '@/lib/auth/paths'
 import type { ActiveTwist } from './active-twist'
-import type { FeedItem } from '@/lib/stage/feed-items'
-import { SectionCollapsibleHeader } from './section-collapsible-header'
 import {
-  LINK_MICRO,
   MONO_LABEL,
   PANEL_COLLAPSIBLE_INSET,
-  PANEL_INSET,
   PANEL_STACK_GAP,
   SECTION_HEADER_GAP,
   SECTION_TITLE,
 } from './stage-mobile-classes'
-import { TwistHistoryModal } from './twist-history-modal'
 
 const STAGE_COOLDOWN_MS = 6 * 60 * 1000
 const USER_COOLDOWN_MS = 60 * 60 * 1000
 
 interface Props {
   stageId: string
-  stageName: string
   isLoggedIn: boolean
   /** False when stage is inactive or has no characters on stage yet. */
   twistsEnabled: boolean
@@ -36,9 +30,7 @@ interface Props {
     createdAt: number
   }) => void
   activeTwist: ActiveTwist | null
-  recentTwists: FeedItem[]
-  collapsible?: boolean
-  defaultOpen?: boolean
+  bare?: boolean
 }
 
 type SubmissionState =
@@ -48,9 +40,8 @@ type SubmissionState =
   | { kind: 'lost'; reason: string }
   | { kind: 'error'; message: string }
 
-export function NarrativeTwist({
+export function TwistComposer({
   stageId,
-  stageName,
   isLoggedIn,
   twistsEnabled,
   lastTwistAt,
@@ -58,12 +49,8 @@ export function NarrativeTwist({
   liveLastTwistAt,
   onLocalSubmitSuccess,
   activeTwist,
-  recentTwists,
-  collapsible = false,
-  defaultOpen = true,
+  bare = false,
 }: Props) {
-  const [panelOpen, setPanelOpen] = useState(defaultOpen)
-  const [historyOpen, setHistoryOpen] = useState(false)
   const [now, setNow] = useState(() => Date.now())
   const [draft, setDraft] = useState('')
   const [submission, setSubmission] = useState<SubmissionState>({ kind: 'idle' })
@@ -164,9 +151,27 @@ export function NarrativeTwist({
     }
   }, [submission.kind])
 
-  const body = (
+  const content = (
     <>
-      {/* Submit form — at the top */}
+      <header className={cn('flex items-center', SECTION_HEADER_GAP)}>
+        <h2
+          className={cn(SECTION_TITLE, twistsEnabled ? 'text-[#F0EDE8]' : 'text-[#888880]')}
+          style={{ fontFamily: 'var(--font-display)' }}
+        >
+          Twists
+        </h2>
+        <div className="flex min-w-0 flex-1 justify-end">
+          <HeaderStatus
+            twistsEnabled={twistsEnabled}
+            windowOpen={windowOpen}
+            stageLocked={stageLocked}
+            userLocked={userLocked}
+            stageRemainingMs={stageRemainingMs}
+            userRemainingMs={userRemainingMs}
+          />
+        </div>
+      </header>
+
       <div className="flex flex-col gap-2 max-md:gap-1.5">
         <textarea
           className={cn(
@@ -197,7 +202,7 @@ export function NarrativeTwist({
             !twistsEnabled || (!isLoggedIn ? false : !canSubmit || draft.trim().length === 0)
           }
           className={cn(
-            'inline-flex h-10 w-full items-center justify-center gap-2 rounded-sm bg-[#C41E3A] px-4 font-mono text-xs font-medium uppercase tracking-[0.15em] text-[#F0EDE8] transition-all max-md:h-8 max-md:px-3 max-md:text-[11px]',
+            'inline-flex h-10 w-full items-center justify-center gap-2 rounded-sm bg-[#C41E3A] px-4 font-mono text-xs font-medium uppercase tracking-[0.15em] text-[#F0EDE8] transition-all max-md:h-9 max-md:px-3 max-md:text-[11px]',
             'hover:bg-[#9B1B30] hover:shadow-[0_0_18px_rgba(196,30,58,0.35)]',
             'disabled:cursor-not-allowed disabled:bg-[#161616] disabled:text-[#444440] disabled:shadow-none',
           )}
@@ -219,114 +224,27 @@ export function NarrativeTwist({
           >
             &ldquo;{activeTwist.text}&rdquo;
           </p>
-          <p className={cn(MONO_LABEL, 'text-[#888880]')}>
-            &mdash; {activeTwist.userDisplayName}
-          </p>
+          <p className={cn(MONO_LABEL, 'text-[#888880]')}>&mdash; {activeTwist.userDisplayName}</p>
         </div>
       )}
-
-      <button
-        type="button"
-        onClick={() => setHistoryOpen(true)}
-        className={cn(
-          LINK_MICRO,
-          'inline-flex w-fit text-[#888880] underline-offset-2 transition-colors hover:text-[#F0EDE8] hover:underline',
-        )}
-      >
-        Twist History
-      </button>
     </>
   )
 
-  if (collapsible) {
-    return (
-      <>
-        <aside
-          className={cn(
-            'glass-hud pointer-events-auto w-full rounded-sm border-l-2 shadow-[0_12px_40px_rgba(0,0,0,0.45)]',
-            twistsEnabled ? 'border-l-[#C41E3A]/70' : 'border-l-[#444440]/50 opacity-70',
-          )}
-        >
-          <SectionCollapsibleHeader
-            title="Twists"
-            titleClassName={twistsEnabled ? undefined : 'text-[#888880]'}
-            meta={
-              <HeaderStatus
-                twistsEnabled={twistsEnabled}
-                windowOpen={windowOpen}
-                stageLocked={stageLocked}
-                userLocked={userLocked}
-                stageRemainingMs={stageRemainingMs}
-                userRemainingMs={userRemainingMs}
-              />
-            }
-            open={panelOpen}
-            onClick={() => setPanelOpen((v) => !v)}
-            ariaLabelExpanded="Collapse twists"
-            ariaLabelCollapsed="Expand twists"
-            className={PANEL_COLLAPSIBLE_INSET}
-          />
-
-          {panelOpen && (
-            <div className={cn('flex flex-col', PANEL_STACK_GAP, PANEL_INSET)}>
-              {body}
-            </div>
-          )}
-        </aside>
-
-        <TwistHistoryModal
-          open={historyOpen}
-          onClose={() => setHistoryOpen(false)}
-          stageId={stageId}
-          stageName={stageName}
-          initialItems={recentTwists}
-        />
-      </>
-    )
+  if (bare) {
+    return <div className={cn('flex flex-col', PANEL_STACK_GAP)}>{content}</div>
   }
 
   return (
-    <>
-      <aside
-        className={cn(
-          'glass-hud pointer-events-auto flex w-full flex-col rounded-sm border-l-2 shadow-[0_12px_40px_rgba(0,0,0,0.45)]',
-          PANEL_STACK_GAP,
-          PANEL_COLLAPSIBLE_INSET,
-          twistsEnabled ? 'border-l-[#C41E3A]/70' : 'border-l-[#444440]/50 opacity-70',
-        )}
-      >
-        <header className={cn('flex items-center', SECTION_HEADER_GAP)}>
-          <h2
-            className={cn(
-              SECTION_TITLE,
-              twistsEnabled ? 'text-[#F0EDE8]' : 'text-[#888880]',
-            )}
-            style={{ fontFamily: 'var(--font-display)' }}
-          >
-            Twists
-          </h2>
-          <div className="flex min-w-0 flex-1 justify-end">
-            <HeaderStatus
-              twistsEnabled={twistsEnabled}
-              windowOpen={windowOpen}
-              stageLocked={stageLocked}
-              userLocked={userLocked}
-              stageRemainingMs={stageRemainingMs}
-              userRemainingMs={userRemainingMs}
-            />
-          </div>
-        </header>
-        {body}
-      </aside>
-
-      <TwistHistoryModal
-        open={historyOpen}
-        onClose={() => setHistoryOpen(false)}
-        stageId={stageId}
-        stageName={stageName}
-        initialItems={recentTwists}
-      />
-    </>
+    <aside
+      className={cn(
+        'glass-hud pointer-events-auto flex w-full flex-col rounded-sm border-l-2 shadow-[0_12px_40px_rgba(0,0,0,0.45)]',
+        PANEL_STACK_GAP,
+        PANEL_COLLAPSIBLE_INSET,
+        twistsEnabled ? 'border-l-[#C41E3A]/70' : 'border-l-[#444440]/50 opacity-70',
+      )}
+    >
+      {content}
+    </aside>
   )
 }
 
@@ -345,11 +263,7 @@ function HeaderStatus({
   userRemainingMs: number
 }) {
   if (!twistsEnabled) {
-    return (
-      <span className={cn('max-w-full truncate text-[#444440]', MONO_LABEL)}>
-        Inactive
-      </span>
-    )
+    return <span className={cn('max-w-full truncate text-[#444440]', MONO_LABEL)}>Inactive</span>
   }
 
   if (windowOpen) {
@@ -388,10 +302,7 @@ function SubmissionStatus({ state }: { state: SubmissionState }) {
   if (state.kind === 'won') {
     return (
       <p className="text-xs text-[#F0EDE8] max-md:text-[11px]">
-        <span
-          className="italic text-[#C41E3A]"
-          style={{ fontFamily: 'var(--font-display)' }}
-        >
+        <span className="italic text-[#C41E3A]" style={{ fontFamily: 'var(--font-display)' }}>
           The stage is yours.
         </span>{' '}
         <span className="text-[#888880]">Locked for 6 minutes.</span>

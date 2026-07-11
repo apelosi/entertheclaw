@@ -5,16 +5,32 @@
  *        ETC_API_URL=https://entertheclaw.com/api/v1 bun scripts/monitor-production-agents.ts
  */
 const BASE = (process.env.ETC_API_URL ?? 'https://entertheclaw.com/api/v1').replace(/\/$/, '')
+const REQUEST_TIMEOUT_MS = Number(process.env.MONITOR_TIMEOUT_MS ?? 10_000)
 
-async function getJson(path: string) {
-  const r = await fetch(`${BASE}${path}`)
-  if (!r.ok) throw new Error(`${path} ${r.status}`)
-  return r.json() as Promise<Record<string, unknown>>
+async function getJson<T>(path: string): Promise<T> {
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
+  try {
+    const r = await fetch(`${BASE}${path}`, { signal: controller.signal })
+    if (!r.ok) throw new Error(`${path} ${r.status}`)
+    return (await r.json()) as T
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error)
+    throw new Error(`${path} request failed: ${msg}`)
+  } finally {
+    clearTimeout(timeout)
+  }
 }
 
 function minsAgo(iso: string | null | undefined): number | null {
   if (!iso) return null
-  return Math.round((Date.now() - new Date(iso).getTime()) / 60_000)
+  const timestamp = new Date(iso).getTime()
+  if (Number.isNaN(timestamp)) return null
+  return Math.max(0, Math.round((Date.now() - timestamp) / 60_000))
+}
+
+function sanitizeForTerminal(value: string): string {
+  return value.replace(/[\x00-\x1F\x7F-\x9F]/g, '')
 }
 
 interface Row {
@@ -26,56 +42,74 @@ interface Row {
 }
 
 async function snapshot(): Promise<void> {
-  const { stages } = (await getJson('/stages')) as {
+  const { stages } = await getJson<{
     stages: Array<{ id: string; name: string; participantCount: number }>
-  }
+  }>('/stages')
   const active = stages.filter((s) => s.participantCount > 0)
   const rows: Row[] = []
   const recentLines: Array<{ age: number; stage: string; who: string; text: string }> = []
+  const stageErrors: string[] = []
 
-  for (const s of active) {
-    const d = (await getJson(`/stages/${s.id}`)) as {
-      mainParticipants?: Array<{
-        characterName: string | null
-        lastActiveAt: string | null
-      }>
-      recentEvents?: Array<{
-        type: string
-        createdAt: string
-        content?: { speakerName?: string; text?: string }
-      }>
-    }
-    const lastDlg = (d.recentEvents ?? []).find((e) => e.type === 'dialogue')
-    const dlgAgo = minsAgo(lastDlg?.createdAt)
+  const stageResults = await Promise.all(
+    active.map(async (s) => {
+      try {
+        const d = await getJson<{
+          mainParticipants?: Array<{
+            characterName: string | null
+            lastActiveAt: string | null
+          }>
+          recentEvents?: Array<{
+            type: string
+            createdAt: string
+            content?: { speakerName?: string; text?: string }
+          }>
+        }>(`/stages/${s.id}`)
+        const lastDlg = (d.recentEvents ?? []).find((e) => e.type === 'dialogue')
+        const dlgAgo = minsAgo(lastDlg?.createdAt)
+        const stageRows: Row[] = []
+        const stageRecentLines: Array<{ age: number; stage: string; who: string; text: string }> = []
 
-    for (const p of d.mainParticipants ?? []) {
-      rows.push({
-        stage: s.name,
-        stageId: s.id,
-        character: p.characterName ?? '(unnamed)',
-        lastActiveMinAgo: minsAgo(p.lastActiveAt),
-        lastDialogueMinAgo: dlgAgo,
-      })
-    }
+        for (const p of d.mainParticipants ?? []) {
+          stageRows.push({
+            stage: sanitizeForTerminal(s.name),
+            stageId: s.id,
+            character: sanitizeForTerminal(p.characterName ?? '(unnamed)'),
+            lastActiveMinAgo: minsAgo(p.lastActiveAt),
+            lastDialogueMinAgo: dlgAgo,
+          })
+        }
 
-    const feed = (await getJson(`/stages/${s.id}/feed?types=dialogue&limit=10`)) as {
-      events?: Array<{
-        createdAt: string
-        content?: { speakerName?: string; text?: string }
-      }>
-    }
-    for (const e of feed.events ?? []) {
-      const age = minsAgo(e.createdAt)
-      if (age !== null && age <= 30) {
-        const c = e.content ?? {}
-        recentLines.push({
-          age,
-          stage: s.name,
-          who: c.speakerName ?? '?',
-          text: String(c.text ?? '').slice(0, 90),
-        })
+        const feed = await getJson<{
+          events?: Array<{
+            createdAt: string
+            content?: { speakerName?: string; text?: string }
+          }>
+        }>(`/stages/${s.id}/feed?types=dialogue&limit=10`)
+        for (const e of feed.events ?? []) {
+          const age = minsAgo(e.createdAt)
+          if (age !== null && age <= 30) {
+            const c = e.content ?? {}
+            stageRecentLines.push({
+              age,
+              stage: sanitizeForTerminal(s.name),
+              who: sanitizeForTerminal(c.speakerName ?? '?'),
+              text: sanitizeForTerminal(String(c.text ?? '').slice(0, 90)),
+            })
+          }
+        }
+
+        return { rows: stageRows, recentLines: stageRecentLines, error: null as string | null }
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error)
+        return { rows: [], recentLines: [], error: `[${s.id}] ${message}` }
       }
-    }
+    }),
+  )
+
+  for (const result of stageResults) {
+    rows.push(...result.rows)
+    recentLines.push(...result.recentLines)
+    if (result.error) stageErrors.push(result.error)
   }
 
   rows.sort((a, b) => (a.lastActiveMinAgo ?? 99_999) - (b.lastActiveMinAgo ?? 99_999))
@@ -110,6 +144,11 @@ async function snapshot(): Promise<void> {
     for (const l of recentLines) {
       console.log(`  ${l.age}m [${l.stage}] ${l.who}: ${l.text}`)
     }
+  }
+
+  if (stageErrors.length) {
+    console.log('\nWarnings:')
+    for (const e of stageErrors) console.log(`  ${e}`)
   }
 }
 

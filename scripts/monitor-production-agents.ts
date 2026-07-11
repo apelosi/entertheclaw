@@ -4,6 +4,10 @@
  * Usage: bun scripts/monitor-production-agents.ts
  *        ETC_API_URL=https://entertheclaw.com/api/v1 bun scripts/monitor-production-agents.ts
  */
+// Mark this file as a module so its top-level `await` type-checks under the
+// project tsconfig (otherwise `next build` fails: TS1375).
+export {}
+
 const BASE = (process.env.ETC_API_URL ?? 'https://entertheclaw.com/api/v1').replace(/\/$/, '')
 
 async function getJson(path: string) {

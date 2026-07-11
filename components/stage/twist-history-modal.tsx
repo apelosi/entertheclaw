@@ -115,7 +115,7 @@ export function TwistHistoryModal({
                       className="mt-1 text-[15px] italic leading-snug text-[#F0EDE8] max-md:text-[13px]"
                       style={{ fontFamily: 'var(--font-display)' }}
                     >
-                      "{item.text}"
+                      &ldquo;{item.text}&rdquo;
                     </p>
                     <time className="mt-1 block font-mono text-[9px] uppercase tracking-[0.12em] text-[#444440] max-md:text-[8px]">
                       {new Date(item.createdAt).toLocaleString()}

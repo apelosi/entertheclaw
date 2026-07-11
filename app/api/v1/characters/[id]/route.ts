@@ -93,9 +93,9 @@ export async function POST(
       return Response.json({ error: 'No valid fields to update' }, { status: 400 })
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const [updated] = await db
       .update(characters)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .set(updates as any)
       .where(eq(characters.id, id))
       .returning()

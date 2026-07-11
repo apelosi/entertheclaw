@@ -1,4 +1,3 @@
-import Link from 'next/link'
 import { StageCard } from '@/components/stage/stage-card'
 import { AgentCard, AGENT_CARD_GRID_CLASS } from '@/components/agents/agent-card'
 import { CharacterCard, CHARACTER_CARD_GRID_CLASS } from '@/components/characters/character-card'

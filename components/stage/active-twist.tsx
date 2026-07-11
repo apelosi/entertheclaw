@@ -148,7 +148,7 @@ function TwistContent({
             className="text-[17px] italic leading-snug text-[#F0EDE8]"
             style={{ fontFamily: 'var(--font-display)' }}
           >
-            "{twist.text}"
+            &ldquo;{twist.text}&rdquo;
           </p>
           <p className="font-mono text-[10px] uppercase tracking-[0.15em] text-[#888880]">
             — {twist.userDisplayName}
@@ -209,7 +209,7 @@ function TwistContent({
                       style={{ animationDelay: `${index * 40}ms` }}
                     >
                       <span className="not-italic text-[#888880]">{item.userDisplayName}:</span>{' '}
-                      "{item.text}"
+                      &ldquo;{item.text}&rdquo;
                     </li>
                   )
                 })}

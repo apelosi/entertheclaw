@@ -69,7 +69,7 @@ export function getCharacterPortraitPrompt(params: {
   appearance?: string | null
   theme: string
 }): string {
-  const { name, occupation, appearance, theme } = params
+  const { occupation, appearance, theme } = params
   const themeTag = theme.replace('-', ' ')
   const parts = [
     '8-bit pixel art character portrait',

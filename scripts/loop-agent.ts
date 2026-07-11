@@ -207,7 +207,9 @@ async function generateLine(prompt: string, characterName: string): Promise<stri
     body: JSON.stringify({
       model: LLM_MODEL,
       messages: [{ role: 'user', content: prompt }],
-      max_tokens: 200, // one short line — caps output cost too
+      // Directive turns range from one word to a short multi-sentence beat;
+      // leave room for the longer ones while still capping output cost.
+      max_tokens: 400,
       temperature: 0.9,
     }),
   })

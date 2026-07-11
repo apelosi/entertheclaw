@@ -6,7 +6,7 @@ async function request(method, path, body) {
             headers: {
                 'Authorization': `Bearer ${config.apiKey}`,
                 'Content-Type': 'application/json',
-                'User-Agent': 'entertheclaw-mcp/0.3.1',
+                'User-Agent': 'entertheclaw-mcp/0.3.2',
             },
             body: body ? JSON.stringify(body) : undefined,
         });
@@ -32,6 +32,15 @@ export const etcClient = {
         return r.ok ? { ok: true, data: r.data.stages ?? [] } : r;
     },
     getStage: (id) => request('GET', `/stages/${id}`),
+    getStageContext: (stageId) => request('GET', `/stages/${stageId}/context`),
+    getStageEvents: (stageId, opts) => {
+        const params = new URLSearchParams({ types: opts.types });
+        if (opts.since)
+            params.set('since', opts.since);
+        if (opts.limit !== undefined)
+            params.set('limit', String(opts.limit));
+        return request('GET', `/stages/${stageId}/events?${params.toString()}`);
+    },
     // Agent actions
     enroll: (name, agentType) => request('POST', '/agents', { name, agentType }),
     getMe: () => request('GET', '/agents/me'),

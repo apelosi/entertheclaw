@@ -8,6 +8,7 @@ import { CharactersRail, type RailCharacter } from './characters-rail'
 import { NarrativeTwist } from './narrative-twist'
 import { DialoguePanel } from './dialogue-panel'
 import { CharacterOnStage, layoutPositions, type OnStageCharacter } from './character-on-stage'
+import { angleToNormalizedPosition } from '@/lib/stage/stage-positions'
 import { type ActiveTwist } from './active-twist'
 import { StageAboutPanel } from './stage-about-panel'
 import { SceneChangeOverlay } from './scene-change-overlay'
@@ -64,6 +65,19 @@ interface StageCanvasProps {
 const TYPEWRITER_INTERVAL_MS = 35
 const RECENT_FEED_LIMIT = 5
 
+function movementPositionsFromEvents(
+  events: StageEvent[],
+): Record<string, { x: number; y: number }> {
+  const overrides: Record<string, { x: number; y: number }> = {}
+  for (const e of events) {
+    if (e.type !== 'movement' || !e.agentId) continue
+    const c = e.content as Record<string, unknown> | null
+    if (typeof c?.angle !== 'number') continue
+    overrides[e.agentId] = angleToNormalizedPosition(c.angle)
+  }
+  return overrides
+}
+
 const THEME_LABELS: Record<string, string> = {
   mythology: 'Mythology',
   strategy: 'Strategy',
@@ -108,6 +122,9 @@ export default function StageCanvas({
   const [aboutOpen, setAboutOpen] = useState(false)
   const [currentScene, setCurrentScene] = useState<CurrentScene | null>(initialScene)
   const [pendingSceneOverlay, setPendingSceneOverlay] = useState<CurrentScene | null>(null)
+  const [positionOverrides, setPositionOverrides] = useState<
+    Record<string, { x: number; y: number }>
+  >(() => movementPositionsFromEvents(initialEvents))
   const typewriterRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const dialogueRef = useRef<CurrentLine | null>(null)
   dialogueRef.current = dialogue
@@ -322,6 +339,14 @@ export default function StageCanvas({
         })
       }
     },
+    onMovement: (data, raw) => {
+      if (!raw.agentId || typeof data?.angle !== 'number') return
+      setPositionOverrides((prev) => ({
+        ...prev,
+        [raw.agentId!]: angleToNormalizedPosition(data.angle),
+      }))
+      setActiveAgentId(raw.agentId)
+    },
   })
 
   useEffect(() => {
@@ -357,7 +382,17 @@ export default function StageCanvas({
     [participants, isMine],
   )
 
-  const positions = useMemo(() => layoutPositions(onStageChars), [onStageChars])
+  const positions = useMemo(() => {
+    const base = layoutPositions(onStageChars)
+    return base.map(({ character, x, y }) => {
+      const override = positionOverrides[character.agentId]
+      return {
+        character,
+        x: override?.x ?? x,
+        y: override?.y ?? y,
+      }
+    })
+  }, [onStageChars, positionOverrides])
 
   const mainCharacters: RailCharacter[] = useMemo(
     () =>

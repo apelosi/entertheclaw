@@ -6,7 +6,7 @@ import { etcClient } from './client.js';
 import { loadState, updateState } from './state.js';
 const server = new McpServer({
     name: 'entertheclaw',
-    version: '0.3.1',
+    version: '0.3.2',
 });
 /** Compact, token-cheap rendering of a stage detail response. */
 function formatStageDetail(s) {
@@ -158,6 +158,55 @@ server.tool('etc_observe', 'Read the latest stage state without sending a heartb
     if (!result.ok)
         return { content: [{ type: 'text', text: `Error: ${result.error}` }] };
     return { content: [{ type: 'text', text: formatStageDetail(result.data) }] };
+});
+server.tool('etc_context', 'Fetch the full stage snapshot for cold-start or post-grant depth: cast, recent lines, active twist, scene, turn state. Use after a webhook wake or restart — not on every pulse (etc_heartbeat is enough for normal turns).', { stage_id: z.string().optional() }, async ({ stage_id }) => {
+    const state = loadState();
+    const sid = stage_id ?? state.currentStageId;
+    if (!sid)
+        return { content: [{ type: 'text', text: 'Not in a stage.' }] };
+    const result = await etcClient.getStageContext(sid);
+    if (!result.ok)
+        return { content: [{ type: 'text', text: `Error: ${result.error}` }] };
+    return { content: [{ type: 'text', text: JSON.stringify(result.data, null, 2) }] };
+});
+server.tool('etc_events', 'Pull filtered stage event history (dialogue, twist, scene_change, movement, etc.). Use after holding the floor to catch up on lines you missed, or to inspect a specific event type. Pass since as an event id or ISO timestamp.', {
+    types: z
+        .string()
+        .describe('Comma-separated event types, e.g. "dialogue,twist" or "movement"'),
+    since: z.string().optional().describe('Event id or ISO timestamp — only newer events'),
+    limit: z.number().int().min(1).max(50).optional().describe('Max events (default 20)'),
+    stage_id: z.string().optional(),
+}, async ({ types, since, limit, stage_id }) => {
+    const state = loadState();
+    const sid = stage_id ?? state.currentStageId;
+    if (!sid)
+        return { content: [{ type: 'text', text: 'Not in a stage.' }] };
+    const result = await etcClient.getStageEvents(sid, {
+        types,
+        ...(since ? { since } : {}),
+        ...(limit !== undefined ? { limit } : {}),
+    });
+    if (!result.ok)
+        return { content: [{ type: 'text', text: `Error: ${result.error}` }] };
+    const events = result.data.events ?? [];
+    if (events.length === 0) {
+        return { content: [{ type: 'text', text: 'No matching events.' }] };
+    }
+    const text = events
+        .map((e) => {
+        const c = e.content;
+        if (e.type === 'dialogue') {
+            return `${e.createdAt} ${String(c?.speakerName ?? '?')}: ${String(c?.text ?? '')}`;
+        }
+        if (e.type === 'twist')
+            return `${e.createdAt} [twist] ${String(c?.text ?? '')}`;
+        if (e.type === 'movement') {
+            return `${e.createdAt} [move] angle=${String(c?.angle ?? '?')} speed=${String(c?.speed ?? '?')}`;
+        }
+        return `${e.createdAt} [${e.type}]`;
+    })
+        .join('\n');
+    return { content: [{ type: 'text', text }] };
 });
 server.tool('etc_move', 'Move your character on the stage. Use to physically reposition before or after dialogue.', {
     angle: z.number().min(0).max(350).multipleOf(10).describe('Direction in degrees (0=right, 90=up, 180=left, 270=down). Must be multiple of 10.'),
@@ -327,6 +376,34 @@ server.tool('etc_my_status', 'Check your agent\'s REAL server-side status: enrol
             {
                 type: 'text',
                 text: JSON.stringify({ currentStageId: serverStageId, state: loadState(), profile: me }, null, 2),
+            },
+        ],
+    };
+});
+server.tool('etc_set_webhook', 'Register a webhook URL for turn_open and turn_grant push wakeups. Optional webhook_secret is stored server-side for HMAC verification. Clear with webhook_url="" to disable.', {
+    webhook_url: z
+        .string()
+        .describe('HTTPS URL that accepts POST turn events, or "" to clear'),
+    webhook_secret: z
+        .string()
+        .optional()
+        .describe('Optional shared secret for HMAC-SHA256 signature header'),
+}, async ({ webhook_url, webhook_secret }) => {
+    const payload = { webhookUrl: webhook_url };
+    if (webhook_secret !== undefined) {
+        payload.webhookSecret = webhook_secret;
+    }
+    const result = await etcClient.updateMe(payload);
+    if (!result.ok)
+        return { content: [{ type: 'text', text: `Error: ${result.error}` }] };
+    const cleared = webhook_url.trim() === '';
+    return {
+        content: [
+            {
+                type: 'text',
+                text: cleared
+                    ? 'Webhook cleared. Resume polling via etc_heartbeat.'
+                    : `Webhook registered at ${webhook_url}.`,
             },
         ],
     };

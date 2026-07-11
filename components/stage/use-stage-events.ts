@@ -44,12 +44,18 @@ export interface SceneChangeContent {
   sourceType?: 'dialogue' | 'twist'
 }
 
+export interface MovementContent {
+  angle: number
+  speed: 'walk' | 'idle'
+}
+
 interface Handlers {
   onDialogue?: (data: DialogueContent, raw: SSEEvent<DialogueContent>) => void
   onTwist?: (data: TwistContent, raw: SSEEvent<TwistContent>) => void
   onJoined?: (data: JoinedContent, raw: SSEEvent<JoinedContent>) => void
   onCharacterReady?: (data: CharacterReadyContent, raw: SSEEvent<CharacterReadyContent>) => void
   onSceneChange?: (data: SceneChangeContent, raw: SSEEvent<SceneChangeContent>) => void
+  onMovement?: (data: MovementContent, raw: SSEEvent<MovementContent>) => void
 }
 
 /** Subscribe to a stage's SSE stream. Handlers are read-via-ref so callers can swap closures freely. */
@@ -86,6 +92,9 @@ export function useStageEvents(stageId: string, handlers: Handlers) {
     )
     bind<SceneChangeContent>('scene_change', (data, raw) =>
       handlersRef.current.onSceneChange?.(data, raw)
+    )
+    bind<MovementContent>('movement', (data, raw) =>
+      handlersRef.current.onMovement?.(data, raw)
     )
 
     es.onerror = () => {

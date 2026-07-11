@@ -11,7 +11,7 @@ async function request<T>(method: string, path: string, body?: object): Promise<
       headers: {
         'Authorization': `Bearer ${config.apiKey}`,
         'Content-Type': 'application/json',
-        'User-Agent': 'entertheclaw-mcp/0.3.1',
+        'User-Agent': 'entertheclaw-mcp/0.3.2',
       },
       body: body ? JSON.stringify(body) : undefined,
     })
@@ -37,6 +37,20 @@ export const etcClient = {
     return r.ok ? { ok: true, data: r.data.stages ?? [] } : r
   },
   getStage: (id: string) => request<StageDetail>('GET', `/stages/${id}`),
+  getStageContext: (stageId: string) =>
+    request<StageContextResponse>('GET', `/stages/${stageId}/context`),
+  getStageEvents: (
+    stageId: string,
+    opts: { types: string; since?: string; limit?: number },
+  ) => {
+    const params = new URLSearchParams({ types: opts.types })
+    if (opts.since) params.set('since', opts.since)
+    if (opts.limit !== undefined) params.set('limit', String(opts.limit))
+    return request<{ stageId: string; events: StageEvent[] }>(
+      'GET',
+      `/stages/${stageId}/events?${params.toString()}`,
+    )
+  },
 
   // Agent actions
   enroll: (name: string, agentType: string) =>
@@ -98,6 +112,15 @@ export interface StageDetail {
   recentNpcs: unknown[]
   recentEvents: StageEvent[]
   currentScene: { name: string; description: string } | null
+}
+export interface StageContextResponse {
+  stageId: string
+  snapshot: Record<string, unknown>
+  turnState: {
+    open: boolean
+    grantedTo: string | null
+    grantExpiresAt: string | null
+  }
 }
 export interface AgentProfile {
   id: string; name: string; agentType: string; imageUrl: string | null

@@ -1,11 +1,16 @@
-# Session handoff — 2026-07-11 (NanoClaw token cost + fleet wake)
+# Session handoff — 2026-07-11 (Phase 2 movement + MCP parity)
 
 ## Start new chat (paste this)
 
 ```
 Continue Enter The Claw. Read docs/SESSION-HANDOFF.md first.
 
-Recent work (merged + shipped):
+Recent work (in PR, not yet merged):
+- Movement SSE wired into stage canvas — sprites reposition on `movement` events.
+- MCP 0.3.2: etc_context, etc_events, etc_set_webhook (context/events/webhook API parity).
+- lib/stage/stage-positions.ts + vitest for angle→position mapping.
+
+Prior (merged + shipped):
 - PR #61: trim directive.prompt (E2), slim MCP act=true payload (E1), skill.md
   stateless contract (E3), vitest size tests (E4). Merged to main.
 - entertheclaw-mcp@0.3.1 published to npm (owner: apelosi).
@@ -18,6 +23,9 @@ Production status (~2026-07-11):
   emailed separately with wake instructions (another chat).
 
 Monitor: bun scripts/monitor-production-agents.ts (polls entertheclaw.com).
+
+Next candidates: webhook wake receiver script, MCP integration smoke test,
+6h absence narrative cron (Track B).
 
 Follow ~/.cursor/skills/global-operating-standards/SKILL.md.
 ```
@@ -110,7 +118,8 @@ fleet pause time. Fix per-container: task enabled, N8 script reaches heartbeat,
 | `lib/agents/participation-prompt.ts` | `/skill.md` source |
 | `scripts/loop-agent.ts` | Reference N8 pulse (stateless) |
 | `scripts/monitor-production-agents.ts` | Production activity poll |
-| `mcp/` | entertheclaw-mcp npm package (0.3.1) |
+| `lib/stage/stage-positions.ts` | Movement angle → canvas position |
+| `mcp/` | entertheclaw-mcp npm package (0.3.2 pending publish) |
 | `docs/runbooks/agent-stage-continuity.md` | Stale stage / wake runbook |
 
 ---

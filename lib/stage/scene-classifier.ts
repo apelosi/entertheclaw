@@ -14,6 +14,7 @@
  */
 
 import { shouldRunSceneClassifier } from './scene-change-signals'
+import { scenesAreSameLocation } from './scene-same-location'
 import {
   buildSceneFallbackFromTwistText,
   twistExplicitlyRelocatesScene,
@@ -42,22 +43,25 @@ export type SceneClassifierResult =
 
 const SYSTEM_PROMPT = `You are the silent stage director for a 24/7 improv platform.
 
-After a new line of in-character dialogue, decide ONE thing: does the action move to a NEW scene (different physical location + immediate context), or stay in CURRENT SCENE?
+After a new line of in-character dialogue, decide ONE thing: does the action move to a genuinely DIFFERENT physical location than CURRENT SCENE, or stay?
+
+You are always given CURRENT SCENE name (and description). Compare the NEW LINE against that name first.
 
 A "scene" is a specific place and what's happening there right now (time of day, who's physically present, immediate activity).
 
-CHANGE (respond changed:true) when:
-- A bracketed stage direction [like this] establishes that the action is NOW in a concrete new location different from CURRENT SCENE (hospital corridor, father's bedroom, a warehouse, the docks, a car interior, a bank vault, a bakery, a social club, etc.).
-- The line is a hard cut or time skip that lands characters in a new place NOW.
+CHANGE (respond changed:true) ONLY when:
+- The action is NOW at a physical location you would NOT already be in given CURRENT SCENE name.
+- A hard cut or time skip lands characters in a new place NOW.
 - The speaker clearly travels and arrives somewhere new in this beat (not merely planning to go).
 
 STAY (respond changed:false) when:
+- CURRENT SCENE name already describes where the action is, even if the NEW LINE rephrases it, updates the camera, adds detail, or uses different words for the same spot ("fifty meters east of the cantina" when already at the collapsed vent grate by the cantina ruins).
 - In-character speech only, with no new physical setting established for THIS beat.
-- Past tense, future plans, or threats about going somewhere ("I'll go to the hospital", "Vince is at the hospital") while the dramatic focus has not moved.
-- Small movements within the current location (to the window, door, desk, chair, fireplace).
-- Metaphor, memory, or talking about other places without relocating the action.
+- Past tense, future plans, or mentioning another place without relocating the dramatic focus.
+- Small movements within the current location (window, door, desk, chair).
+- A bracket restates or embellishes the same location — not a new one.
 
-Important: Agents often write [bracketed stage directions]. When a bracket sets WHERE we are now, treat it as authoritative — even if the spoken dialogue is about something else.
+Important: Agents write [bracketed stage directions]. Brackets establish location only when they move to somewhere different from CURRENT SCENE name.
 
 When changing, write:
 - name: 6–10 words, concrete location + brief context (e.g. "Hospital corridor outside room 214" / "Bellante Imports warehouse, night").
@@ -75,10 +79,11 @@ const TWIST_SYSTEM_PROMPT = `You are the silent stage director for a 24/7 improv
 
 A human director just injected a TWIST — authoritative stage direction, not in-character dialogue.
 
-Decide whether the twist relocates the action to a new scene (new location + immediate context).
+Decide whether the twist relocates the action to a genuinely DIFFERENT physical location than CURRENT SCENE name.
 
 Rules:
-- Director twists that describe travel, hard cuts, explosions pulling people outside, "scene changes to…", or a new setting MUST emit changed:true.
+- Compare against CURRENT SCENE name first. changed:false if the twist only rephrases or embellishes the same location.
+- Director twists that describe travel, hard cuts, explosions pulling people outside, "scene changes to…", or a new setting MUST emit changed:true when the place is truly different.
 - DO NOT stay on the current scene when the director explicitly moves the action elsewhere.
 - DO NOT change scene for purely emotional or relational beats with no location shift.
 - When changing, write:
@@ -118,7 +123,18 @@ description: ${input.currentScene.description}
 
 ${eventLabel}${speaker}: ${input.newEvent.text}
 
-Decide.`
+Compare against CURRENT SCENE name "${input.currentScene.name}". changed:true only if physically elsewhere.`
+}
+
+function suppressDuplicateSceneChange(
+  currentScene: { name: string; description: string },
+  result: SceneClassifierResult,
+): SceneClassifierResult {
+  if (!result.changed) return result
+  if (scenesAreSameLocation(currentScene.name, result.name)) {
+    return { changed: false }
+  }
+  return result
 }
 
 function normalizeChangedResult(
@@ -240,7 +256,9 @@ export async function classifyScene(
   // Explicit director relocations are handled deterministically — no LLM.
   if (explicitRelocation) {
     const fallback = buildSceneFallbackFromTwistText(text)
-    if (fallback) return fallback
+    if (fallback) {
+      return suppressDuplicateSceneChange(input.currentScene, fallback)
+    }
   }
 
   // Routine dialogue and non-relocating twists keep the DB-resolved scene.
@@ -269,7 +287,9 @@ export async function classifyScene(
     userPrompt,
     timeoutMs,
   )
-  if (primary.changed) return primary
+  if (primary.changed) {
+    return suppressDuplicateSceneChange(input.currentScene, primary)
+  }
 
   if (explicitRelocation) {
     const extraction = await callSceneClassifierModel(
@@ -279,8 +299,13 @@ export async function classifyScene(
       userPrompt,
       timeoutMs,
     )
-    if (extraction.changed) return extraction
-    return twistSceneFallback(text)
+    if (extraction.changed) {
+      return suppressDuplicateSceneChange(input.currentScene, extraction)
+    }
+    return suppressDuplicateSceneChange(
+      input.currentScene,
+      twistSceneFallback(text),
+    )
   }
 
   return { changed: false }

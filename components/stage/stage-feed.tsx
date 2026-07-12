@@ -242,8 +242,9 @@ export function StageFeed({ feed, currentLine, speakerImageByName, variant = 'pa
         <span className={cn('ml-auto', MONO_MUTED)}>{marker}</span>
       </div>
 
-      {/* Pinned live line — always visible */}
-      <PinnedCurrentLine line={currentLine} />
+      {/* Pinned live line — only in the live panel; the history route (full) is
+          a static archive with no current speaker. */}
+      {variant === 'panel' && <PinnedCurrentLine line={currentLine} />}
 
       {/* Completed timeline, newest-first, scroll down for older */}
       <div className="relative">

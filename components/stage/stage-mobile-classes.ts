@@ -48,21 +48,3 @@ export const LIVE_DOT =
 
 export const TYPEWRITER_CURSOR =
   'ml-1 inline-block h-3.5 w-1.5 align-middle max-md:ml-0.5 max-md:h-2.5 max-md:w-1'
-
-export const MODAL_SHELL = 'fixed inset-0 z-50 flex items-center justify-center bg-[#080808]/80 p-4 backdrop-blur-sm max-md:p-3'
-
-export const MODAL_HEADER =
-  'flex items-start justify-between gap-4 border-b border-[#242424]/60 px-5 py-4 max-md:gap-3 max-md:px-3 max-md:py-3'
-
-export const MODAL_BODY = 'flex-1 overflow-y-auto px-5 py-4 max-md:px-3 max-md:py-3'
-
-export const MODAL_TITLE =
-  'text-[24px] font-light italic leading-none text-[#F0EDE8] max-md:text-[18px]'
-
-export const MODAL_SUBTITLE =
-  'mt-1 font-mono text-[10px] uppercase tracking-[0.18em] text-[#888880] max-md:text-[8px] max-md:tracking-[0.14em]'
-
-export const MODAL_CLOSE_BTN =
-  'inline-flex h-8 w-8 items-center justify-center rounded border border-[#3A3A3A] font-mono text-sm text-[#888880] transition-colors hover:text-[#F0EDE8] max-md:h-7 max-md:w-7 max-md:text-xs'
-
-export const MODAL_LIST_GAP = 'flex flex-col gap-4 max-md:gap-3'

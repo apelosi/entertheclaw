@@ -23,6 +23,16 @@ interface UseStageFeedOptions {
   stageId: string
   /** Recent items already loaded by the server (newest-first). */
   initialItems: FeedItem[]
+  /** Starting filter (the history route derives it from the URL). */
+  initialFilter?: FeedFilter
+  /** Called after the user changes the filter (the history route syncs the URL). */
+  onFilterChange?: (filter: FeedFilter) => void
+  /**
+   * How many items the mount fetch pulls. The stage page already has server
+   * items, so it only needs the total (1). The history route starts empty and
+   * asks for a full first page.
+   */
+  mountFetchLimit?: number
 }
 
 export interface StageFeedController {
@@ -49,10 +59,17 @@ export interface StageFeedController {
  * StageCanvas pushes live SSE items in via `pushLive`; the newest end is the
  * top of the list (matching the app's newest-first convention).
  */
-export function useStageFeed({ stageId, initialItems }: UseStageFeedOptions): StageFeedController {
+export function useStageFeed({
+  stageId,
+  initialItems,
+  initialFilter = 'all',
+  onFilterChange,
+  mountFetchLimit = 1,
+}: UseStageFeedOptions): StageFeedController {
   const [state, dispatch] = useReducer(feedReducer, undefined, () => ({
     ...initialFeedState,
     items: initialItems,
+    filter: initialFilter,
   }))
   const [loadingOlder, setLoadingOlder] = useState(false)
 
@@ -68,11 +85,15 @@ export function useStageFeed({ stageId, initialItems }: UseStageFeedOptions): St
   const hasMore =
     !state.reachedEnd && (state.total === null || state.items.length < state.total)
 
-  // One tiny fetch on mount to learn the true total (powers "N of M"); the
-  // items are already painted from the server-provided initialItems.
+  // Mount fetch: learns the true total (powers "N of M") and, for the history
+  // route (mountFetchLimit > 1), pulls the first page since it starts empty.
+  // Scoped to the active filter's types so the total matches the view.
   useEffect(() => {
     const controller = new AbortController()
-    fetch(`/api/v1/stages/${stageId}/feed?limit=1`, { signal: controller.signal })
+    const params = new URLSearchParams({ limit: String(mountFetchLimit) })
+    const types = filterToTypes(initialFilter)
+    if (types) params.set('types', types.join(','))
+    fetch(`/api/v1/stages/${stageId}/feed?${params.toString()}`, { signal: controller.signal })
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
         if (!data || typeof data.total !== 'number') return
@@ -87,7 +108,7 @@ export function useStageFeed({ stageId, initialItems }: UseStageFeedOptions): St
         // aborted or offline; the feed still works off initialItems + live SSE
       })
     return () => controller.abort()
-  }, [stageId])
+  }, [stageId, initialFilter, mountFetchLimit])
 
   const loadOlder = useCallback(() => {
     if (loadingRef.current || state.reachedEnd) return
@@ -124,9 +145,13 @@ export function useStageFeed({ stageId, initialItems }: UseStageFeedOptions): St
     dispatch({ kind: 'live', item })
   }, [])
 
-  const setFilter = useCallback((filter: FeedFilter) => {
-    dispatch({ kind: 'setFilter', filter })
-  }, [])
+  const setFilter = useCallback(
+    (filter: FeedFilter) => {
+      dispatch({ kind: 'setFilter', filter })
+      onFilterChange?.(filter)
+    },
+    [onFilterChange],
+  )
 
   const onScroll = useCallback(() => {
     const el = scrollRef.current

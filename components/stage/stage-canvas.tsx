@@ -156,7 +156,7 @@ export default function StageCanvas({
   }, [])
 
   const feed = useStageFeed({ stageId, initialItems: initialFeedItems })
-  const { pushLive, allItems } = feed
+  const { pushLive } = feed
 
   const archiveCurrentDialogue = useCallback(() => {
     const current = dialogueRef.current
@@ -377,10 +377,8 @@ export default function StageCanvas({
 
   const dialogueProps = {
     stageId,
-    stageName,
     feed,
     currentLine: dialogue,
-    allHistoryItems: allItems,
     speakerImageByName,
   }
 

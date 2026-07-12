@@ -21,6 +21,19 @@ describe('dialogueMightChangeScene', () => {
     ).toBe(false)
   })
 
+  it('returns false when another place is mentioned without relocating', () => {
+    expect(
+      dialogueMightChangeScene(
+        "Vince is at the hospital. I'm staying here until he returns.",
+      ),
+    ).toBe(false)
+    expect(
+      dialogueMightChangeScene(
+        'The temple elders are plotting against us. We stay in this hall.',
+      ),
+    ).toBe(false)
+  })
+
   it('returns true for explicit travel or hard cuts', () => {
     expect(dialogueMightChangeScene('We arrive at the gas station.')).toBe(
       true,
@@ -34,7 +47,7 @@ describe('dialogueMightChangeScene', () => {
     ).toBe(true)
   })
 
-  it('returns true for Clawfather-style bracket stage directions', () => {
+  it('returns true for bracket stage directions (any genre)', () => {
     expect(
       dialogueMightChangeScene(
         '[The hospital corridor is fluorescent and empty at this hour. Luca sits in a plastic chair outside room 214.] You never did learn to ask for help, did you, Popà.',
@@ -48,6 +61,16 @@ describe('dialogueMightChangeScene', () => {
     expect(
       dialogueMightChangeScene(
         '[Dawn on the docks. Luca stands at the railing.] Last stop.',
+      ),
+    ).toBe(true)
+    expect(
+      dialogueMightChangeScene(
+        '[She enters the great hall of the keep, torchlight catching the banners.] Your Grace.',
+      ),
+    ).toBe(true)
+    expect(
+      dialogueMightChangeScene(
+        '[The oracle chamber beneath Delphi. He kneels before the bronze tripod.]',
       ),
     ).toBe(true)
   })
@@ -96,7 +119,7 @@ describe('shouldRunSceneClassifier', () => {
     ).toBe(false)
   })
 
-  it('runs for dialogue with relocation signals', () => {
+  it('runs for dialogue with structural relocation signals', () => {
     expect(
       shouldRunSceneClassifier('dialogue', 'We walk into the warehouse.'),
     ).toBe(true)
@@ -122,12 +145,12 @@ describe('shouldRunSceneClassifier', () => {
 })
 
 describe('getMatchingRelocationSignals', () => {
-  it('returns rule ids for audit output', () => {
+  it('returns structural rule ids for audit output', () => {
     const hits = getMatchingRelocationSignals(
       'dialogue',
       '[Luca sits in the hospital corridor.] Hello.',
     )
     expect(hits.length).toBeGreaterThan(0)
-    expect(hits).toContain('bracket_named_place')
+    expect(hits).toContain('bracket_staging')
   })
 })

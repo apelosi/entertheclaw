@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { CopyButton } from '@/components/ui/copy-button'
 import { formatFeedAsMarkdown } from '@/lib/stage/feed-items'
-import type { FeedFilter } from '@/lib/stage/feed-state'
+import { FEED_FILTERS, type FeedFilter } from '@/lib/stage/feed-state'
 import { cn } from '@/lib/utils'
 import { IndicatorLegend } from './cast-card'
 import { StageFeed } from './stage-feed'
@@ -61,11 +61,14 @@ export function StageHistoryView({ stageId, stageName, speakerImages }: Props) {
   const markdown = formatFeedAsMarkdown(feed.visibleItems, stageName)
   const downloadMd = useCallback(() => {
     const slug = stageName.replace(/\s+/g, '-').toLowerCase()
+    // Use the chip label (lines/scenes/twists), not the internal filter id.
+    const filterSlug =
+      FEED_FILTERS.find((f) => f.id === feed.filter)?.label.toLowerCase() ?? feed.filter
     const blob = new Blob([markdown], { type: 'text/markdown;charset=utf-8' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `${slug}-script-${feed.filter}.md`
+    a.download = `${slug}-script-${filterSlug}.md`
     a.click()
     URL.revokeObjectURL(url)
   }, [markdown, stageName, feed.filter])

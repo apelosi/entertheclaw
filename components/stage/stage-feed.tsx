@@ -12,8 +12,6 @@ import {
   AVATAR,
   AVATAR_PLACEHOLDER,
   MONO_BODY,
-  MONO_BODY_SM,
-  MONO_LABEL,
   MONO_MUTED,
   PANEL_STACK_GAP,
   TYPEWRITER_CURSOR,
@@ -84,25 +82,34 @@ function speakerImage(
 }
 
 function DialogueRow({
-  item,
+  speakerName,
+  text,
+  isEmote,
+  isOwn,
   imageUrl,
+  live = false,
 }: {
-  item: FeedItem & { kind: 'dialogue' }
+  speakerName: string
+  text: string
+  isEmote?: boolean
+  isOwn?: boolean
   imageUrl: string | null
+  /** The live, still-animating line: append the pulsing typewriter cursor. */
+  live?: boolean
 }) {
   return (
     <div
       className={cn(
         'flex items-start gap-2.5 border-l-2 pl-2 max-md:gap-2',
-        item.isOwn ? '' : 'border-l-transparent',
+        isOwn ? '' : 'border-l-transparent',
       )}
-      style={item.isOwn ? { borderLeftColor: OWN_GOLD } : undefined}
+      style={isOwn ? { borderLeftColor: OWN_GOLD } : undefined}
     >
       <div className={cn(AVATAR, 'bg-[#0e0e0e]/70 ring-1 ring-[#242424]/60')}>
         {imageUrl ? (
           <Image
             src={imageUrl}
-            alt={item.speakerName}
+            alt={speakerName}
             width={36}
             height={36}
             className="h-full w-full object-cover image-pixelated"
@@ -111,14 +118,17 @@ function DialogueRow({
           <div className={AVATAR_PLACEHOLDER}>◈</div>
         )}
       </div>
-      <p className={cn('min-w-0 flex-1 text-[#888880]', MONO_BODY_SM)}>
-        <span className="text-[#C41E3A]/80">{item.speakerName}:</span>
-        {item.isOwn ? <YouChip /> : null}{' '}
-        {item.isEmote ? (
-          <em>{normalizeEmoteAction(item.text)}</em>
+      <p className={cn('min-w-0 flex-1 text-[#F0EDE8]', MONO_BODY)}>
+        <span className="text-[#C41E3A]">{speakerName}:</span>
+        {isOwn ? <YouChip /> : null}{' '}
+        {isEmote ? (
+          <em className="text-[#888880]">{normalizeEmoteAction(text)}</em>
         ) : (
-          <DialogueText text={item.text} />
+          <DialogueText text={text} />
         )}
+        {live ? (
+          <span className={cn(TYPEWRITER_CURSOR, 'bg-[#C41E3A] animate-pulse-live')} />
+        ) : null}
       </p>
     </div>
   )
@@ -156,7 +166,15 @@ function FeedRow({
   speakerImageByName: Map<string, string | null>
 }) {
   if (item.kind === 'dialogue') {
-    return <DialogueRow item={item} imageUrl={speakerImage(item, speakerImageByName)} />
+    return (
+      <DialogueRow
+        speakerName={item.speakerName}
+        text={item.text}
+        isEmote={item.isEmote}
+        isOwn={item.isOwn}
+        imageUrl={speakerImage(item, speakerImageByName)}
+      />
+    )
   }
   if (item.kind === 'scene') {
     return <SceneScriptMarker name={item.name} description={item.description} />
@@ -165,52 +183,6 @@ function FeedRow({
     return <TwistScriptMarker userDisplayName={item.userDisplayName} text={item.text} />
   }
   return <CastMarker item={item} />
-}
-
-function PinnedCurrentLine({ line }: { line: CurrentLine | null }) {
-  return (
-    <div
-      className={cn(
-        'flex items-start gap-2.5 border-l-2 pl-2 max-md:gap-2 max-md:pl-1.5',
-        line?.isOwn ? '' : 'border-l-transparent',
-      )}
-      style={line?.isOwn ? { borderLeftColor: OWN_GOLD } : undefined}
-    >
-      <div className={cn(AVATAR, 'bg-[#0e0e0e]/70 ring-1 ring-[#242424]/60')}>
-        {line?.speakerImageUrl ? (
-          <Image
-            src={line.speakerImageUrl}
-            alt={line.speakerName}
-            width={36}
-            height={36}
-            className="h-full w-full object-cover image-pixelated"
-          />
-        ) : (
-          <div className={AVATAR_PLACEHOLDER}>◈</div>
-        )}
-      </div>
-      <div className="min-h-[2.5rem] min-w-0 flex-1 max-md:min-h-[2rem]">
-        {line ? (
-          <>
-            <p className={cn('mb-0.5 text-[#C41E3A]', MONO_LABEL)}>
-              {line.speakerName}
-              {line.isOwn ? <YouChip /> : null}
-            </p>
-            <p className={cn(MONO_BODY, 'text-[#F0EDE8]')}>
-              {line.isEmote ? (
-                <em className="text-[#888880]">{normalizeEmoteAction(line.displayedText)}</em>
-              ) : (
-                <DialogueText text={line.displayedText} />
-              )}
-              <span className={cn(TYPEWRITER_CURSOR, 'bg-[#C41E3A] animate-pulse-live')} />
-            </p>
-          </>
-        ) : (
-          <p className={cn(MONO_BODY, 'text-[#444440]')}>Waiting for the stage to speak…</p>
-        )}
-      </div>
-    </div>
-  )
 }
 
 export function StageFeed({ feed, currentLine, speakerImageByName, variant = 'panel' }: Props) {
@@ -231,28 +203,43 @@ export function StageFeed({ feed, currentLine, speakerImageByName, variant = 'pa
     onScroll,
   } = feed
 
-  // The animating line is shown pinned above; don't repeat it in the list.
+  // The live, animating line lives in `currentLine` until it's archived into the
+  // feed; drop it from the completed rows so it isn't shown twice.
   const rows = currentLine
     ? visibleItems.filter((i) => i.id !== currentLine.eventId)
     : visibleItems
 
+  // The live line is a dialogue line — surface it (newest-first, at the top of
+  // the list, scrolling with everything else) only when the active filter would
+  // include it. It's never pinned; scroll past it like any other line.
+  const showLive =
+    variant === 'panel' &&
+    currentLine != null &&
+    (filter === 'all' || filter === 'dialogue' || (filter === 'mine' && Boolean(currentLine.isOwn)))
+
+  const shownCount = rows.length + (showLive ? 1 : 0)
   const marker = loading
     ? 'Loading…'
     : filter === 'all' && total !== null
-      ? `Showing ${rows.length} of ${total}`
-      : `Showing ${rows.length}`
+      ? `Showing ${shownCount} of ${total}`
+      : `Showing ${shownCount}`
 
-  // Panel scrolls inside a capped box; the full history flows with the page so
-  // the footer sits below the content instead of overlapping it.
+  // Panel fills its column down to the cast rail and scrolls internally. On lg the
+  // scroller is taken out of flow (absolute inset-0) so the feed's content doesn't
+  // inflate the grid row — the row height is driven by the rail, and the feed fills
+  // it. Below lg it's a single in-flow column, so cap the height. The full history
+  // flows with the page so the footer sits below the content, not over it.
   const scrollClass =
-    variant === 'full' ? '' : 'max-h-[24rem] overflow-y-auto max-md:max-h-[18rem]'
+    variant === 'full'
+      ? ''
+      : 'overflow-y-auto max-h-[24rem] max-md:max-h-[18rem] lg:absolute lg:inset-0 lg:max-h-none'
 
   // Show a skeleton while the first page (or a still-empty filter mid-preload)
   // is loading — never the empty-state text in place of a loading animation.
-  const showSkeleton = rows.length === 0 && (loading || preloading || loadingOlder)
+  const showSkeleton = shownCount === 0 && (loading || preloading || loadingOlder)
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className={cn('flex flex-col gap-2', variant === 'panel' && 'lg:min-h-0 lg:flex-1')}>
       {/* Filter chips + depth marker */}
       <div className="flex flex-wrap items-center gap-1.5">
         {FEED_FILTERS.map((f) => (
@@ -274,12 +261,14 @@ export function StageFeed({ feed, currentLine, speakerImageByName, variant = 'pa
         <span className={cn('ml-auto', MONO_MUTED)}>{marker}</span>
       </div>
 
-      {/* Pinned live line — only in the live panel; the history route (full) is
-          a static archive with no current speaker. */}
-      {variant === 'panel' && <PinnedCurrentLine line={currentLine} />}
-
-      {/* Completed timeline, newest-first, scroll down for older */}
-      <div className="relative">
+      {/* Timeline, newest-first, scroll down for older. The live line (when it
+          matches the filter) rides at the top and scrolls with everything else. */}
+      <div
+        className={cn(
+          'relative',
+          variant === 'panel' && 'lg:min-h-0 lg:flex-1',
+        )}
+      >
         {!following && unread > 0 && (
           <button
             type="button"
@@ -297,10 +286,26 @@ export function StageFeed({ feed, currentLine, speakerImageByName, variant = 'pa
         >
           {showSkeleton ? (
             <SkeletonRows />
-          ) : rows.length === 0 ? (
+          ) : shownCount === 0 ? (
             <p className={cn('py-1', MONO_MUTED)}>{EMPTY_MESSAGES[filter]}</p>
           ) : (
             <ul className={cn('flex flex-col', PANEL_STACK_GAP)}>
+              {showLive && currentLine ? (
+                <li key={currentLine.eventId} className="stage-feed-enter">
+                  <DialogueRow
+                    speakerName={currentLine.speakerName}
+                    text={currentLine.displayedText}
+                    isEmote={currentLine.isEmote}
+                    isOwn={currentLine.isOwn}
+                    imageUrl={
+                      currentLine.speakerImageUrl ??
+                      speakerImageByName.get(currentLine.speakerName) ??
+                      null
+                    }
+                    live
+                  />
+                </li>
+              ) : null}
               {rows.map((item) => (
                 <li key={item.id} className="stage-feed-enter">
                   <FeedRow item={item} speakerImageByName={speakerImageByName} />

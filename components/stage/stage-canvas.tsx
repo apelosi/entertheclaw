@@ -528,7 +528,7 @@ export default function StageCanvas({
 
       {/* Panels — feed (wide) on the left, current-state rail (narrow) on the right.
           The rail is hidden on mobile, where its cards open as bottom sheets. */}
-      <div className="grid gap-3 p-4 max-md:gap-2 max-md:p-3 lg:grid-cols-[1fr_22rem] lg:items-start lg:gap-5 lg:p-6">
+      <div className="grid gap-3 p-4 max-md:gap-2 max-md:p-3 lg:grid-cols-[1fr_22rem] lg:items-stretch lg:gap-5 lg:p-6">
         <DialoguePanel {...dialogueProps} />
         <div className="flex flex-col gap-3 max-lg:hidden">
           <SceneCard scene={currentScene} />

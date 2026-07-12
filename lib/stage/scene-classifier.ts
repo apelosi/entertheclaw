@@ -20,7 +20,8 @@ import {
 } from './twist-scene-fallback'
 
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions'
-const DEFAULT_MODEL = 'openai/gpt-5-nano'
+const DEFAULT_MODEL = 'deepseek/deepseek-v4-flash'
+const REASONING_MODEL_PREFIXES = ['openai/gpt-5', 'openai/o']
 const DIALOGUE_TIMEOUT_MS = 12_000
 const TWIST_TIMEOUT_MS = 12_000
 
@@ -163,7 +164,9 @@ async function callSceneClassifierModel(
       body: JSON.stringify({
         model,
         response_format: { type: 'json_object' },
-        reasoning: { effort: 'minimal' },
+        ...(REASONING_MODEL_PREFIXES.some((p) => model.startsWith(p))
+          ? { reasoning: { effort: 'minimal' as const } }
+          : {}),
         temperature: 0.4,
         max_tokens: 1024,
         messages: [

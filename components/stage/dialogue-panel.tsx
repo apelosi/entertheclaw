@@ -44,7 +44,7 @@ function CurrentSpeakerMeta({ speakerName }: { speakerName: string }) {
 
 export function DialoguePanel({ stageId, feed, currentLine, speakerImageByName }: Props) {
   return (
-    <section className="glass-hud pointer-events-auto w-full rounded-sm border-l-2 border-l-[#C41E3A]/70 shadow-[0_12px_40px_rgba(0,0,0,0.45)]">
+    <section className="glass-hud pointer-events-auto flex w-full flex-col rounded-sm border-l-2 border-l-[#C41E3A]/70 shadow-[0_12px_40px_rgba(0,0,0,0.45)] lg:h-full">
       <header
         className={cn(
           'flex items-center border-b border-[#242424]/50 px-3 py-2 max-md:px-2 max-md:py-1.5',
@@ -59,7 +59,7 @@ export function DialoguePanel({ stageId, feed, currentLine, speakerImageByName }
         </div>
       </header>
 
-      <div className={cn('flex flex-col', PANEL_STACK_GAP, PANEL_INSET, 'pt-2')}>
+      <div className={cn('flex flex-col', PANEL_STACK_GAP, PANEL_INSET, 'pt-2', 'lg:min-h-0 lg:flex-1')}>
         <StageFeed
           feed={feed}
           currentLine={currentLine}

@@ -5,7 +5,6 @@ import Link from 'next/link'
 import { cn } from '@/lib/utils'
 import { characterDetailPath, agentInvitePathForStage } from '@/lib/paths'
 import {
-  LINK_MICRO,
   MONO_LABEL,
   PANEL_COLLAPSIBLE_INSET,
   PANEL_STACK_GAP,
@@ -161,11 +160,11 @@ export function CastCard({
       <Link
         href={agentInvitePathForStage(stageId)}
         className={cn(
-          LINK_MICRO,
-          'inline-flex w-fit items-center gap-1.5 max-md:gap-1 text-[#888880] transition-colors hover:text-[#F0EDE8]',
+          'inline-flex h-10 w-full items-center justify-center gap-2 rounded-sm bg-[#C41E3A] px-4 font-mono text-xs font-medium uppercase tracking-[0.15em] text-[#F0EDE8] transition-all max-md:h-9 max-md:px-3 max-md:text-[11px]',
+          'hover:bg-[#9B1B30] hover:shadow-[0_0_18px_rgba(196,30,58,0.35)]',
         )}
       >
-        <span className="text-[#C41E3A]">+</span> Invite an Agent
+        <span aria-hidden>+</span> Invite an Agent
       </Link>
 
       {(hasMine || activeAgentId) && <IndicatorLegend className="pt-0.5" />}

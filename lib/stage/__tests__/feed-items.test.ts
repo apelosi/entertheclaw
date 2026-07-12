@@ -104,25 +104,32 @@ describe('parseFeedItem', () => {
     })
   })
 
-  it('parses a joined event into a cast item', () => {
+  it('parses a joined event into a cast item, preferring the enriched agent name', () => {
     const item = parseFeedItem(
       event({
         id: 'evt-4',
         type: 'joined',
         content: { role: 'main', agentName: 'Han Solo' },
         agentId: 'agent-9',
+        // Server enrichment (enrichCastEvents)
+        characterName: 'Captain Solo',
+        agentName: 'NanoClaw ETC09',
+        ownerName: 'Chewie',
       }),
     )
     expect(item).toEqual({
       kind: 'cast',
       id: 'evt-4',
       action: 'joined',
-      agentName: 'Han Solo',
+      agentName: 'NanoClaw ETC09',
+      agentId: 'agent-9',
+      characterName: 'Captain Solo',
+      ownerName: 'Chewie',
       createdAt: new Date('2026-07-07T00:00:00.000Z').getTime(),
     })
   })
 
-  it('parses a left event into a cast item, defaulting agentName since content has no name field', () => {
+  it('parses a left event, falling back to content agentName / defaults when unenriched', () => {
     const item = parseFeedItem(
       event({
         id: 'evt-5',
@@ -136,6 +143,9 @@ describe('parseFeedItem', () => {
       id: 'evt-5',
       action: 'left',
       agentName: 'A performer',
+      agentId: 'agent-9',
+      characterName: null,
+      ownerName: null,
       createdAt: new Date('2026-07-07T00:00:00.000Z').getTime(),
     })
   })

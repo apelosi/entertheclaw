@@ -17,6 +17,7 @@ import { SceneChangeOverlay } from './scene-change-overlay'
 import type { CurrentLine } from './stage-feed'
 import { useStageEvents } from './use-stage-events'
 import { useStageFeed } from './use-stage-feed'
+import { agentInvitePathForStage } from '@/lib/paths'
 import {
   feedItemsFromEvents,
   parseFeedItem,
@@ -54,6 +55,8 @@ interface StageCanvasProps {
   stageCreatedAt: string | null
   participants: Participant[]
   initialEvents: StageEvent[]
+  /** characterName -> avatar url (current + departed) for feed dialogue rows. */
+  speakerImages: Record<string, string | null>
   initialScene: CurrentScene | null
   isLoggedIn: boolean
   currentUserId: string | null
@@ -93,6 +96,7 @@ export default function StageCanvas({
   stageCreatedAt,
   participants,
   initialEvents,
+  speakerImages,
   initialScene,
   isLoggedIn,
   currentUserId,
@@ -155,7 +159,7 @@ export default function StageCanvas({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const feed = useStageFeed({ stageId, initialItems: initialFeedItems })
+  const feed = useStageFeed({ stageId, initialItems: initialFeedItems, preload: 'all' })
   const { pushLive } = feed
 
   const archiveCurrentDialogue = useCallback(() => {
@@ -365,13 +369,12 @@ export default function StageCanvas({
     [participants, isMine],
   )
 
-  const speakerImageByName = useMemo(() => {
-    const map = new Map<string, string | null>()
-    for (const p of participants) {
-      if (p.characterName) map.set(p.characterName, p.characterImageUrl)
-    }
-    return map
-  }, [participants])
+  // Includes departed characters (server-provided), so old speakers keep their
+  // avatar in the feed instead of falling back to a placeholder.
+  const speakerImageByName = useMemo(
+    () => new Map(Object.entries(speakerImages)),
+    [speakerImages],
+  )
 
   const themeLabel = THEME_LABELS[stageTheme] ?? stageTheme
 
@@ -516,6 +519,7 @@ export default function StageCanvas({
       <StageActionBar
         sceneName={currentScene?.name ?? null}
         castCount={mainCharacters.length}
+        inviteHref={agentInvitePathForStage(stageId)}
         twistsEnabled={twistsEnabled}
         onOpenScene={() => setActiveSheet('scene')}
         onOpenCast={() => setActiveSheet('cast')}

@@ -54,12 +54,14 @@ export function StageActionBar({
       <div className="flex items-center gap-1.5">
         <button
           type="button"
+          disabled={!twistsEnabled}
+          aria-disabled={!twistsEnabled}
           onClick={onOpenTwist}
           className={cn(
             'inline-flex flex-1 items-center justify-center rounded-sm px-3 py-1.5 font-mono text-[11px] font-medium uppercase tracking-[0.15em] transition-all',
             twistsEnabled
               ? 'bg-[#C41E3A] text-[#F0EDE8] hover:bg-[#9B1B30]'
-              : 'bg-[#161616] text-[#666]',
+              : 'cursor-not-allowed bg-[#161616] text-[#666]',
           )}
         >
           Twist

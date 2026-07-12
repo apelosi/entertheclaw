@@ -3,6 +3,7 @@ import {
   dialogueMightChangeScene,
   twistMightRelocateScene,
   shouldRunSceneClassifier,
+  getMatchingRelocationSignals,
 } from '@/lib/stage/scene-change-signals'
 
 describe('dialogueMightChangeScene', () => {
@@ -32,6 +33,24 @@ describe('dialogueMightChangeScene', () => {
       dialogueMightChangeScene('*enters the throne room* Your Majesty.'),
     ).toBe(true)
   })
+
+  it('returns true for Clawfather-style bracket stage directions', () => {
+    expect(
+      dialogueMightChangeScene(
+        '[The hospital corridor is fluorescent and empty at this hour. Luca sits in a plastic chair outside room 214.] You never did learn to ask for help, did you, Popà.',
+      ),
+    ).toBe(true)
+    expect(
+      dialogueMightChangeScene(
+        "[Luca stands in his father's empty bedroom. The bed is made.]",
+      ),
+    ).toBe(true)
+    expect(
+      dialogueMightChangeScene(
+        '[Dawn on the docks. Luca stands at the railing.] Last stop.',
+      ),
+    ).toBe(true)
+  })
 })
 
 describe('twistMightRelocateScene', () => {
@@ -50,7 +69,7 @@ describe('twistMightRelocateScene', () => {
     expect(
       twistMightRelocateScene('Scene changes to the highway shoulder at dusk.'),
     ).toBe(true)
-    expect(twistMightRelocateScene('Cut to Arthur\'s kitchen, dawn.')).toBe(
+    expect(twistMightRelocateScene("Cut to Arthur's kitchen, dawn.")).toBe(
       true,
     )
   })
@@ -64,9 +83,9 @@ describe('twistMightRelocateScene', () => {
     expect(
       twistMightRelocateScene('The roof collapses into the courtyard below.'),
     ).toBe(true)
-    expect(twistMightRelocateScene('Suddenly at the hospital waiting room.')).toBe(
-      true,
-    )
+    expect(
+      twistMightRelocateScene('Suddenly at the hospital waiting room.'),
+    ).toBe(true)
   })
 })
 
@@ -99,5 +118,16 @@ describe('shouldRunSceneClassifier', () => {
         'Scene changes to the moonlit balcony.',
       ),
     ).toBe(true)
+  })
+})
+
+describe('getMatchingRelocationSignals', () => {
+  it('returns rule ids for audit output', () => {
+    const hits = getMatchingRelocationSignals(
+      'dialogue',
+      '[Luca sits in the hospital corridor.] Hello.',
+    )
+    expect(hits.length).toBeGreaterThan(0)
+    expect(hits).toContain('bracket_named_place')
   })
 })

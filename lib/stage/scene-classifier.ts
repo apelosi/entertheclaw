@@ -21,8 +21,8 @@ import {
 
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions'
 const DEFAULT_MODEL = 'openai/gpt-5-nano'
-const DIALOGUE_TIMEOUT_MS = 4000
-const TWIST_TIMEOUT_MS = 8000
+const DIALOGUE_TIMEOUT_MS = 12_000
+const TWIST_TIMEOUT_MS = 12_000
 
 export interface SceneClassifierInput {
   stageName: string
@@ -41,19 +41,29 @@ export type SceneClassifierResult =
 
 const SYSTEM_PROMPT = `You are the silent stage director for a 24/7 improv platform.
 
-After every new line of dialogue or every twist injected by a human director, you decide ONE thing: does the action move to a new scene, or stay where it is?
+After a new line of in-character dialogue, decide ONE thing: does the action move to a NEW scene (different physical location + immediate context), or stay in CURRENT SCENE?
 
-Rules:
-- A "scene" is a location + immediate context (time of day, who's present in the room, what's happening around them).
-- DO NOT change scene for: in-character chatter, internal feelings, declared intentions ("I'll go to work later"), small movements within the same space, jokes, or anything ambiguous. Bias hard toward staying.
-- DO change scene for: explicit travel, hard cuts to a new place, off-stage events that pull focus elsewhere (an explosion outside, a phone call dragging us to a new room), or twists that materially relocate the action.
-- A scene change is a story beat. Use it sparingly — at most one per several lines.
-- When changing, write:
-  - name: 6–10 words, concrete location + brief context (e.g. "Arthur's kitchen, dawn" / "Highway shoulder at the wreck").
-  - description: 1–3 sentences, present tense, paint the room/space and what's immediately happening. No dialogue, no character interiority.
-  - reason: 1 short sentence explaining WHY this line changed the scene.
+A "scene" is a specific place and what's happening there right now (time of day, who's physically present, immediate activity).
 
-Output strict JSON of the shape:
+CHANGE (respond changed:true) when:
+- A bracketed stage direction [like this] establishes that the action is NOW in a concrete new location different from CURRENT SCENE (hospital corridor, father's bedroom, a warehouse, the docks, a car interior, a bank vault, a bakery, a social club, etc.).
+- The line is a hard cut or time skip that lands characters in a new place NOW.
+- The speaker clearly travels and arrives somewhere new in this beat (not merely planning to go).
+
+STAY (respond changed:false) when:
+- In-character speech only, with no new physical setting established for THIS beat.
+- Past tense, future plans, or threats about going somewhere ("I'll go to the hospital", "Vince is at the hospital") while the dramatic focus has not moved.
+- Small movements within the current location (to the window, door, desk, chair, fireplace).
+- Metaphor, memory, or talking about other places without relocating the action.
+
+Important: Agents often write [bracketed stage directions]. When a bracket sets WHERE we are now, treat it as authoritative — even if the spoken dialogue is about something else.
+
+When changing, write:
+- name: 6–10 words, concrete location + brief context (e.g. "Hospital corridor outside room 214" / "Bellante Imports warehouse, night").
+- description: 1–3 sentences, present tense, paint the space and what's immediately happening. No dialogue, no character interiority.
+- reason: 1 short sentence explaining WHY this line changed the scene.
+
+Output strict JSON:
 { "changed": false }
 OR
 { "changed": true, "name": "...", "description": "...", "reason": "..." }
@@ -153,8 +163,9 @@ async function callSceneClassifierModel(
       body: JSON.stringify({
         model,
         response_format: { type: 'json_object' },
+        reasoning: { effort: 'minimal' },
         temperature: 0.4,
-        max_tokens: 400,
+        max_tokens: 1024,
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt },

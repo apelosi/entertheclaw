@@ -2,7 +2,7 @@
 
 import Image from 'next/image'
 import type { FeedItem } from '@/lib/stage/feed-items'
-import { FEED_FILTERS } from '@/lib/stage/feed-state'
+import { FEED_FILTERS, type FeedFilter } from '@/lib/stage/feed-state'
 import { normalizeEmoteAction } from '@/lib/stage/dialogue-format'
 import { cn } from '@/lib/utils'
 import { DialogueText } from './dialogue-text'
@@ -20,6 +20,31 @@ import {
 } from './stage-mobile-classes'
 
 const OWN_GOLD = '#B8860B'
+
+const EMPTY_MESSAGES: Record<FeedFilter, string> = {
+  all: 'Nothing has happened on this stage yet.',
+  dialogue: 'No lines yet.',
+  scene: 'No scene changes yet.',
+  twist: 'No twists yet — be the first to inject one.',
+  cast: 'No arrivals or exits yet.',
+  mine: 'None of your characters have spoken yet.',
+}
+
+function SkeletonRows() {
+  return (
+    <div className="flex flex-col gap-2 py-2" aria-hidden>
+      {[0, 1, 2].map((i) => (
+        <div key={i} className="flex items-start gap-2.5 max-md:gap-2">
+          <div className="h-9 w-9 shrink-0 animate-pulse-load rounded-sm bg-[#161616] max-md:h-7 max-md:w-7" />
+          <div className="flex-1 space-y-1.5 pt-1">
+            <div className="h-2 w-20 animate-pulse-load rounded bg-[#161616]" />
+            <div className="h-2 w-full animate-pulse-load rounded bg-[#161616]" />
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
 
 export interface CurrentLine {
   eventId: string
@@ -263,8 +288,8 @@ export function StageFeed({ feed, currentLine, speakerImageByName, variant = 'pa
           className={cn(scrollClass, 'flex flex-col pt-1', PANEL_STACK_GAP)}
           aria-label="Stage feed"
         >
-          {rows.length === 0 ? (
-            <p className={MONO_MUTED}>No entries yet.</p>
+          {rows.length === 0 && !loadingOlder ? (
+            <p className={cn('py-1', MONO_MUTED)}>{EMPTY_MESSAGES[filter]}</p>
           ) : (
             <ul className={cn('flex flex-col', PANEL_STACK_GAP)}>
               {rows.map((item) => (
@@ -275,12 +300,8 @@ export function StageFeed({ feed, currentLine, speakerImageByName, variant = 'pa
             </ul>
           )}
           {hasMore ? (
-            <div
-              ref={sentinelRef}
-              className={cn('py-2 text-center', MONO_MUTED)}
-              aria-hidden={!loadingOlder}
-            >
-              {loadingOlder ? 'Loading older…' : ''}
+            <div ref={sentinelRef}>
+              {loadingOlder && <SkeletonRows />}
             </div>
           ) : (
             rows.length > 0 && (

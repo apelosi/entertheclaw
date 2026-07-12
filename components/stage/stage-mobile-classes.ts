@@ -6,16 +6,9 @@
 export const SECTION_TITLE =
   'shrink-0 text-[20px] font-light italic leading-none tracking-[-0.02em] text-[#F0EDE8] max-md:text-[16px]'
 
-export const SECTION_META =
-  'block truncate text-right font-mono text-[10px] uppercase tracking-[0.18em] text-[#888880] max-md:text-[8px] max-md:tracking-[0.14em]'
-
-export const SECTION_CHEVRON =
-  'shrink-0 text-base leading-none text-[#444440] transition-transform max-md:text-sm'
-
 export const SECTION_HEADER_GAP = 'gap-3 max-md:gap-2'
 
 export const PANEL_INSET = 'px-3 pb-3 max-md:px-2 max-md:pb-2'
-export const PANEL_HEADER_INSET = 'px-3 py-2 max-md:px-2 max-md:py-1.5'
 export const PANEL_COLLAPSIBLE_INSET = 'p-3 max-md:p-2'
 export const PANEL_STACK_GAP = 'gap-2.5 max-md:gap-2'
 
@@ -30,9 +23,6 @@ export const MONO_BODY =
 
 export const MONO_BODY_SM =
   'font-mono text-[11px] leading-relaxed max-md:text-[9px]'
-
-export const MONO_CAPTION =
-  'font-mono text-[11px] max-md:text-[9px]'
 
 export const MONO_MUTED =
   'font-mono text-[11px] text-[#444440] max-md:text-[9px]'

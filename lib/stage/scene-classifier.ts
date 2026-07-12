@@ -1,15 +1,19 @@
 /**
  * Server-side scene classifier.
  *
- * After a new dialogue or twist is inserted, ask a cheap OpenRouter model
- * whether the line meaningfully moves the scene (location / context shift).
- * If yes, return the new scene's name + description so the API route can
- * append a `scene_change` stage event.
+ * After a new dialogue or twist is inserted, a cheap signal gate decides
+ * whether an OpenRouter call is worth making. Routine in-character lines and
+ * non-relocating twists keep the current scene from the DB without an LLM
+ * round-trip. When the gate passes, a small model decides if the line
+ * meaningfully moves the scene (location / context shift). If yes, return the
+ * new scene's name + description so the API route can append a `scene_change`
+ * stage event.
  *
  * Fails silent: any error / timeout returns { changed: false }. The platform
  * keeps running on the current scene; a future event gets another chance.
  */
 
+import { shouldRunSceneClassifier } from './scene-change-signals'
 import {
   buildSceneFallbackFromTwistText,
   twistExplicitlyRelocatesScene,
@@ -216,13 +220,24 @@ export async function classifyScene(
   input: SceneClassifierInput,
 ): Promise<SceneClassifierResult> {
   const isTwist = input.newEvent.kind === 'twist'
-  const explicitRelocation =
-    isTwist && twistExplicitlyRelocatesScene(input.newEvent.text)
+  const text = input.newEvent.text
+  const explicitRelocation = isTwist && twistExplicitlyRelocatesScene(text)
+
+  // Explicit director relocations are handled deterministically — no LLM.
+  if (explicitRelocation) {
+    const fallback = buildSceneFallbackFromTwistText(text)
+    if (fallback) return fallback
+  }
+
+  // Routine dialogue and non-relocating twists keep the DB-resolved scene.
+  if (!shouldRunSceneClassifier(input.newEvent.kind, text)) {
+    return { changed: false }
+  }
 
   const apiKey = process.env.OPENROUTER_API_KEY
   if (!apiKey) {
     if (explicitRelocation) {
-      return twistSceneFallback(input.newEvent.text)
+      return twistSceneFallback(text)
     }
     console.warn('[scene-classifier] OPENROUTER_API_KEY not set; skipping')
     return { changed: false }
@@ -247,11 +262,11 @@ export async function classifyScene(
       apiKey,
       model,
       TWIST_EXTRACTION_PROMPT,
-      buildUserPrompt(input),
+      userPrompt,
       timeoutMs,
     )
     if (extraction.changed) return extraction
-    return twistSceneFallback(input.newEvent.text)
+    return twistSceneFallback(text)
   }
 
   return { changed: false }

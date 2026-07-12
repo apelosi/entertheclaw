@@ -17,6 +17,7 @@ import { SceneChangeOverlay } from './scene-change-overlay'
 import type { CurrentLine } from './stage-feed'
 import { useStageEvents } from './use-stage-events'
 import { useStageFeed } from './use-stage-feed'
+import { agentInvitePathForStage } from '@/lib/paths'
 import {
   feedItemsFromEvents,
   parseFeedItem,
@@ -518,6 +519,7 @@ export default function StageCanvas({
       <StageActionBar
         sceneName={currentScene?.name ?? null}
         castCount={mainCharacters.length}
+        inviteHref={agentInvitePathForStage(stageId)}
         twistsEnabled={twistsEnabled}
         onOpenScene={() => setActiveSheet('scene')}
         onOpenCast={() => setActiveSheet('cast')}

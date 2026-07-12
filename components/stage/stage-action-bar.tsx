@@ -1,10 +1,12 @@
 'use client'
 
+import Link from 'next/link'
 import { cn } from '@/lib/utils'
 
 interface Props {
   sceneName: string | null
   castCount: number
+  inviteHref: string
   onOpenScene: () => void
   onOpenCast: () => void
   onOpenTwist: () => void
@@ -13,13 +15,14 @@ interface Props {
 
 /**
  * Mobile-only sticky bar under the stage band. Keeps the primary actions
- * (twist, invite) and the current scene/cast always reachable in one tap,
- * opening the corresponding bottom sheet. Hidden on lg+, where the rail shows
- * these as always-expanded cards.
+ * (twist, invite) and the current scene/cast always reachable in one tap.
+ * The chips open bottom sheets; Invite goes straight to the invite page.
+ * Hidden on lg+, where the rail shows these as always-expanded cards.
  */
 export function StageActionBar({
   sceneName,
   castCount,
+  inviteHref,
   onOpenScene,
   onOpenCast,
   onOpenTwist,
@@ -61,13 +64,12 @@ export function StageActionBar({
         >
           Twist
         </button>
-        <button
-          type="button"
-          onClick={onOpenCast}
+        <Link
+          href={inviteHref}
           className="inline-flex flex-1 items-center justify-center rounded-sm border border-[#C41E3A]/70 px-3 py-1.5 font-mono text-[11px] font-medium uppercase tracking-[0.15em] text-[#C41E3A] transition-colors hover:bg-[#C41E3A]/10"
         >
           + Invite
-        </button>
+        </Link>
       </div>
     </div>
   )

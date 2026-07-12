@@ -1,16 +1,13 @@
 /**
- * Cheap pre-filters before calling the OpenRouter scene classifier.
+ * Structural pre-filters before calling the OpenRouter scene classifier.
  *
- * The gate is rules-based (regex keywords). When it passes, `classifyScene`
- * makes a semantic OpenRouter call to decide if the scene actually changes.
- * Current scene is always resolved from the DB without any LLM.
+ * Genre-agnostic: no hardcoded place nouns (hospital, cantina, etc.). Detects
+ * relocation *shape* — bracket stage directions, travel verbs, time cuts —
+ * then lets the LLM decide if the scene actually moves.
  */
 import { twistExplicitlyRelocatesScene } from './twist-scene-fallback'
 
 type SignalRule = { id: string; re: RegExp }
-
-const LOCATION_WORDS =
-  'hospital|dock(?:s)?|pier|warehouse|bakery|bedroom|corridor|elevator|cemetery|church|funeral(?:\\s+home)?|social\\s+club|post\\s+office|bank|vault|alley|rooftop|garden|courtyard|kitchen|bar|restaurant|station|garage|hallway|apartment|sidewalk|imports|mercantile|emergency\\s+room|waiting\\s+room|nursing\\s+home|clinic|morgue|chapel|graveyard|cemetery|dock(?:ing)?\\s+bay|loading\\s+bay|office|back\\s+room|study|ballroom|ballroom|reception'
 
 const DIALOGUE_SIGNAL_RULES: SignalRule[] = [
   {
@@ -19,15 +16,15 @@ const DIALOGUE_SIGNAL_RULES: SignalRule[] = [
   },
   {
     id: 'travel_to',
-    re: /\b(?:walk(?:s|ed|ing)?|run(?:s|ning)?|drive(?:s|d|ing)?|head(?:s|ed|ing)?|go(?:es|ne|ing)?|mov(?:e|es|ed|ing)|rush(?:es|ed|ing)?)\s+to\b/i,
+    re: /\b(?:walk(?:s|ed|ing)?|run(?:s|ning)?|drive(?:s|d|ing)?|head(?:s|ed|ing)?|go(?:es|ne|ing)?|mov(?:e|es|ed|ing)|rush(?:es|ed|ing)?|ride(?:s|s)?|gallop(?:s|ed|ing)?)\s+to\b/i,
   },
   {
     id: 'enter_into',
-    re: /\b(?:enter(?:s|ed|ing)?|step(?:s|ped|ping)?|walk(?:s|ed|ing)?|push(?:es|ed)?|pull(?:s|ed)?|stumble(?:s|d)?)\s+(?:in(?:to)?|through)\s+(?:the\s+)?/i,
+    re: /\b(?:enter(?:s|ed|ing)?|step(?:s|ped|ping)?|walk(?:s|ed|ing)?|push(?:es|ed)?|pull(?:s|ed)?|stumble(?:s|d)?|descend(?:s|ed|ing)?|ascend(?:s|ed|ing)?|emerg(?:e|es|ed|ing)?)\s+(?:in(?:to)?|through)\s+(?:the\s+)?/i,
   },
   {
     id: 'exit_from',
-    re: /\b(?:step(?:s|ped|ping)?|walk(?:s|ed|ing)?|storm(?:s|ed)?|burst(?:s|ed)?|push(?:es|ed)?)\s+(?:out\s+of|from)\s+(?:the\s+)?/i,
+    re: /\b(?:step(?:s|ped|ping)?|walk(?:s|ed|ing)?|storm(?:s|ed)?|burst(?:s|ed)?|push(?:es|ed)?|flee(?:s|d|ing)?)\s+(?:out\s+of|from)\s+(?:the\s+)?/i,
   },
   {
     id: 'return_to',
@@ -35,37 +32,19 @@ const DIALOGUE_SIGNAL_RULES: SignalRule[] = [
   },
   {
     id: 'time_cut',
-    re: /\b(?:cut\s+to|fade\s+to|dissolve\s+to|meanwhile|elsewhere|(?:hours?|days?|minutes?|weeks?)\s+later|(?:next|the\s+following)\s+(?:morning|afternoon|evening|night|day)|later\s+that|by\s+(?:morning|evening|dawn|nightfall))\b/i,
+    re: /\b(?:cut\s+to|fade\s+to|dissolve\s+to|meanwhile|elsewhere|(?:hours?|days?|minutes?|weeks?|months?|years?)\s+later|(?:next|the\s+following)\s+(?:morning|afternoon|evening|night|day)|later\s+that|by\s+(?:morning|evening|dawn|nightfall|sunrise|sunset))\b/i,
   },
   {
     id: 'we_are_at',
-    re: /\b(?:we(?:'re|\s+are)|i(?:'m|\s+am)|he(?:'s|\s+is)|she(?:'s|\s+is))\s+(?:now\s+)?(?:at|in|back\s+at|inside|outside)\s+(?:the\s+)?/i,
+    re: /\b(?:we(?:'re|\s+are)|i(?:'m|\s+am)|he(?:'s|\s+is)|she(?:'s|\s+is)|they(?:'re|\s+are))\s+(?:now\s+)?(?:at|in|back\s+at|inside|outside)\s+(?:the\s+)?/i,
   },
   {
     id: 'find_ourselves',
     re: /\bfind\s+(?:ourselves|yourself|themselves|himself|herself|myself)\s+(?:at|in)\b/i,
   },
   {
-    id: 'at_named_place',
-    re: new RegExp(
-      `\\b(?:at|in|into|inside|through|from|out\\s+of|back\\s+into|on)\\s+(?:the\\s+)?(?:${LOCATION_WORDS})\\b`,
-      'i',
-    ),
-  },
-  {
-    id: 'named_place_noun',
-    re: new RegExp(
-      `\\b(?:${LOCATION_WORDS})\\s+(?:corridor|room|doors|door|hallway|bed|floor|entrance|lobby|vault|desk|counter|window|street|avenue|block)\\b`,
-      'i',
-    ),
-  },
-  {
-    id: 'bracket_location',
-    re: /\[[^\]]{0,240}\b(?:stands?|sits?|walks?|steps?|drives?|pushes?|pulls?|enters?|arrives?|parks?|gets?\s+out|slides?\s+out|crosses?|hits?\s+the\s+gas)\b[^\]]{0,120}\b(?:at|in|into|inside|through|out\s+of|from|back\s+into|on|toward)\b[^\]]*\]/i,
-  },
-  {
-    id: 'bracket_named_place',
-    re: /\[[^\]]{0,240}\b(?:hospital|dock(?:s)?|pier|warehouse|bakery|bedroom|bank|post\s+office|social\s+club|emergency\s+room)\b[^\]]*\]/i,
+    id: 'bracket_staging',
+    re: /\[[^\]]{0,320}\b(?:stands?|sits?|kneels?|walks?|steps?|drives?|pushes?|pulls?|enters?|arrives?|parks?|gets?\s+out|slides?\s+out|crosses?|descends?|ascends?|emerges?|waits?|paces?|leans?|perches?)\b[^\]]*\]/i,
   },
   {
     id: 'stage_dir_marker',
@@ -95,11 +74,12 @@ const TWIST_IMPLICIT_RULES: SignalRule[] = [
     re: /\b(?:back\s+at|returns?\s+to|wakes?\s+(?:up\s+)?(?:in|at))\b/i,
   },
   {
-    id: 'twist_at_named_place',
-    re: new RegExp(
-      `\\b(?:at|in|into|inside|through|from|out\\s+of|back\\s+into|on)\\s+(?:the\\s+)?(?:${LOCATION_WORDS})\\b`,
-      'i',
-    ),
+    id: 'twist_time_cut',
+    re: /\b(?:cut\s+to|fade\s+to|dissolve\s+to|(?:hours?|days?|weeks?)\s+later)\b/i,
+  },
+  {
+    id: 'twist_travel',
+    re: /\b(?:arriv(?:e|es|ed|ing)\s+at|travel(?:s|ed|ing)?\s+to|mov(?:e|es|ed|ing)\s+to)\b/i,
   },
 ]
 
@@ -132,7 +112,7 @@ export function shouldRunSceneClassifier(
     : dialogueMightChangeScene(text)
 }
 
-/** Labels for which keyword rules fired (for audit CSVs). */
+/** Labels for which structural rules fired (for audit CSVs). */
 export function getMatchingRelocationSignals(
   kind: 'dialogue' | 'twist',
   text: string,

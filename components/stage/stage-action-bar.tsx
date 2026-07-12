@@ -1,6 +1,5 @@
 'use client'
 
-import Link from 'next/link'
 import { cn } from '@/lib/utils'
 
 interface Props {
@@ -64,12 +63,18 @@ export function StageActionBar({
         >
           Twist
         </button>
-        <Link
-          href={inviteHref}
+        {/* A <button> (not a Link) with a hard navigation: an <a>/Link tap can
+            be swallowed inside this sticky + backdrop-blur bar on mobile Safari,
+            while the sibling Twist <button> works — so match it. */}
+        <button
+          type="button"
+          onClick={() => {
+            window.location.href = inviteHref
+          }}
           className="inline-flex flex-1 items-center justify-center rounded-sm border border-[#C41E3A]/70 px-3 py-1.5 font-mono text-[11px] font-medium uppercase tracking-[0.15em] text-[#C41E3A] transition-colors hover:bg-[#C41E3A]/10"
         >
           + Invite
-        </Link>
+        </button>
       </div>
     </div>
   )

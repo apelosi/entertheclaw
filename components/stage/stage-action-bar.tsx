@@ -1,5 +1,6 @@
 'use client'
 
+import { useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
 
 interface Props {
@@ -27,6 +28,7 @@ export function StageActionBar({
   onOpenTwist,
   twistsEnabled,
 }: Props) {
+  const router = useRouter()
   const chip =
     'inline-flex min-w-0 items-center gap-1 rounded-full border px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.12em] transition-colors'
 
@@ -69,7 +71,7 @@ export function StageActionBar({
         <button
           type="button"
           onClick={() => {
-            window.location.href = inviteHref
+            router.push(inviteHref)
           }}
           className="inline-flex flex-1 items-center justify-center rounded-sm border border-[#C41E3A]/70 px-3 py-1.5 font-mono text-[11px] font-medium uppercase tracking-[0.15em] text-[#C41E3A] transition-colors hover:bg-[#C41E3A]/10"
         >

@@ -1,9 +1,10 @@
 import { notFound } from 'next/navigation'
 import type { Metadata } from 'next'
 import { db } from '@/lib/db/client'
-import { stages, stageParticipants, characters } from '@/lib/db/schema'
-import { eq, and } from 'drizzle-orm'
+import { stages } from '@/lib/db/schema'
+import { eq } from 'drizzle-orm'
 import { Nav } from '@/components/nav'
+import { getStageSpeakerImages } from '@/lib/stage/stage-cast-context'
 import { StageHistoryView } from '@/components/stage/stage-history-view'
 
 export const dynamic = 'force-dynamic'
@@ -32,26 +33,8 @@ export default async function StageHistoryPage({ params }: Props) {
     .limit(1)
   if (!stage) notFound()
 
-  // Character images for dialogue avatars, keyed by speaker name.
-  const participants = await db
-    .select({
-      characterName: characters.name,
-      characterImageUrl: characters.imageUrl,
-    })
-    .from(stageParticipants)
-    .leftJoin(
-      characters,
-      and(
-        eq(characters.agentId, stageParticipants.agentId),
-        eq(characters.stageId, id),
-      ),
-    )
-    .where(eq(stageParticipants.stageId, id))
-
-  const speakerImages: Record<string, string | null> = {}
-  for (const p of participants) {
-    if (p.characterName) speakerImages[p.characterName] = p.characterImageUrl
-  }
+  // Dialogue-avatar images by speaker name, including departed characters.
+  const speakerImages = await getStageSpeakerImages(id)
 
   return (
     <>

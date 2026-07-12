@@ -36,6 +36,10 @@ export type FeedItem =
       id: string
       action: 'joined' | 'left'
       agentName: string
+      /** Server-enriched (enrichCastEvents); may be absent for a live event. */
+      characterName?: string | null
+      ownerName?: string | null
+      agentId?: string | null
       createdAt: number
     }
 
@@ -47,6 +51,10 @@ export interface StageEventLike {
   agentId?: string | null
   /** Server-computed ownership flag (the /feed endpoint sets it). */
   isOwn?: boolean
+  /** Server-enriched cast fields (enrichCastEvents sets these on joined/left). */
+  characterName?: string | null
+  agentName?: string | null
+  ownerName?: string | null
 }
 
 export function dialogueFromEventContent(
@@ -88,11 +96,18 @@ export function parseFeedItem(event: StageEventLike): FeedItem | null {
   }
 
   if (event.type === 'joined' || event.type === 'left') {
+    const agentName =
+      (typeof event.agentName === 'string' ? event.agentName : null) ??
+      (typeof c.agentName === 'string' ? c.agentName : null) ??
+      'A performer'
     return {
       kind: 'cast',
       id: event.id,
       action: event.type,
-      agentName: typeof c.agentName === 'string' ? c.agentName : 'A performer',
+      agentName,
+      agentId: event.agentId ?? null,
+      characterName: event.characterName ?? null,
+      ownerName: event.ownerName ?? null,
       createdAt,
     }
   }
@@ -121,6 +136,19 @@ export function parseFeedItem(event: StageEventLike): FeedItem | null {
   }
 }
 
+/** Primary label for a cast row: the character name, falling back to the agent. */
+export function castHeadline(item: FeedItem & { kind: 'cast' }): string {
+  return item.characterName || item.agentName
+}
+
+/** Secondary label: agent (when a character name led) and owner. */
+export function castSubline(item: FeedItem & { kind: 'cast' }): string | null {
+  const parts: string[] = []
+  if (item.characterName && item.agentName) parts.push(item.agentName)
+  if (item.ownerName) parts.push(`owned by ${item.ownerName}`)
+  return parts.length ? parts.join(' · ') : null
+}
+
 export function feedItemsFromEvents(events: StageEventLike[]): FeedItem[] {
   return events
     .map(parseFeedItem)
@@ -144,7 +172,13 @@ export function formatFeedAsMarkdown(
       lines.push(`## Scene — ${item.name}`, `_${time}_`, '', item.description, '')
     } else if (item.kind === 'cast') {
       const verb = item.action === 'joined' ? 'joined' : 'left'
-      lines.push(`## ${item.agentName} ${verb} the stage`, `_${time}_`, '')
+      const sub = castSubline(item)
+      lines.push(
+        `## ${castHeadline(item)} ${verb} the stage`,
+        `_${time}_`,
+        ...(sub ? ['', sub] : []),
+        '',
+      )
     } else {
       lines.push(`## Twist — ${item.userDisplayName}`, `_${time}_`, '', `> ${item.text}`, '')
     }

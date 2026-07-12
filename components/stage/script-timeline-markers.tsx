@@ -4,13 +4,6 @@ import type { ReactNode } from 'react'
 import { cn } from '@/lib/utils'
 import { MONO_BODY_SM } from './stage-mobile-classes'
 
-const TWIST_PREVIEW_LEN = 60
-
-function twistPreview(text: string): string {
-  if (text.length <= TWIST_PREVIEW_LEN) return text
-  return `${text.slice(0, TWIST_PREVIEW_LEN).trimEnd()}…`
-}
-
 const DIVIDER_EDGE = 'text-[#444440]/80'
 
 const MARKER_BASE =
@@ -19,14 +12,12 @@ const MARKER_BASE =
 function TimelineDivider({
   children,
   className,
-  title,
 }: {
   children: ReactNode
   className?: string
-  title?: string
 }) {
   return (
-    <p className={cn(MARKER_BASE, className)} title={title}>
+    <p className={cn(MARKER_BASE, className)}>
       <span className={DIVIDER_EDGE} aria-hidden>
         ──{' '}
       </span>
@@ -49,12 +40,12 @@ export function SceneScriptMarker({
   className?: string
 }) {
   return (
-    <TimelineDivider
-      className={cn('uppercase text-[#2A8E8E]', className)}
-      title={description}
-    >
-      Scene · {name}
-    </TimelineDivider>
+    <div className={cn('flex flex-col gap-1', className)}>
+      <TimelineDivider className="uppercase text-[#2A8E8E]">Scene · {name}</TimelineDivider>
+      {description ? (
+        <p className={cn(MONO_BODY_SM, 'px-2 text-center text-[#888880]')}>{description}</p>
+      ) : null}
+    </div>
   )
 }
 
@@ -67,13 +58,17 @@ export function TwistScriptMarker({
   text: string
   className?: string
 }) {
-  const preview = twistPreview(text)
   return (
-    <TimelineDivider className={cn('text-[#B8860B]/90', className)} title={text}>
-      <span className="uppercase text-[#888880]">Twist · {userDisplayName}</span>
-      <span className={cn('ml-1 italic normal-case', MONO_BODY_SM)}>
-        &ldquo;{preview}&rdquo;
-      </span>
-    </TimelineDivider>
+    <div className={cn('flex flex-col gap-1', className)}>
+      <TimelineDivider className="uppercase text-[#B8860B]/90">
+        Twist · {userDisplayName}
+      </TimelineDivider>
+      <p
+        className="px-2 text-center text-[13px] italic leading-snug text-[#B8860B]/90 max-md:text-[11px]"
+        style={{ fontFamily: 'var(--font-display)' }}
+      >
+        &ldquo;{text}&rdquo;
+      </p>
+    </div>
   )
 }

@@ -3,14 +3,14 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react'
 import {
   feedReducer,
-  filterToTypes,
   initialFeedState,
   visibleUnderFilter,
   type FeedFilter,
 } from '@/lib/stage/feed-state'
 import { parseFeedItem, type FeedItem, type StageEventLike } from '@/lib/stage/feed-items'
 
-const OLDER_PAGE_SIZE = 20
+const PRELOAD_PAGE_SIZE = 100
+const OLDER_PAGE_SIZE = 100
 /** scrollTop under this (px from the newest end) counts as "following" the live edge. */
 const FOLLOW_THRESHOLD_PX = 24
 
@@ -18,6 +18,17 @@ interface FeedApiEvent extends StageEventLike {
   agentId?: string | null
   isOwn?: boolean
 }
+
+/**
+ * How much of the timeline to pull up front:
+ * - 'none' — just the total (the caller already has the items).
+ * - 'all'  — background-load the entire history, newest → older.
+ * With 'all', filtering is a pure client-side subset (no per-filter fetch), so
+ * switching filters is instant and complete — this is why the panel's Twists
+ * filter finds twists that are older than the recent window. It's a one-time
+ * load on entry, dwarfed by the ongoing SSE poll.
+ */
+type PreloadMode = 'none' | 'all'
 
 interface UseStageFeedOptions {
   stageId: string
@@ -27,12 +38,7 @@ interface UseStageFeedOptions {
   initialFilter?: FeedFilter
   /** Called after the user changes the filter (the history route syncs the URL). */
   onFilterChange?: (filter: FeedFilter) => void
-  /**
-   * How many items the mount fetch pulls. The stage page already has server
-   * items, so it only needs the total (1). The history route starts empty and
-   * asks for a full first page.
-   */
-  mountFetchLimit?: number
+  preload?: PreloadMode
 }
 
 export interface StageFeedController {
@@ -42,6 +48,10 @@ export interface StageFeedController {
   allItems: FeedItem[]
   hasMore: boolean
   total: number | null
+  /** No items yet and still fetching the first page — show a skeleton, not empty. */
+  loading: boolean
+  /** Background preload still running — a currently-empty filter may still fill. */
+  preloading: boolean
   loadingOlder: boolean
   following: boolean
   unread: number
@@ -53,18 +63,25 @@ export interface StageFeedController {
   onScroll: () => void
 }
 
+function parseEvents(events: unknown): FeedItem[] {
+  if (!Array.isArray(events)) return []
+  return (events as FeedApiEvent[])
+    .map((e) => parseFeedItem(e))
+    .filter((i): i is FeedItem => i !== null)
+}
+
 /**
- * Owns the unified stage feed's timeline: the loaded items, older-page
- * pagination against /feed, the active filter, and follow/unread tracking.
- * StageCanvas pushes live SSE items in via `pushLive`; the newest end is the
- * top of the list (matching the app's newest-first convention).
+ * Owns the unified stage feed's timeline: the loaded items, the active filter,
+ * and follow/unread tracking. All event types are loaded up front (per
+ * `preload`) so filtering is an instant client-side subset. StageCanvas pushes
+ * live SSE items in via `pushLive`; the newest end is the top of the list.
  */
 export function useStageFeed({
   stageId,
   initialItems,
   initialFilter = 'all',
   onFilterChange,
-  mountFetchLimit = 1,
+  preload = 'none',
 }: UseStageFeedOptions): StageFeedController {
   const [state, dispatch] = useReducer(feedReducer, undefined, () => ({
     ...initialFeedState,
@@ -72,10 +89,12 @@ export function useStageFeed({
     filter: initialFilter,
   }))
   const [loadingOlder, setLoadingOlder] = useState(false)
+  const [preloading, setPreloading] = useState(preload !== 'none')
 
   const scrollRef = useRef<HTMLDivElement | null>(null)
   const sentinelRef = useRef<HTMLDivElement | null>(null)
   const loadingRef = useRef(false)
+  const preloadingRef = useRef(false)
 
   const visibleItems = useMemo(
     () => visibleUnderFilter(state.items, state.filter),
@@ -84,62 +103,97 @@ export function useStageFeed({
 
   const hasMore =
     !state.reachedEnd && (state.total === null || state.items.length < state.total)
+  const loading = state.items.length === 0 && preloading
 
-  // Mount fetch: learns the true total (powers "N of M") and, for the history
-  // route (mountFetchLimit > 1), pulls the first page since it starts empty.
-  // Scoped to the active filter's types so the total matches the view.
+  // Load the timeline up front (all event types), newest → older. Filtering is
+  // client-side afterward, so this is the only place data is fetched on entry.
   useEffect(() => {
     const controller = new AbortController()
-    const params = new URLSearchParams({ limit: String(mountFetchLimit) })
-    const types = filterToTypes(initialFilter)
-    if (types) params.set('types', types.join(','))
-    fetch(`/api/v1/stages/${stageId}/feed?${params.toString()}`, { signal: controller.signal })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => {
-        if (!data || typeof data.total !== 'number') return
-        const parsed = Array.isArray(data.events)
-          ? (data.events as FeedApiEvent[])
-              .map((e) => parseFeedItem(e))
-              .filter((i): i is FeedItem => i !== null)
-          : []
-        dispatch({ kind: 'hydrate', items: parsed, total: data.total })
-      })
-      .catch(() => {
-        // aborted or offline; the feed still works off initialItems + live SSE
-      })
-    return () => controller.abort()
-  }, [stageId, initialFilter, mountFetchLimit])
+
+    async function run() {
+      if (preload === 'none') {
+        // The caller already has the items; we only need the total.
+        try {
+          const r = await fetch(`/api/v1/stages/${stageId}/feed?limit=1`, {
+            signal: controller.signal,
+          })
+          const data = r.ok ? await r.json() : null
+          if (data && typeof data.total === 'number') {
+            dispatch({ kind: 'hydrate', items: parseEvents(data.events), total: data.total })
+          }
+        } catch {
+          /* aborted/offline — feed still works off initialItems + live SSE */
+        }
+        return
+      }
+
+      preloadingRef.current = true
+      setPreloading(true)
+      let cursor: string | null = null
+      let first = true
+
+      while (!controller.signal.aborted) {
+        const params = new URLSearchParams({ limit: String(PRELOAD_PAGE_SIZE) })
+        if (cursor) params.set('before', cursor)
+        let data: { events?: unknown; total?: number; hasMore?: boolean } | null = null
+        try {
+          const r = await fetch(`/api/v1/stages/${stageId}/feed?${params.toString()}`, {
+            signal: controller.signal,
+          })
+          data = r.ok ? await r.json() : null
+        } catch {
+          break
+        }
+        if (!data) break
+
+        const items = parseEvents(data.events)
+        if (first) {
+          dispatch({ kind: 'hydrate', items, total: data.total ?? null })
+        } else {
+          dispatch({ kind: 'olderLoaded', items })
+        }
+        first = false
+        cursor = items.length ? items[items.length - 1].id : cursor
+        if (!data.hasMore || items.length === 0) break
+      }
+
+      if (!controller.signal.aborted) {
+        preloadingRef.current = false
+        setPreloading(false)
+      }
+    }
+
+    run()
+    return () => {
+      controller.abort()
+      preloadingRef.current = false
+    }
+    // Preload runs once per stage on mount; initialFilter/initialItems are seeds.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stageId, preload])
 
   const loadOlder = useCallback(() => {
-    if (loadingRef.current || state.reachedEnd) return
+    if (loadingRef.current || preloadingRef.current || state.reachedEnd) return
     const oldest = state.items[state.items.length - 1]
     if (!oldest) return
 
     loadingRef.current = true
     setLoadingOlder(true)
 
-    const types = filterToTypes(state.filter)
-    const params = new URLSearchParams({
-      before: oldest.id,
-      limit: String(OLDER_PAGE_SIZE),
-    })
-    if (types) params.set('types', types.join(','))
-
+    // Fetch all types — filtering is client-side over the full timeline.
+    const params = new URLSearchParams({ before: oldest.id, limit: String(OLDER_PAGE_SIZE) })
     fetch(`/api/v1/stages/${stageId}/feed?${params.toString()}`)
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
         if (!data || !Array.isArray(data.events)) return
-        const items = (data.events as FeedApiEvent[])
-          .map((e) => parseFeedItem(e))
-          .filter((i): i is FeedItem => i !== null)
-        dispatch({ kind: 'olderLoaded', items })
+        dispatch({ kind: 'olderLoaded', items: parseEvents(data.events) })
       })
       .catch(() => {})
       .finally(() => {
         loadingRef.current = false
         setLoadingOlder(false)
       })
-  }, [stageId, state.filter, state.items, state.reachedEnd])
+  }, [stageId, state.items, state.reachedEnd])
 
   const pushLive = useCallback((item: FeedItem) => {
     dispatch({ kind: 'live', item })
@@ -166,7 +220,8 @@ export function useStageFeed({
     dispatch({ kind: 'setFollowing', following: true })
   }, [])
 
-  // Load older pages when the bottom sentinel scrolls into view.
+  // Load older pages when the bottom sentinel scrolls into view (only relevant
+  // once preloading has stopped and there's still more beyond the cap).
   useEffect(() => {
     const sentinel = sentinelRef.current
     const root = scrollRef.current
@@ -188,6 +243,8 @@ export function useStageFeed({
     allItems: state.items,
     hasMore,
     total: state.total,
+    loading,
+    preloading,
     loadingOlder,
     following: state.following,
     unread: state.unread,

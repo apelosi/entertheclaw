@@ -14,6 +14,7 @@ import StageViewClient from '@/components/stage/stage-view-client'
 import { Nav } from '@/components/nav'
 import { resolveStageImageUrl } from '@/lib/db/stage-image-by-name'
 import { resolveCurrentScene } from '@/lib/stage/apply-scene-classifier'
+import { enrichCastEvents, getStageSpeakerImages } from '@/lib/stage/stage-cast-context'
 import { getServerSession } from '@/lib/auth/get-server-session'
 
 interface Props {
@@ -121,10 +122,18 @@ async function getStageData(id: string, userId: string | null) {
     (p) => typeof p.characterName === 'string' && p.characterName.trim().length > 0,
   )
 
+  // Character/agent/owner labels for cast rows, and dialogue-avatar images that
+  // also cover departed characters (their live rows are gone).
+  const [enrichedEvents, speakerImages] = await Promise.all([
+    enrichCastEvents(recentScriptEvents, id),
+    getStageSpeakerImages(id),
+  ])
+
   return {
     stage,
     participants,
-    recentScriptEvents,
+    recentScriptEvents: enrichedEvents,
+    speakerImages,
     initialScene,
     stageIsActive: stage.isActive ?? true,
     hasCastOnStage,
@@ -148,6 +157,7 @@ export default async function StagePage({ params }: Props) {
     stage,
     participants,
     recentScriptEvents,
+    speakerImages,
     initialScene,
     lastTwistAt,
     lastUserTwistAt,
@@ -170,6 +180,7 @@ export default async function StagePage({ params }: Props) {
         stageCreatedAt={stage.createdAt ? stage.createdAt.toISOString() : null}
         participants={participants}
         initialEvents={recentScriptEvents}
+        speakerImages={speakerImages}
         initialScene={initialScene}
         isLoggedIn={Boolean(userId)}
         currentUserId={userId}

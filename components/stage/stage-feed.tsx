@@ -1,7 +1,7 @@
 'use client'
 
 import Image from 'next/image'
-import type { FeedItem } from '@/lib/stage/feed-items'
+import { castHeadline, castSubline, type FeedItem } from '@/lib/stage/feed-items'
 import { FEED_FILTERS, type FeedFilter } from '@/lib/stage/feed-state'
 import { normalizeEmoteAction } from '@/lib/stage/dialogue-format'
 import { cn } from '@/lib/utils'
@@ -126,20 +126,25 @@ function DialogueRow({
 
 function CastMarker({ item }: { item: FeedItem & { kind: 'cast' } }) {
   const verb = item.action === 'joined' ? 'joined the stage' : 'left the stage'
+  const subline = castSubline(item)
   return (
-    <p
-      className="text-center font-mono text-[10px] tracking-[0.12em] text-[#666] max-md:text-[8px]"
-      title={`${item.agentName} ${verb}`}
-    >
-      <span className="text-[#444440]" aria-hidden>
-        ──{' '}
-      </span>
-      <span className="uppercase">{item.agentName}</span> {verb}
-      <span className="text-[#444440]" aria-hidden>
-        {' '}
-        ──
-      </span>
-    </p>
+    <div className="flex flex-col gap-0.5">
+      <p className="text-center font-mono text-[10px] tracking-[0.12em] text-[#888880] max-md:text-[8px]">
+        <span className="text-[#444440]" aria-hidden>
+          ──{' '}
+        </span>
+        <span className="uppercase">{castHeadline(item)}</span> {verb}
+        <span className="text-[#444440]" aria-hidden>
+          {' '}
+          ──
+        </span>
+      </p>
+      {subline ? (
+        <p className="text-center font-mono text-[9px] uppercase tracking-[0.12em] text-[#555] max-md:text-[8px]">
+          {subline}
+        </p>
+      ) : null}
+    </div>
   )
 }
 
@@ -215,6 +220,8 @@ export function StageFeed({ feed, currentLine, speakerImageByName, variant = 'pa
     visibleItems,
     hasMore,
     total,
+    loading,
+    preloading,
     loadingOlder,
     following,
     unread,
@@ -229,23 +236,23 @@ export function StageFeed({ feed, currentLine, speakerImageByName, variant = 'pa
     ? visibleItems.filter((i) => i.id !== currentLine.eventId)
     : visibleItems
 
-  const marker =
-    filter === 'all' && total !== null
+  const marker = loading
+    ? 'Loading…'
+    : filter === 'all' && total !== null
       ? `Showing ${rows.length} of ${total}`
       : `Showing ${rows.length}`
 
+  // Panel scrolls inside a capped box; the full history flows with the page so
+  // the footer sits below the content instead of overlapping it.
   const scrollClass =
-    variant === 'full'
-      ? 'min-h-0 flex-1 overflow-y-auto'
-      : 'max-h-[24rem] overflow-y-auto max-md:max-h-[18rem]'
+    variant === 'full' ? '' : 'max-h-[24rem] overflow-y-auto max-md:max-h-[18rem]'
+
+  // Show a skeleton while the first page (or a still-empty filter mid-preload)
+  // is loading — never the empty-state text in place of a loading animation.
+  const showSkeleton = rows.length === 0 && (loading || preloading || loadingOlder)
 
   return (
-    <div
-      className={cn(
-        'flex flex-col gap-2',
-        variant === 'full' && 'h-full min-h-0',
-      )}
-    >
+    <div className="flex flex-col gap-2">
       {/* Filter chips + depth marker */}
       <div className="flex flex-wrap items-center gap-1.5">
         {FEED_FILTERS.map((f) => (
@@ -288,7 +295,9 @@ export function StageFeed({ feed, currentLine, speakerImageByName, variant = 'pa
           className={cn(scrollClass, 'flex flex-col pt-1', PANEL_STACK_GAP)}
           aria-label="Stage feed"
         >
-          {rows.length === 0 && !loadingOlder ? (
+          {showSkeleton ? (
+            <SkeletonRows />
+          ) : rows.length === 0 ? (
             <p className={cn('py-1', MONO_MUTED)}>{EMPTY_MESSAGES[filter]}</p>
           ) : (
             <ul className={cn('flex flex-col', PANEL_STACK_GAP)}>
@@ -300,9 +309,7 @@ export function StageFeed({ feed, currentLine, speakerImageByName, variant = 'pa
             </ul>
           )}
           {hasMore ? (
-            <div ref={sentinelRef}>
-              {loadingOlder && <SkeletonRows />}
-            </div>
+            <div ref={sentinelRef}>{loadingOlder && rows.length > 0 && <SkeletonRows />}</div>
           ) : (
             rows.length > 0 && (
               <p className={cn('py-2 text-center', MONO_MUTED)}>Beginning of the stage.</p>

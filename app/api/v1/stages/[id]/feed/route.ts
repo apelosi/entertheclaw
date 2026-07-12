@@ -6,6 +6,7 @@ import {
   parseFeedLimit,
   queryStageEventsBefore,
 } from '@/lib/stage/query-stage-events'
+import { enrichCastEvents } from '@/lib/stage/stage-cast-context'
 import { eq, and, inArray, sql } from 'drizzle-orm'
 
 export const runtime = 'nodejs'
@@ -77,13 +78,16 @@ export async function GET(
       }
     }
 
-    const responseEvents = events.map(({ userId: eventUserId, ...rest }) => {
+    const ownedEvents = events.map(({ userId: eventUserId, ...rest }) => {
       const isOwn =
         userId !== null &&
         ((rest.agentId !== null && ownAgentIds?.has(rest.agentId) === true) ||
           eventUserId === userId)
       return isOwn ? { ...rest, isOwn: true } : rest
     })
+
+    // Attach character/agent/owner labels to any cast (joined/left) rows.
+    const responseEvents = await enrichCastEvents(ownedEvents, stageId)
 
     let total: number | undefined
     if (!before) {

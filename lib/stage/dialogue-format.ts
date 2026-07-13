@@ -173,6 +173,21 @@ export function normalizeSmartQuotes(text: string): string {
 }
 
 /**
+ * `] 'speech...'"` → `] "speech..."` — legacy single-quote dialogue with a stray closing `"`.
+ */
+export function normalizeSingleQuotedSpeechAfterAction(text: string): string {
+  let trimmed = text.trimEnd()
+  if (trimmed.endsWith('"') && !trimmed.endsWith('\\"')) {
+    const withoutTrailing = trimmed.slice(0, -1).trimEnd()
+    const match = withoutTrailing.match(/^([\s\S]*?\])\s+'([\s\S]+)'$/)
+    if (match && match[2].length >= 15) {
+      return `${match[1]} "${match[2]}"`
+    }
+  }
+  return text
+}
+
+/**
  * Class C runs when the line has substantial spoken quotes, or short quoted beats
  * followed by a new staging sentence (`"Palermo." Then his arm...`).
  */
@@ -898,7 +913,8 @@ export function analyzeDialogueRepair(text: string): DialogueRepairAnalysis {
   const stripped = stripAgentToolLeakage(text)
   const smart = normalizeSmartQuotes(stripped)
   const escaped = normalizeStoredQuoteEscapes(smart)
-  const unwrappedOuter = unwrapOuterDialogueQuotes(escaped)
+  const singleQuotedAfterAction = normalizeSingleQuotedSpeechAfterAction(escaped)
+  const unwrappedOuter = unwrapOuterDialogueQuotes(singleQuotedAfterAction)
   const unwrappedSingle = unwrapOuterQuoteWithInnerSingleSpeech(unwrappedOuter)
   const normalizedSingles = normalizeSingleQuotedSpeech(unwrappedSingle)
   const affirmed = absorbAffirmationAfterQuote(normalizedSingles)
@@ -922,7 +938,8 @@ export function analyzeDialogueRepair(text: string): DialogueRepairAnalysis {
       stripped !== text ||
       smart !== stripped ||
       escaped !== smart ||
-      unwrappedOuter !== escaped ||
+      singleQuotedAfterAction !== escaped ||
+      unwrappedOuter !== singleQuotedAfterAction ||
       unwrappedSingle !== unwrappedOuter ||
       normalizedSingles !== unwrappedSingle ||
       affirmed !== normalizedSingles ||

@@ -38,10 +38,22 @@ import {
 function readDatabaseUrl(): string {
   const prefix = '--database-url='
   const arg = process.argv.find((a) => a.startsWith(prefix))
-  if (arg) return arg.slice(prefix.length).trim()
-  const url = process.env.DATABASE_URL ?? process.env.NEON_DATABASE_URL
+  const url = (arg ? arg.slice(prefix.length) : process.env.DATABASE_URL ?? process.env.NEON_DATABASE_URL)?.trim()
   if (!url) {
     throw new Error('Set DATABASE_URL or pass --database-url=...')
+  }
+  // Neon HTTP driver requires a Latin-1 URL. Unicode ellipsis (…) from chat
+  // placeholders, smart quotes, or non-ASCII passwords fail with ByteString errors.
+  for (let i = 0; i < url.length; i++) {
+    const code = url.charCodeAt(i)
+    if (code > 255) {
+      const ch = url[i]
+      const name = code === 0x2026 ? 'ellipsis (…) — did you paste a placeholder URL?' : `U+${code.toString(16).toUpperCase()}`
+      throw new Error(
+        `DATABASE_URL has a non-ASCII character at index ${i}: ${name}.\n` +
+          'Use a plain ASCII postgres URL. Do not copy "…" placeholders from chat.',
+      )
+    }
   }
   return url
 }

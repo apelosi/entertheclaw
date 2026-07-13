@@ -298,6 +298,12 @@ export function normalizeSingleQuotedSpeech(text: string): string {
           i = j + 1
           continue
         }
+        // Short citations ('carry' / 'choose.') stay single-quoted — emit the
+        // whole pair so the closing ' is not re-read as a new opener (that bug
+        // produced: it was 'choose." … gave us "carry').
+        result += text.slice(i, j + 1)
+        i = j + 1
+        continue
       }
     }
     result += ch
@@ -315,10 +321,16 @@ function isJunkBareProse(trimmed: string): boolean {
 }
 
 /**
- * Bare prose that is out-loud speech (not physical staging). Prefer quoting
- * these over bracketing — Class C used to wrap spoken tails like
- * `There. Did you hear that, forge-master?` in [brackets].
+ * `'Cited phrase'—yes.` / `"Cited phrase"—yes.` → `"Cited phrase—yes."`
+ * Agents echo a prior line and affirm it; Class C otherwise wraps `—yes.` as `[—yes.]`.
  */
+export function absorbAffirmationAfterQuote(text: string): string {
+  return text
+    .replace(/"([^"]+)"\s*—\s*yes\.?/gi, '"$1—yes."')
+    .replace(/'([^']+)'\s*—\s*yes\.?/gi, '"$1—yes."')
+    .replace(/\u201c([^\u201d]+)\u201d\s*—\s*yes\.?/gi, '"$1—yes."')
+}
+
 export function looksLikeSpokenBareProse(trimmed: string): boolean {
   if (!trimmed) return false
   if (FIRST_PERSON_DIRECTION.test(trimmed)) return false
@@ -342,13 +354,25 @@ export function looksLikeSpokenBareProse(trimmed: string): boolean {
   if (/^(you|you're|your|yours|you’re)\b/i.test(trimmed)) return true
   if (/\?\s*$/.test(trimmed)) return true
   if (/\byou understand\?\s*$/i.test(trimmed)) return true
+  // Long monologue with mid-line first person ("… I respect … look me in the eye.").
+  if (
+    /\bI(?:'m|'ve|'ll|'d|’m|’ve|’ll|’d)?\s+\w+/i.test(trimmed) &&
+    /[.!]\s*$/.test(trimmed) &&
+    trimmed.split(/\s+/).filter(Boolean).length >= 12
+  ) {
+    return true
+  }
 
   // Physical staging cues without a speech signal → direction.
-  if (STAGE_ACTION_VERB.test(trimmed)) return false
+  // Only weigh early-line cues so idioms mid-speech ("the voice that…", "in the eye")
+  // do not force brackets around spoken monologue.
+  const early = trimmed.slice(0, Math.min(56, trimmed.length))
+  if (STAGE_ACTION_VERB.test(early) && !/^(I|You)\b/i.test(trimmed)) return false
   if (
     /\b(eyes?|gaze|hand|palm|fingers?|voice|body|lips?|tremor|floor|boots?|flickers?|scanning|crouches?|pressing|cybernetic)\b/i.test(
-      trimmed,
-    )
+      early,
+    ) &&
+    !/^(I|You)\b/i.test(trimmed)
   ) {
     return false
   }
@@ -877,7 +901,8 @@ export function analyzeDialogueRepair(text: string): DialogueRepairAnalysis {
   const unwrappedOuter = unwrapOuterDialogueQuotes(escaped)
   const unwrappedSingle = unwrapOuterQuoteWithInnerSingleSpeech(unwrappedOuter)
   const normalizedSingles = normalizeSingleQuotedSpeech(unwrappedSingle)
-  const unwrapped = unwrapMistakenLeadingQuote(normalizedSingles)
+  const affirmed = absorbAffirmationAfterQuote(normalizedSingles)
+  const unwrapped = unwrapMistakenLeadingQuote(affirmed)
   const normalized = normalizeStageDirectionMarkers(unwrapped)
   const afterE = repairInvertedSpeechBrackets(normalized)
   const afterFixDouble = fixDoubleClosedDirectionBeforeQuote(afterE)
@@ -900,7 +925,8 @@ export function analyzeDialogueRepair(text: string): DialogueRepairAnalysis {
       unwrappedOuter !== escaped ||
       unwrappedSingle !== unwrappedOuter ||
       normalizedSingles !== unwrappedSingle ||
-      unwrapped !== normalizedSingles,
+      affirmed !== normalizedSingles ||
+      unwrapped !== affirmed,
     classE: afterE !== normalized,
     classC:
       afterC !== afterFixDouble ||

@@ -221,6 +221,33 @@ describe('repairDialogueFormatting — user-reported Script lines', () => {
       ).toBe(
         `"I've been patient. But patience runs thin when there's business to handle. So let me make this simple — anyone with something to say, say it now. Otherwise, I make the calls myself. You understand?"`,
       )
+      expect(
+        repairDialogueFormatting(
+          `Sundown's getting closer. The ones who'll show have shown. The rest? They've made their choice. I respect it about as much as I respect a man who won't look me in the eye.`,
+        ),
+      ).toBe(
+        `"Sundown's getting closer. The ones who'll show have shown. The rest? They've made their choice. I respect it about as much as I respect a man who won't look me in the eye."`,
+      )
+    })
+
+    it('absorbs echoed-phrase —yes affirmations into the quote', () => {
+      expect(
+        repairDialogueFormatting(
+          `[Steps toward Theron] 'The only war Olympus loses'—yes. [He meets his eye] Because truth that spreads through every temple at once can't be stopped by one god's lightning. Let me be the voice that carries it first.`,
+        ),
+      ).toBe(
+        `[Steps toward Theron] "The only war Olympus loses—yes." [He meets his eye] "Because truth that spreads through every temple at once can't be stopped by one god's lightning. Let me be the voice that carries it first."`,
+      )
+    })
+
+    it('does not mangle short single-quoted word citations inside a spoken line', () => {
+      const raw =
+        `[Selene looks at Pyros.] Pyros. You said the word was not 'carry' — it was 'choose.' [She pauses.] But I think the silence knew what it was doing when it gave us 'carry' instead.`
+      const fixed = repairDialogueFormatting(raw)
+      expect(fixed).not.toContain("'choose.\"")
+      expect(fixed).not.toContain('""carry')
+      expect(fixed).toContain("'carry'")
+      expect(fixed).toContain("'choose.'")
     })
   })
 

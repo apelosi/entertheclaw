@@ -6,8 +6,8 @@
  * - "quotes"   = spoken dialogue (white) — when outside [brackets]
  *
  * Repairs:
- * - Prep: strip leaked etc_emote/etc_speak prefixes; unwrap mistaken leading " before [
- * - Class C: wrap every unbracketed prose run (stage direction) in [brackets], including beats between quotes
+ * - Prep: strip tool leakage; normalize stored \" escapes; unwrap mistaken leading "
+ * - Class C: bracket unbracketed stage direction between substantial spoken quotes; quote bare speech
  * - Class A: close [brackets] before trapped spoken dialogue (heuristic-gated)
  * - Class B: unwrap single-word [emphasis] inside quotes → plain spoken word
  * - Class D: trim trailing quote garbage (e.g. .""'); add missing closing " only when
@@ -27,6 +27,55 @@ const EMBEDDED_PRONOUN_BEFORE_QUOTE =
 const THE_WORD_BEFORE_QUOTE = /\bthe word$/i
 const DIALOGUE_VERB_BEFORE_QUOTE =
   /\b(say|says|said|whisper|whispers|murmur|murmurs|crackles|shouts|asks|mutters|calls)\s*,?\s*$/i
+/** First-person attribution / action — stage direction, not out-loud speech. */
+const FIRST_PERSON_DIRECTION =
+  /^I\s+(?:echo|whisper|mutter|murmur|press|step|steps|draw|turn|look|glance|reach|kneel|crouch|straighten|shift|limp|gasps?|watches?|glances?)\b/i
+/** First-person lines that are the spoken words, not physical staging. */
+const FIRST_PERSON_SPOKEN =
+  /^I\s+(?:did|do|don't|does|can|will|would|have|had|am|was|were|see|saw|think|thought|know|knew|said|say|tells?|told|mean|meant|need|want|gave|give|didn't)\b/i
+
+function isEscapedAt(text: string, index: number): boolean {
+  return index > 0 && text[index - 1] === '\\'
+}
+
+/** Closing `"` index for opener at `openIdx`, or -1 when unclosed. */
+export function findCloseQuote(text: string, openIdx: number): number {
+  let j = openIdx + 1
+  while (j < text.length) {
+    if (isEscapedAt(text, j)) {
+      j += 2
+      continue
+    }
+    if (text[j] === '"') return j
+    j++
+  }
+  return -1
+}
+
+/** Content inside `"..."` starting at `openIdx` (excluding delimiters). */
+export function spokenQuoteContent(text: string, openIdx: number): string | null {
+  if (text[openIdx] !== '"' || isEscapedAt(text, openIdx)) return null
+  const closeIdx = findCloseQuote(text, openIdx)
+  if (closeIdx < 0) return null
+  return text.slice(openIdx + 1, closeIdx)
+}
+
+/** Short cited words ("Sera", "complete.") are not spoken dialogue spans. */
+export function isSubstantialSpokenQuoteContent(content: string): boolean {
+  const trimmed = content.trim()
+  if (!trimmed) return false
+  const words = trimmed.split(/\s+/).filter(Boolean)
+  if (words.length >= 3) return true
+  return trimmed.length >= 20
+}
+
+/** True when `"` at `index` opens substantial out-loud speech outside [brackets]. */
+export function isSubstantialSpokenQuoteAt(text: string, index: number): boolean {
+  if (text[index] !== '"' || isEscapedAt(text, index)) return false
+  const content = spokenQuoteContent(text, index)
+  if (content === null) return false
+  return isSubstantialSpokenQuoteContent(content)
+}
 
 function applyAsteriskRules(text: string, inQuotes: boolean): string {
   if (inQuotes) {
@@ -43,17 +92,16 @@ export function normalizeStageDirectionMarkers(text: string): string {
   let result = ''
   let i = 0
   while (i < text.length) {
-    if (text[i] === '"') {
-      let j = i + 1
-      while (j < text.length && text[j] !== '"') j++
-      if (j >= text.length) {
+    if (text[i] === '"' && !isEscapedAt(text, i)) {
+      const closeIdx = findCloseQuote(text, i)
+      if (closeIdx < 0) {
         result += applyAsteriskRules(text.slice(i), true)
         break
       }
-      result += '"' + applyAsteriskRules(text.slice(i + 1, j), true) + '"'
-      i = j + 1
+      result += '"' + applyAsteriskRules(text.slice(i + 1, closeIdx), true) + '"'
+      i = closeIdx + 1
     } else {
-      const nextQuote = text.indexOf('"', i)
+      const nextQuote = indexOfSpokenQuoteFrom(text, i, false)
       const end = nextQuote === -1 ? text.length : nextQuote
       result += applyAsteriskRules(text.slice(i, end), false)
       i = end
@@ -85,14 +133,12 @@ export function stripAgentToolLeakage(text: string): string {
 
 /** Index of the first `"` outside any [bracket] block (spoken dialogue opener). */
 export function indexOfFirstSpokenQuote(text: string): number {
-  let bracketDepth = 0
-  for (let i = 0; i < text.length; i++) {
-    const ch = text[i]
-    if (ch === '[') bracketDepth++
-    else if (ch === ']' && bracketDepth > 0) bracketDepth--
-    else if (ch === '"' && bracketDepth === 0) return i
-  }
-  return -1
+  return indexOfSpokenQuoteFrom(text, 0, false)
+}
+
+/** Index of the first substantial spoken `"` outside [brackets]. */
+export function indexOfFirstSubstantialSpokenQuote(text: string): number {
+  return indexOfSpokenQuoteFrom(text, 0, true)
 }
 
 /** True when stored emote text includes out-loud dialogue in quotes. */
@@ -108,6 +154,65 @@ export function unwrapOuterDialogueQuotes(text: string): string {
   const trimmed = text.trim()
   if (trimmed.startsWith('"[')) return trimmed.slice(1)
   return trimmed
+}
+
+/** Normalize literal backslash-quote sequences stored in legacy rows. */
+export function normalizeStoredQuoteEscapes(text: string): string {
+  return text.replace(/\\"/g, '"')
+}
+
+/**
+ * Class C runs when the line has substantial spoken quotes, or short quoted beats
+ * followed by a new staging sentence (`"Palermo." Then his arm...`).
+ */
+export function shouldRunClassC(text: string): boolean {
+  if (indexOfFirstSubstantialSpokenQuote(text) >= 0) return true
+  let i = 0
+  while (i < text.length) {
+    const q = indexOfSpokenQuoteFrom(text, i, false)
+    if (q < 0) break
+    const close = findCloseQuote(text, q)
+    if (close < 0) {
+      const before = text.slice(0, q).trim()
+      if (before && !before.endsWith('[')) return true
+      break
+    }
+    const tail = text.slice(close + 1).trimStart()
+    if (tail && /^[A-Z][a-z]+\b/.test(tail) && !tail.startsWith('[')) return true
+    i = close + 1
+  }
+  return false
+}
+
+/**
+ * Prep: drop a mistaken opening `"` when the first span is stage direction
+ * and more quoted speech follows (`"Pyros runs... "I have forged..."`).
+ */
+export function unwrapMistakenLeadingQuote(text: string): string {
+  const trimmed = text.trim()
+  if (!trimmed.startsWith('"') || trimmed.startsWith('"[')) return trimmed
+  const closeIdx = findCloseQuote(trimmed, 0)
+  if (closeIdx < 0) return trimmed
+  const firstSpan = trimmed.slice(1, closeIdx)
+  const rest = trimmed.slice(closeIdx + 1)
+  if (!rest.trim()) return trimmed
+  if (!/[.!?]\s*$/.test(firstSpan.trim())) return trimmed
+  if (indexOfSpokenQuoteFrom(rest, 0, false) < 0) return trimmed
+  return trimmed.slice(1)
+}
+
+/** Wrap bare prose as [direction] or "speech" depending on content. */
+export function wrapBareProse(prose: string): string {
+  const trimmed = prose.trim()
+  if (!trimmed) return prose
+  if (FIRST_PERSON_SPOKEN.test(trimmed) && !FIRST_PERSON_DIRECTION.test(trimmed)) {
+    const lead = prose.match(/^\s*/)?.[0] ?? ''
+    const trail = prose.match(/\s*$/)?.[0] ?? ''
+    return `${lead}"${trimmed}"${trail}`
+  }
+  const lead = prose.match(/^\s*/)?.[0] ?? ''
+  const trail = prose.match(/\s*$/)?.[0] ?? ''
+  return `${lead}[${trimmed}]${trail}`
 }
 
 /** Find the index of the closing `]` for `[` at `start`, respecting nesting. */
@@ -207,14 +312,16 @@ export function fixDoubleClosedDirectionBeforeQuote(text: string): string {
   return `[${outerTrim}] [${innerTrim}] ${suffix}`
 }
 
-/** Index of the first `"` outside any `[bracket]` block at or after `start`. */
-function indexOfSpokenQuoteFrom(text: string, start: number): number {
+/** Index of the first `"` outside [brackets] at or after `start`. */
+function indexOfSpokenQuoteFrom(text: string, start: number, substantialOnly: boolean): number {
   let bracketDepth = 0
   for (let i = start; i < text.length; i++) {
     const ch = text[i]
     if (ch === '[') bracketDepth++
     else if (ch === ']' && bracketDepth > 0) bracketDepth--
-    else if (ch === '"' && bracketDepth === 0) return i
+    else if (ch === '"' && bracketDepth === 0 && !isEscapedAt(text, i)) {
+      if (!substantialOnly || isSubstantialSpokenQuoteAt(text, i)) return i
+    }
   }
   return -1
 }
@@ -222,7 +329,7 @@ function indexOfSpokenQuoteFrom(text: string, start: number): number {
 /** Next index of `[` or spoken `"` at or after `start`. */
 function indexOfNextBracketOrSpokenQuote(text: string, start: number): number {
   const nextBracket = text.indexOf('[', start)
-  const nextQuote = indexOfSpokenQuoteFrom(text, start)
+  const nextQuote = indexOfSpokenQuoteFrom(text, start, false)
   if (nextBracket === -1) return nextQuote === -1 ? text.length : nextQuote
   if (nextQuote === -1) return nextBracket
   return Math.min(nextBracket, nextQuote)
@@ -235,7 +342,7 @@ function indexOfNextBracketOrSpokenQuote(text: string, start: number): number {
  * When an inner `[action]` already exists: `[prose] [inner] "Hello."` — not `[prose [inner]]`.
  */
 export function wrapUnbracketedDirectionBeforeQuotes(text: string): string {
-  if (indexOfFirstSpokenQuote(text) < 0) return text
+  if (!shouldRunClassC(text)) return text
 
   let result = ''
   let i = 0
@@ -250,24 +357,20 @@ export function wrapUnbracketedDirectionBeforeQuotes(text: string): string {
       i = closeIdx + 1
       continue
     }
-    if (text[i] === '"') {
-      let j = i + 1
-      while (j < text.length && text[j] !== '"') j++
-      if (j >= text.length) {
+    if (text[i] === '"' && !isEscapedAt(text, i)) {
+      const closeIdx = findCloseQuote(text, i)
+      if (closeIdx < 0) {
         result += text.slice(i)
         break
       }
-      result += text.slice(i, j + 1)
-      i = j + 1
+      result += text.slice(i, closeIdx + 1)
+      i = closeIdx + 1
       continue
     }
     const nextSpecial = indexOfNextBracketOrSpokenQuote(text, i)
     const chunk = text.slice(i, nextSpecial)
-    const prose = chunk.trim()
-    if (prose) {
-      const lead = chunk.match(/^\s*/)?.[0] ?? ''
-      const trail = chunk.match(/\s*$/)?.[0] ?? ''
-      result += `${lead}[${prose}]${trail}`
+    if (chunk.trim()) {
+      result += wrapBareProse(chunk)
     } else {
       result += chunk
     }
@@ -285,7 +388,7 @@ export function unclosedSpokenTail(text: string): string | null {
     const ch = text[i]
     if (ch === '[') bracketDepth++
     else if (ch === ']' && bracketDepth > 0) bracketDepth--
-    else if (ch === '"' && bracketDepth === 0) {
+    else if (ch === '"' && bracketDepth === 0 && !isEscapedAt(text, i)) {
       quotes++
       lastQuoteIdx = i
     }
@@ -325,23 +428,22 @@ export function unwrapEmphasisBracketsInQuotes(text: string): string {
   let result = ''
   let i = 0
   while (i < text.length) {
-    if (text[i] !== '"') {
+    if (text[i] !== '"' || isEscapedAt(text, i)) {
       result += text[i]
       i++
       continue
     }
-    let j = i + 1
-    while (j < text.length && text[j] !== '"') j++
-    if (j >= text.length) {
+    const closeIdx = findCloseQuote(text, i)
+    if (closeIdx < 0) {
       result += text.slice(i)
       break
     }
-    const inner = text.slice(i + 1, j)
+    const inner = text.slice(i + 1, closeIdx)
     const fixed = inner.replace(/\[([^\]]+)\]/g, (match, content: string) =>
       isEmphasisBracket(content) ? content.trim() : match,
     )
     result += `"${fixed}"`
-    i = j + 1
+    i = closeIdx + 1
   }
   return result
 }
@@ -389,7 +491,9 @@ export interface DialogueRepairAnalysis {
 /** Run repair steps and report which class(es) changed the line. */
 export function analyzeDialogueRepair(text: string): DialogueRepairAnalysis {
   const stripped = stripAgentToolLeakage(text)
-  const unwrapped = unwrapOuterDialogueQuotes(stripped)
+  const escaped = normalizeStoredQuoteEscapes(stripped)
+  const unwrappedOuter = unwrapOuterDialogueQuotes(escaped)
+  const unwrapped = unwrapMistakenLeadingQuote(unwrappedOuter)
   const normalized = normalizeStageDirectionMarkers(unwrapped)
   const afterFixDouble = fixDoubleClosedDirectionBeforeQuote(normalized)
   const afterC = wrapUnbracketedDirectionBeforeQuotes(afterFixDouble)
@@ -399,7 +503,11 @@ export function analyzeDialogueRepair(text: string): DialogueRepairAnalysis {
   const afterD = normalizeDialogueQuotes(afterB)
   return {
     after: afterD,
-    prep: stripped !== text || unwrapped !== stripped,
+    prep:
+      stripped !== text ||
+      escaped !== stripped ||
+      unwrappedOuter !== escaped ||
+      unwrapped !== unwrappedOuter,
     classC: afterC !== normalized || afterFixDouble !== normalized,
     classA: afterA !== afterEmphasisDirs,
     classB: afterB !== afterA || afterEmphasisDirs !== afterC,

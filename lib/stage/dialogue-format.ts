@@ -188,19 +188,41 @@ export function closeBracketBeforeQuotes(text: string): string {
 }
 
 /**
- * Class B: unwrap single-word [emphasis] inside quotes → plain spoken word.
- * `"it's [listening]."` → `"it's listening."`
- * Multi-word `[glances at the door]` inside quotes is left unchanged.
+ * Repair mistaken Class C wrap: `[prose [inner]] "speech"` → `[prose] [inner] "speech"`.
  */
+export function fixDoubleClosedDirectionBeforeQuote(text: string): string {
+  const quoteIdx = indexOfFirstSpokenQuote(text)
+  if (quoteIdx < 0) return text
+  const prefix = text.slice(0, quoteIdx).trimEnd()
+  const suffix = text.slice(quoteIdx)
+  if (!prefix.endsWith(']]')) return text
+  const match = prefix.match(/^\[([^\[]*)\[([^\]]+)\]\]$/)
+  if (!match) return text
+  const outerTrim = match[1].trim()
+  const innerTrim = match[2].trim()
+  if (!outerTrim) return `[${innerTrim}] ${suffix}`
+  return `[${outerTrim}] [${innerTrim}] ${suffix}`
+}
+
 /**
  * Class C: wrap prose stage direction before the first spoken quote in [brackets].
  * `Kaelen's eye flickers. "Hello."` → `[Kaelen's eye flickers.] "Hello."`
+ * When an inner `[action]` already exists: `[prose] [inner] "Hello."` — not `[prose [inner]]`.
  */
 export function wrapUnbracketedDirectionBeforeQuotes(text: string): string {
   const quoteIdx = indexOfFirstSpokenQuote(text)
   if (quoteIdx <= 0) return text
   const before = text.slice(0, quoteIdx).trimEnd()
   if (!before || before.startsWith('[')) return text
+
+  const firstBracket = before.indexOf('[')
+  if (firstBracket > 0) {
+    const prose = before.slice(0, firstBracket).trimEnd()
+    const innerBlocks = before.slice(firstBracket)
+    if (!prose) return text
+    return `[${prose.trim()}] ${innerBlocks} ${text.slice(quoteIdx)}`
+  }
+
   return `[${before.trim()}] ${text.slice(quoteIdx)}`
 }
 
@@ -293,14 +315,15 @@ export function analyzeDialogueRepair(text: string): DialogueRepairAnalysis {
   const stripped = stripAgentToolLeakage(text)
   const unwrapped = unwrapOuterDialogueQuotes(stripped)
   const normalized = normalizeStageDirectionMarkers(unwrapped)
-  const afterC = wrapUnbracketedDirectionBeforeQuotes(normalized)
+  const afterFixDouble = fixDoubleClosedDirectionBeforeQuote(normalized)
+  const afterC = wrapUnbracketedDirectionBeforeQuotes(afterFixDouble)
   const afterA = closeBracketBeforeQuotes(afterC)
   const afterB = unwrapEmphasisBracketsInQuotes(afterA)
   const afterD = normalizeDialogueQuotes(afterB)
   return {
     after: afterD,
     prep: stripped !== text || unwrapped !== stripped,
-    classC: afterC !== normalized,
+    classC: afterC !== normalized || afterFixDouble !== normalized,
     classA: afterA !== afterC,
     classB: afterB !== afterA,
     classD: afterD !== afterB,

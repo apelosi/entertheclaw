@@ -18,7 +18,9 @@
  *   bun run --no-env-file db:fix-dialogue-formatting -- --database-url='postgresql://...'
  *   bun run --no-env-file db:fix-dialogue-formatting -- --database-url='postgresql://...' --yes
  *
- * Optional: --export=repairs.jsonl, --stage='Claw Wars'
+ * Optional: --export=wars.jsonl, --stage='Claw Wars'
+ * When --export is set, per-row before/after go only to the jsonl file (terminal
+ * prints the Done. summary). Without --export, repairs still log to stdout.
  */
 import * as dotenv from 'dotenv'
 import * as fs from 'node:fs'
@@ -217,17 +219,6 @@ async function main() {
       if (result.analysis?.classE) classECount++
       if (result.analysis?.classF) classFCount++
 
-      logRepair(stage.name, row.id, c.text, result.text, {
-        prep: result.analysis?.prep,
-        classA: result.analysis?.classA,
-        classB: result.analysis?.classB,
-        classC: result.analysis?.classC,
-        classD: result.analysis?.classD,
-        classE: result.analysis?.classE,
-        classF: result.analysis?.classF,
-        reclassified: result.reclassified,
-      })
-
       if (EXPORT_PATH) {
         exportRows.push({
           stage: stage.name,
@@ -243,6 +234,17 @@ async function main() {
           classF: result.analysis?.classF ?? false,
           reclassified: result.reclassified,
           changeAt: firstDiffIndex(c.text, result.text),
+        })
+      } else {
+        logRepair(stage.name, row.id, c.text, result.text, {
+          prep: result.analysis?.prep,
+          classA: result.analysis?.classA,
+          classB: result.analysis?.classB,
+          classC: result.analysis?.classC,
+          classD: result.analysis?.classD,
+          classE: result.analysis?.classE,
+          classF: result.analysis?.classF,
+          reclassified: result.reclassified,
         })
       }
 

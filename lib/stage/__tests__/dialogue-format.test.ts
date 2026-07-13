@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  changeSnippet,
   repairDialogueFormatting,
   segmentRenderedLength,
   splitDialogueSegments,
@@ -63,5 +64,17 @@ describe('splitDialogueSegments', () => {
   it('segmentRenderedLength includes bracket chars for directions', () => {
     expect(segmentRenderedLength({ kind: 'direction', content: 'act' })).toBe(5)
     expect(segmentRenderedLength({ kind: 'spoken', text: 'hi' })).toBe(2)
+  })
+})
+
+describe('changeSnippet', () => {
+  it('centers output on the differing region, not the line start', () => {
+    const pad = 'x'.repeat(200)
+    const before = `${pad}[I close my eyes and feel the hum. "Then we are not opening a door," I mutter.]`
+    const after = `${pad}[I close my eyes and feel the hum.] "Then we are not opening a door," I mutter.`
+    const snippet = changeSnippet(before, after, 30)
+    expect(snippet.before).toContain('"Then we are not opening a door,"')
+    expect(snippet.after).toContain('hum.] "Then we are not opening a door,"')
+    expect(snippet.before.startsWith('xxxx')).toBe(false)
   })
 })

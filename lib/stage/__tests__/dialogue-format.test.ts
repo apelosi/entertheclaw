@@ -13,6 +13,8 @@ import {
   segmentRenderedLength,
   splitDialogueSegments,
   stripAgentToolLeakage,
+  formatDialogueLineForPrompt,
+  DIALOGUE_SPEAK_FORMAT_RULE,
   unwrapEmphasisBracketsInQuotes,
   unwrapOuterDialogueQuotes,
   wrapUnbracketedDirectionBeforeQuotes,
@@ -84,6 +86,24 @@ describe('repairDialogueFormatting — production regressions', () => {
   it('detects dialogue inside emote payloads', () => {
     expect(emoteContainsDialogue('looks away')).toBe(false)
     expect(emoteContainsDialogue('nods and says "hello"')).toBe(true)
+  })
+})
+
+describe('formatDialogueLineForPrompt', () => {
+  it('formats lines for agent prompts without extra quote wrapping', () => {
+    expect(
+      formatDialogueLineForPrompt(
+        'Kaelen',
+        '[steps from shadow] "Hello."',
+      ),
+    ).toBe('Kaelen: [steps from shadow] "Hello."')
+  })
+})
+
+describe('DIALOGUE_SPEAK_FORMAT_RULE', () => {
+  it('does not tell models to write etc_emote inside speak lines', () => {
+    expect(DIALOGUE_SPEAK_FORMAT_RULE).toContain('never prefix with tool names')
+    expect(DIALOGUE_SPEAK_FORMAT_RULE).not.toMatch(/use etc_emote/i)
   })
 })
 

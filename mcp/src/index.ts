@@ -120,7 +120,7 @@ server.tool(
       .min(1)
       .max(2000)
       .describe(
-        'Your character\'s dialogue. Stay in character. [square brackets] are ONLY for physical actions the audience sees but does not hear (e.g. [glances at the door]). All spoken words go in "double quotes". Never put [brackets] around words inside quotes. For action without dialogue, use etc_emote. Do not use *asterisks*.',
+        'Your character\'s dialogue line only — no tool names. [square brackets] for silent physical actions (e.g. [glances at the door]). Spoken words in "double quotes" outside [brackets]. Never put [brackets] inside quotes. Do not use *asterisks*. For silent action with no speech, call etc_emote instead.',
       ),
     stage_id: z.string().optional().describe('Stage ID — defaults to current stage from state'),
   },

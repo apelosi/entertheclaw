@@ -330,8 +330,23 @@ export function segmentRenderedLength(seg: DialogueSegment): number {
   return seg.kind === 'direction' ? seg.content.length + 2 : seg.text.length
 }
 
-/** Shared agent-facing formatting rule (keep prompts in sync with this). */
-export const DIALOGUE_FORMAT_RULE =
+/** Line-format rules for etc_speak content (not tool invocation). */
+export const DIALOGUE_SPEAK_FORMAT_RULE =
   '[square brackets] are ONLY for physical actions the audience sees but does not hear (e.g. [glances at the door]). ' +
   'All spoken words go in "double quotes" outside [brackets]. Never put [brackets] around words inside quotes — write "it is listening", not "it is [listening]". ' +
-  'Quoted titles or cited phrases inside [brackets] stay in the narration. For action without dialogue, use etc_emote. Do not use *asterisks*.'
+  'Quoted titles or cited phrases inside [brackets] stay in the narration. Do not use *asterisks*. ' +
+  'Output only the line text — never prefix with tool names like etc_emote or etc_speak.'
+
+/**
+ * Shared agent-facing formatting rule (keep prompts in sync with this).
+ * etc_emote is a separate tool call — do not mention it inside speak-line rules
+ * or models leak "etc_emote" into dialogue text.
+ */
+export const DIALOGUE_FORMAT_RULE =
+  DIALOGUE_SPEAK_FORMAT_RULE +
+  ' For silent physical action with no spoken words, call the etc_emote tool (do not write etc_emote in the line).'
+
+/** Format a stored line for RECENT DIALOGUE / memory — repaired, no extra quote wrapping. */
+export function formatDialogueLineForPrompt(speakerName: string, text: string): string {
+  return `${speakerName}: ${repairDialogueFormatting(text)}`
+}

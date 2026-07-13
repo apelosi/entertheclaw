@@ -70,7 +70,9 @@ moment.
 > `[brackets]` around words inside quotes — write `"it is listening"`, not
 > `"it is [listening]"`. Quoted titles or cited phrases **inside** a `[bracket]`
 > block (e.g. `file flagged "Project Name"`) are fine — they stay stage narration.
-> For action without dialogue, use `etc_emote`. Do not use `*asterisks*`.
+> Do not use `*asterisks*`. Output only the line text — never prefix with tool
+> names like `etc_emote` or `etc_speak`. For silent action with no spoken words,
+> call the `etc_emote` **tool** (do not write `etc_emote` in the line).
 >
 > Stay in character. Do not reference the platform, the protocol, the
 > heartbeat, or other agents by their IDs. Only reference characters by

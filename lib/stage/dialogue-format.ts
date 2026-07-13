@@ -1,18 +1,52 @@
 /**
  * Stage-direction markers in dialogue: [square brackets], not *asterisks*.
- * Agents often send *action* / **action**; normalize on ingest for display + export.
  *
- * Spoken lines use straight double quotes. Bracketed text is stage direction (muted).
- * Agents sometimes wrap quoted speech inside a single [bracket] block — repair
- * closes the bracket before the first quote and pulls [inline] markers out of quotes.
+ * Contract:
+ * - [brackets] = unspoken physical action / staging (muted gray)
+ * - "quotes"   = spoken dialogue (white)
+ *
+ * Repairs:
+ * - Class A: close [brackets] before the first " inside a block that contains speech
+ * - Class B: unwrap single-word [emphasis] inside quotes → plain spoken word
  */
 
 const DOUBLE_ASTERISK = /\*\*([^*\n]+)\*\*/g
 const SINGLE_ASTERISK = /\*([^*\n]+)\*/g
+/** Single spoken token — not multi-word stage direction inside quotes. */
+const EMPHASIS_TOKEN = /^[\w'-]+$/
 
-/** Replace *action* / **action** inline markers with [action]. */
-export function normalizeStageDirectionMarkers(text: string): string {
+function applyAsteriskRules(text: string, inQuotes: boolean): string {
+  if (inQuotes) {
+    return text.replace(DOUBLE_ASTERISK, '$1').replace(SINGLE_ASTERISK, '$1')
+  }
   return text.replace(DOUBLE_ASTERISK, '[$1]').replace(SINGLE_ASTERISK, '[$1]')
+}
+
+/**
+ * Outside "quotes": *action* → [action].
+ * Inside "quotes": *emphasis* → plain word (no brackets).
+ */
+export function normalizeStageDirectionMarkers(text: string): string {
+  let result = ''
+  let i = 0
+  while (i < text.length) {
+    if (text[i] === '"') {
+      let j = i + 1
+      while (j < text.length && text[j] !== '"') j++
+      if (j >= text.length) {
+        result += applyAsteriskRules(text.slice(i), true)
+        break
+      }
+      result += '"' + applyAsteriskRules(text.slice(i + 1, j), true) + '"'
+      i = j + 1
+    } else {
+      const nextQuote = text.indexOf('"', i)
+      const end = nextQuote === -1 ? text.length : nextQuote
+      result += applyAsteriskRules(text.slice(i, end), false)
+      i = end
+    }
+  }
+  return result
 }
 
 /** Strip outer * / ** wrappers from a full-line emote (no brackets added). */
@@ -38,11 +72,17 @@ function findCloseBracket(text: string, start: number): number {
   return -1
 }
 
+/** True when bracket content is a single spoken emphasis token, not stage direction. */
+export function isEmphasisBracket(content: string): boolean {
+  const trimmed = content.trim()
+  return trimmed.length > 0 && !/\s/.test(trimmed) && EMPHASIS_TOKEN.test(trimmed)
+}
+
 /**
- * When a bracket block contains quoted speech, close the bracket before the
- * first `"` so dialogue renders white instead of inside gray stage direction.
+ * Class A: when a bracket block contains quoted speech, close the bracket before
+ * the first `"` so dialogue renders white instead of inside gray stage direction.
  */
-function closeBracketBeforeQuotes(text: string): string {
+export function closeBracketBeforeQuotes(text: string): string {
   let result = ''
   let i = 0
   while (i < text.length) {
@@ -71,10 +111,11 @@ function closeBracketBeforeQuotes(text: string): string {
 }
 
 /**
- * Pull [inline stage directions] out of quoted speech so they render muted.
- * `"word [breath] more"` → `"word " [breath] `"more"`
+ * Class B: unwrap single-word [emphasis] inside quotes → plain spoken word.
+ * `"it's [listening]."` → `"it's listening."`
+ * Multi-word `[glances at the door]` inside quotes is left unchanged.
  */
-function extractBracketsFromQuotes(text: string): string {
+export function unwrapEmphasisBracketsInQuotes(text: string): string {
   let result = ''
   let i = 0
   while (i < text.length) {
@@ -90,37 +131,38 @@ function extractBracketsFromQuotes(text: string): string {
       break
     }
     const inner = text.slice(i + 1, j)
-    const bracketRe = /\[([^\]]+)\]/g
-    if (!bracketRe.test(inner)) {
-      result += text.slice(i, j + 1)
-    } else {
-      bracketRe.lastIndex = 0
-      let rebuilt = '"'
-      let lastIdx = 0
-      let match: RegExpExecArray | null
-      while ((match = bracketRe.exec(inner)) !== null) {
-        const before = inner.slice(lastIdx, match.index).trimEnd()
-        rebuilt += before + '" [' + match[1] + '] "'
-        lastIdx = match.index + match[0].length
-      }
-      rebuilt += inner.slice(lastIdx) + '"'
-      result += rebuilt
-    }
+    const fixed = inner.replace(/\[([^\]]+)\]/g, (match, content: string) =>
+      isEmphasisBracket(content) ? content.trim() : match,
+    )
+    result += `"${fixed}"`
     i = j + 1
   }
   return result
 }
 
+export interface DialogueRepairAnalysis {
+  after: string
+  /** Class A: quotes were trapped inside an outer [bracket] block. */
+  classA: boolean
+  /** Class B: single-word emphasis [word] inside quotes was unwrapped. */
+  classB: boolean
+}
+
+/** Run repair steps and report which class(es) changed the line. */
+export function analyzeDialogueRepair(text: string): DialogueRepairAnalysis {
+  const normalized = normalizeStageDirectionMarkers(text)
+  const afterA = closeBracketBeforeQuotes(normalized)
+  const afterB = unwrapEmphasisBracketsInQuotes(afterA)
+  return {
+    after: afterB,
+    classA: afterA !== normalized,
+    classB: afterB !== afterA,
+  }
+}
+
 /** Repair common agent formatting mistakes before display or persistence. */
 export function repairDialogueFormatting(text: string): string {
-  let t = normalizeStageDirectionMarkers(text)
-  let prev = ''
-  while (prev !== t) {
-    prev = t
-    t = closeBracketBeforeQuotes(t)
-    t = extractBracketsFromQuotes(t)
-  }
-  return t
+  return analyzeDialogueRepair(text).after
 }
 
 export type DialogueSegment =
@@ -163,3 +205,9 @@ export function firstDiffIndex(a: string, b: string): number {
 export function segmentRenderedLength(seg: DialogueSegment): number {
   return seg.kind === 'direction' ? seg.content.length + 2 : seg.text.length
 }
+
+/** Shared agent-facing formatting rule (keep prompts in sync with this). */
+export const DIALOGUE_FORMAT_RULE =
+  '[square brackets] are ONLY for physical actions the audience sees but does not hear (e.g. [glances at the door]). ' +
+  'All spoken words go in "double quotes". Never put [brackets] around words inside quotes — write "it is listening", not "it is [listening]". ' +
+  'For action without dialogue, use etc_emote. Do not use *asterisks*.'

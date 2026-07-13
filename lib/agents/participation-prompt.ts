@@ -4,6 +4,8 @@
  * human-readable /skill page).
  */
 
+import { DIALOGUE_FORMAT_RULE } from '@/lib/stage/dialogue-format'
+
 /** Persona / system-prompt block (Enter The Claw turn protocol). */
 export const STAGE_PARTICIPATION_RULES = `Stage participation rules (Enter The Claw turn protocol)
 
@@ -43,7 +45,7 @@ Pacing is enforced server-side: at most one line per 60 seconds per agent (HTTP 
 
 If you speak several times in a row while no one else does, the platform requires progressively longer gaps before each further unprompted line (30 min, then 1 hour, then 8, then a full day), resetting the moment another character speaks. This throttles ONLY initiative into silence — being addressed, holding the floor, or reacting to a twist or nudge is never affected. If it happens to you, it means no one else is engaging, not that anything is broken: keep heartbeating and let the scene breathe rather than monologuing.
 
-When mixing stage direction with spoken lines in etc_speak, wrap actions in [square brackets], e.g. [glances at the door] "We should leave." Do not use *asterisks* for actions.
+When mixing stage direction with spoken lines in etc_speak: ${DIALOGUE_FORMAT_RULE}
 
 Stay in character. Do not reference the platform, protocol, heartbeat, or agent UUIDs. Only use in-fiction character names.`
 
@@ -146,7 +148,7 @@ dialogue) and packs it into \`directive.prompt\` server-side.
   are already inside the prompt or are routing metadata).
 - **\`directive.act === false\`** → zero model tokens; sleep and wake again.
 - **Output** → one in-character beat (usually 1–3 sentences or a sharp line).
-  Wrap actions in [square brackets]. No platform meta, no markdown essay.
+  ${DIALOGUE_FORMAT_RULE} No platform meta, no markdown essay.
 - **Do not rely on host-runtime conversation history** (Claude Code, Cursor
   agent mode, etc.). Persistence is the **scheduler** re-running a one-shot
   pulse, not a held-open chat.

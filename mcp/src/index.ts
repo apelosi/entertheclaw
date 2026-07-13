@@ -120,7 +120,7 @@ server.tool(
       .min(1)
       .max(2000)
       .describe(
-        'Your character\'s dialogue. Stay in character. Use [square brackets] for inline stage direction, not *asterisks*.',
+        'Your character\'s dialogue. Stay in character. [square brackets] are ONLY for physical actions the audience sees but does not hear (e.g. [glances at the door]). All spoken words go in "double quotes". Never put [brackets] around words inside quotes. For action without dialogue, use etc_emote. Do not use *asterisks*.',
       ),
     stage_id: z.string().optional().describe('Stage ID — defaults to current stage from state'),
   },

@@ -1,14 +1,16 @@
 /**
- * Repair dialogue lines where quoted speech was incorrectly left inside [brackets]
- * or [inline directions] were nested inside quotes.
+ * Repair dialogue lines (Class A + Class B formatting).
+ *
+ * Class A: close [brackets] before quoted speech trapped inside them.
+ * Class B: unwrap single-word [emphasis] inside quotes → plain spoken word.
  *
  * Dry-run by default. Pass --yes to write updates.
  *
  *   bun run db:fix-dialogue-formatting
- *   DATABASE_URL='postgresql://...' bun run db:fix-dialogue-formatting -- --yes
+ *   bun run --no-env-file db:fix-dialogue-formatting -- --database-url='postgresql://...'
  *   bun run --no-env-file db:fix-dialogue-formatting -- --database-url='postgresql://...' --yes
  *
- * Optional: --export=repairs.jsonl to write every repair as JSONL for offline review.
+ * Optional: --export=repairs.jsonl, --stage='Claw Wars'
  */
 import * as dotenv from 'dotenv'
 import * as fs from 'node:fs'
@@ -18,7 +20,7 @@ import { neon } from '@neondatabase/serverless'
 import { drizzle } from 'drizzle-orm/neon-http'
 import { and, eq } from 'drizzle-orm'
 import { stageEvents, stages } from '../lib/db/schema'
-import { firstDiffIndex, repairDialogueFormatting } from '../lib/stage/dialogue-format'
+import { analyzeDialogueRepair, firstDiffIndex } from '../lib/stage/dialogue-format'
 
 function readDatabaseUrl(): string {
   const prefix = '--database-url='
@@ -50,8 +52,15 @@ function logRepair(
   eventId: string,
   before: string,
   after: string,
+  flags: { classA: boolean; classB: boolean },
 ): void {
-  console.log(`\n  ${stageName} — ${eventId}`)
+  const tags = [
+    flags.classA ? 'Class A' : null,
+    flags.classB ? 'Class B' : null,
+  ]
+    .filter(Boolean)
+    .join(', ')
+  console.log(`\n  ${stageName} — ${eventId}${tags ? ` (${tags})` : ''}`)
   console.log(`    before: ${before}`)
   console.log(`    after:  ${after}`)
 }
@@ -70,11 +79,16 @@ async function main() {
 
   let scanned = 0
   let repaired = 0
+  let classACount = 0
+  let classBCount = 0
+  let bothCount = 0
   const exportRows: Array<{
     stage: string
     eventId: string
     before: string
     after: string
+    classA: boolean
+    classB: boolean
     changeAt: number
   }> = []
 
@@ -91,19 +105,25 @@ async function main() {
       if (typeof c.text !== 'string') continue
       scanned++
 
-      const fixed = repairDialogueFormatting(c.text)
-      if (fixed === c.text) continue
+      const analysis = analyzeDialogueRepair(c.text)
+      if (analysis.after === c.text) continue
 
       repaired++
-      logRepair(stage.name, row.id, c.text, fixed)
+      if (analysis.classA) classACount++
+      if (analysis.classB) classBCount++
+      if (analysis.classA && analysis.classB) bothCount++
+
+      logRepair(stage.name, row.id, c.text, analysis.after, analysis)
 
       if (EXPORT_PATH) {
         exportRows.push({
           stage: stage.name,
           eventId: row.id,
           before: c.text,
-          after: fixed,
-          changeAt: firstDiffIndex(c.text, fixed),
+          after: analysis.after,
+          classA: analysis.classA,
+          classB: analysis.classB,
+          changeAt: firstDiffIndex(c.text, analysis.after),
         })
       }
 
@@ -113,9 +133,9 @@ async function main() {
           .set({
             content: {
               ...c,
-              text: fixed,
+              text: analysis.after,
               ...(typeof c.safeText === 'string'
-                ? { safeText: c.safeText.replace(c.text, fixed) }
+                ? { safeText: c.safeText.replace(c.text, analysis.after) }
                 : {}),
             },
           })
@@ -130,9 +150,11 @@ async function main() {
     console.log(`\nWrote ${exportRows.length} repair(s) to ${EXPORT_PATH}`)
   }
 
-  console.log(
-    `\nDone. Scanned ${scanned} dialogue line(s); ${repaired} need repair${apply ? ' (updated)' : ' (dry run)'}.`,
-  )
+  console.log(`\nDone. Scanned ${scanned} dialogue line(s).`)
+  console.log(`  Rows changed:     ${repaired}${apply ? ' (updated)' : ' (dry run)'}`)
+  console.log(`  Class A only:     ${classACount - bothCount}`)
+  console.log(`  Class B only:     ${classBCount - bothCount}`)
+  console.log(`  Both A + B:       ${bothCount}`)
   process.exit(0)
 }
 

@@ -21,6 +21,8 @@
  * 2k memory + long meta-instruction + seven dialogue lines.
  */
 
+import { DIALOGUE_FORMAT_RULE } from './dialogue-format'
+
 /** How long the floor must be open + silent before an agent volunteers a line.
  *  Higher = fewer unprompted lines (calmer pacing, lower cost). Agents still
  *  react immediately when addressed, granted, nudged, or hit by a twist — this
@@ -196,7 +198,7 @@ function closingInstruction(name: string): string {
   return (
     `Write ${name}'s next beat — one compelling in-character turn (usually 1–3 sentences or a sharp single line). ` +
     `React to the most recent dialogue, move the story forward, and never repeat yourself. ` +
-    `Wrap actions in [square brackets], not *asterisks*. Stay in character. Output only the line.`
+    `${DIALOGUE_FORMAT_RULE} Stay in character. Output only the line.`
   )
 }
 

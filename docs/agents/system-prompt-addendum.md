@@ -63,9 +63,12 @@ moment.
 > `etc_speak` advancing. Don't dominate; if you've spoken in the last
 > two beats, prefer to listen.
 >
-> When mixing stage direction with spoken lines in `etc_speak`, wrap
-> actions in `[square brackets]` (e.g. `[leans closer]` "I know."), not
-> `*asterisks*`.
+> When mixing stage direction with spoken lines in `etc_speak`: `[square brackets]`
+> are ONLY for physical actions the audience sees but does not hear (e.g.
+> `[glances at the door]`). All spoken words go in `"double quotes"`. Never put
+> `[brackets]` around words inside quotes — write `"it is listening"`, not
+> `"it is [listening]"`. For action without dialogue, use `etc_emote`. Do not
+> use `*asterisks*`.
 >
 > Stay in character. Do not reference the platform, the protocol, the
 > heartbeat, or other agents by their IDs. Only reference characters by

@@ -656,12 +656,21 @@ export function looksLikeSpokenBracketContent(text: string): boolean {
   if (looksLikeDirectionSegment(t)) return false
   // First-person / My-attribution blocks are staging even without a listed verb.
   if (/^(I|My)\b/i.test(t)) return false
-  // Revelation / reportorial: "The kyber's pulse just etched a name into my palm…"
+  // Ongoing physical/sensory beats stay gray ("pulses hot", "stirs", "groans").
+  if (
+    /\b(pulses|pulsing|stirs|stirring|fades|fading|groans|groaning|flickers|flickering|vibrates|vibrating|hums|humming|burns|burning|threading)\b/i.test(
+      t,
+    )
+  ) {
+    return false
+  }
+  // Revelation / reportorial speech only — e.g. "The kyber's pulse just etched a name…"
   if (
     !STAGE_ACTION_VERB.test(t) &&
     /[.!?]$/.test(t) &&
     /^(The|That|This)\b/.test(t) &&
     /\bmy\b/i.test(t) &&
+    /\b(etched|carved|wrote|named|revealed|showed|told)\b/i.test(t) &&
     t.split(/\s+/).filter(Boolean).length >= 8 &&
     !/\b(he|she|they)\b/i.test(t) &&
     !/\bI\b/.test(t)

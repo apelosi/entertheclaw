@@ -130,6 +130,18 @@ describe('repairDialogueFormatting — user-reported Script lines', () => {
       )
     })
 
+    it('does not convert physical The…my… sensory brackets into quotes', () => {
+      const lines = [
+        `[The fragment stirs at my chest—not in alarm, but in awareness. Something has shifted below.]`,
+        `[The tremor fades, but something else stirs — a low hum vibrating through the cantina floor, threading up through my boots.]`,
+        `[The kyber fragment in my palm pulses hot, a sharp rhythm that shouldn't match the silence.]`,
+        `[The ground beneath my boots groans, a fissure splitting the dust between us as the earthquake's aftershock rips through the cantina's threshold.]`,
+      ]
+      for (const line of lines) {
+        expect(repairDialogueFormatting(line)).toBe(line)
+      }
+    })
+
     it('Vex Nereus: splits spoken revelation after colon inside brackets', () => {
       expect(
         repairDialogueFormatting(

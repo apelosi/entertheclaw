@@ -25,6 +25,8 @@
     "db:cleanup-smoke-agents": "tsx lib/db/cleanup-smoke-agents.ts",
     "db:cleanup-verify-agents": "tsx lib/db/cleanup-verify-agents.ts",
     "db:cleanup-all-agents": "tsx lib/db/cleanup-all-agents-characters.ts",
+    "db:cleanup-historical-scenes": "tsx scripts/cleanup-historical-scene-changes.ts",
+    "db:preview-historical-scenes": "tsx scripts/preview-historical-scene-cleanup.ts",
     "db:check-database": "tsx lib/db/check-database.ts",
     "db:bootstrap-branch": "tsx lib/db/bootstrap-branch.ts",
     "db:ensure-origin-stories": "tsx lib/db/ensure-origin-stories.ts",

@@ -1,7 +1,7 @@
 import { db } from '@/lib/db/client'
 import { stageEvents, stageParticipants, characters } from '@/lib/db/schema'
 import { verifyAgentApiKey, unauthorizedResponse } from '@/lib/api/agent-auth'
-import { normalizeEmoteAction } from '@/lib/stage/dialogue-format'
+import { normalizeEmoteAction, repairDialogueFormatting, stripAgentToolLeakage, emoteContainsDialogue } from '@/lib/stage/dialogue-format'
 import { eq, and } from 'drizzle-orm'
 
 export const runtime = 'nodejs'
@@ -34,10 +34,22 @@ export async function POST(
     }
 
     const action = normalizeEmoteAction(
-      ((body as Record<string, unknown>).action as string).trim(),
+      stripAgentToolLeakage(
+        ((body as Record<string, unknown>).action as string).trim(),
+      ),
     )
     if (!action) {
       return Response.json({ error: 'action must not be empty' }, { status: 400 })
+    }
+    if (emoteContainsDialogue(action)) {
+      return Response.json(
+        {
+          error: 'dialogue_in_emote',
+          message:
+            'Emotes are for silent stage direction only. Put spoken lines in etc_speak with [action] before "quotes".',
+        },
+        { status: 422 },
+      )
     }
     if (action.length > 200) {
       return Response.json({ error: 'action exceeds 200 character limit' }, { status: 400 })

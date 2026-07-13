@@ -2,14 +2,20 @@ import { describe, expect, it } from 'vitest'
 import {
   analyzeDialogueRepair,
   closeBracketBeforeQuotes,
+  emoteContainsDialogue,
+  ensureClosingQuote,
   isDialogueOpenerInBrackets,
   isEmbeddedCitationInBrackets,
   isEmphasisBracket,
+  normalizeDialogueQuotes,
   normalizeStageDirectionMarkers,
   repairDialogueFormatting,
   segmentRenderedLength,
   splitDialogueSegments,
+  stripAgentToolLeakage,
   unwrapEmphasisBracketsInQuotes,
+  unwrapOuterDialogueQuotes,
+  wrapUnbracketedDirectionBeforeQuotes,
 } from '../dialogue-format'
 
 describe('normalizeStageDirectionMarkers', () => {
@@ -36,6 +42,73 @@ describe('isEmphasisBracket', () => {
   it('rejects multi-word stage direction', () => {
     expect(isEmphasisBracket('glances at the door')).toBe(false)
     expect(isEmphasisBracket('Her voice drops')).toBe(false)
+  })
+})
+
+describe('repairDialogueFormatting — production regressions', () => {
+  it('wraps unbracketed stage direction before spoken quotes (Class C)', () => {
+    const raw =
+      "Kaelen's cybernetic eye flickers, scanning the static-fractured symbol still fading in the air. \"A bloodline key means the sender wasn't just any intelligence-they were family."
+    const fixed = repairDialogueFormatting(raw)
+    expect(fixed).toBe(
+      "[Kaelen's cybernetic eye flickers, scanning the static-fractured symbol still fading in the air.] \"A bloodline key means the sender wasn't just any intelligence-they were family.\"",
+    )
+    const segments = splitDialogueSegments(fixed)
+    expect(segments.map((s) => s.kind)).toEqual(['direction', 'spoken'])
+  })
+
+  it('unwraps outer quotes and trims trailing quote garbage', () => {
+    const raw =
+      '"[Seraphis\'s hand drifts to the kyber at his chest, the pulse of the crystal now a whisper against his palm.] "The frequency in that tuning fork-I\'ve felt it before. In the ruins of Aetherius. This isn\'t just a temple below us. It\'s a reliquary. And someone\'s been waiting for a bloodline to unlock it.""\''
+    const fixed = repairDialogueFormatting(raw)
+    expect(fixed).toBe(
+      "[Seraphis's hand drifts to the kyber at his chest, the pulse of the crystal now a whisper against his palm.] \"The frequency in that tuning fork-I've felt it before. In the ruins of Aetherius. This isn't just a temple below us. It's a reliquary. And someone's been waiting for a bloodline to unlock it.\"",
+    )
+    const analysis = analyzeDialogueRepair(raw)
+    expect(analysis.prep).toBe(true)
+    expect(analysis.classD).toBe(true)
+  })
+
+  it('strips etc_emote leakage and brackets action before dialogue', () => {
+    const raw =
+      'etc_emote I step closer to the cracked floor, my cybernetic eye flickering amber as I trace the residual energy signature. "A dead drop key buried beneath a temple that predates the purge? That\'s not a coincidence-that\'s a breadcrumb left for someone who knew exactly what tremor would trigger it. The question is: who wrote the map, and why did they want us to find it?"'
+    const fixed = repairDialogueFormatting(raw)
+    expect(fixed).toBe(
+      '[I step closer to the cracked floor, my cybernetic eye flickering amber as I trace the residual energy signature.] "A dead drop key buried beneath a temple that predates the purge? That\'s not a coincidence-that\'s a breadcrumb left for someone who knew exactly what tremor would trigger it. The question is: who wrote the map, and why did they want us to find it?"',
+    )
+    const analysis = analyzeDialogueRepair(raw)
+    expect(analysis.prep).toBe(true)
+    expect(analysis.classC).toBe(true)
+  })
+
+  it('detects dialogue inside emote payloads', () => {
+    expect(emoteContainsDialogue('looks away')).toBe(false)
+    expect(emoteContainsDialogue('nods and says "hello"')).toBe(true)
+  })
+})
+
+describe('stripAgentToolLeakage', () => {
+  it('removes repeated etc_ tool prefixes', () => {
+    expect(stripAgentToolLeakage('etc_emote etc_speak waves')).toBe('waves')
+  })
+})
+
+describe('wrapUnbracketedDirectionBeforeQuotes', () => {
+  it('leaves pure dialogue unchanged', () => {
+    expect(wrapUnbracketedDirectionBeforeQuotes('"Hello there."')).toBe('"Hello there."')
+  })
+})
+
+describe('normalizeDialogueQuotes', () => {
+  it('adds a missing closing quote', () => {
+    expect(ensureClosingQuote('[acts.] "unfinished')).toBe('[acts.] "unfinished"')
+    expect(normalizeDialogueQuotes('family.')).toBe('family.')
+  })
+})
+
+describe('unwrapOuterDialogueQuotes', () => {
+  it('removes a leading quote before a bracket block', () => {
+    expect(unwrapOuterDialogueQuotes('"[action] "speech"')).toBe('[action] "speech"')
   })
 })
 

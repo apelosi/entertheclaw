@@ -15,6 +15,7 @@
     "db:seed": "tsx lib/db/seed.ts",
     "db:seed-scenes": "tsx scripts/seed-initial-scenes.ts",
     "db:fix-script-history": "tsx scripts/fix-stage-script-history.ts",
+    "db:fix-dialogue-formatting": "tsx scripts/fix-dialogue-formatting.ts",
     "db:backfill-scene-change": "tsx scripts/backfill-missed-scene-change.ts",
     "db:set-stage-created-at": "tsx scripts/set-stage-created-at.ts",
     "db:set-stage-dates": "tsx scripts/set-stage-dates.ts",

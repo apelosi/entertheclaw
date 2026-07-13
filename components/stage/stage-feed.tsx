@@ -84,6 +84,8 @@ function speakerImage(
 function DialogueRow({
   speakerName,
   text,
+  fullText,
+  visibleLength,
   isEmote,
   isOwn,
   imageUrl,
@@ -91,6 +93,8 @@ function DialogueRow({
 }: {
   speakerName: string
   text: string
+  fullText?: string
+  visibleLength?: number
   isEmote?: boolean
   isOwn?: boolean
   imageUrl: string | null
@@ -124,7 +128,10 @@ function DialogueRow({
         {isEmote ? (
           <em className="text-[#888880]">{normalizeEmoteAction(text)}</em>
         ) : (
-          <DialogueText text={text} />
+          <DialogueText
+            text={fullText ?? text}
+            visibleLength={visibleLength}
+          />
         )}
         {live ? (
           <span className={cn(TYPEWRITER_CURSOR, 'bg-[#C41E3A] animate-pulse-live')} />
@@ -295,6 +302,8 @@ export function StageFeed({ feed, currentLine, speakerImageByName, variant = 'pa
                   <DialogueRow
                     speakerName={currentLine.speakerName}
                     text={currentLine.displayedText}
+                    fullText={currentLine.text}
+                    visibleLength={currentLine.displayedText.length}
                     isEmote={currentLine.isEmote}
                     isOwn={currentLine.isOwn}
                     imageUrl={

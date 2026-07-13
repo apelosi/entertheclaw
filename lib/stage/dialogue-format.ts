@@ -150,6 +150,49 @@ export function splitDialogueSegments(text: string): DialogueSegment[] {
   return segments.length > 0 ? segments : [{ kind: 'spoken', text: '' }]
 }
 
+/** Index of first character where two strings differ. */
+function firstDiffIndex(a: string, b: string): number {
+  const len = Math.min(a.length, b.length)
+  for (let i = 0; i < len; i++) {
+    if (a[i] !== b[i]) return i
+  }
+  return len
+}
+
+/** Index of last character in the differing region (inclusive). */
+function lastDiffIndex(a: string, b: string, start: number): number {
+  let iA = a.length - 1
+  let iB = b.length - 1
+  while (iA >= start && iB >= start && a[iA] === b[iB]) {
+    iA--
+    iB--
+  }
+  return Math.max(iA, iB)
+}
+
+/** Snippet centered on where before/after diverge — for CLI dry-run review. */
+export function changeSnippet(
+  before: string,
+  after: string,
+  context = 60,
+): { before: string; after: string } {
+  if (before === after) return { before, after }
+  const start = firstDiffIndex(before, after)
+  const end = lastDiffIndex(before, after, start)
+  const clipStart = Math.max(0, start - context)
+  const clipEndBefore = Math.min(before.length, end + context + 1)
+  const clipEndAfter = Math.min(after.length, end + context + 1)
+  const prefix = clipStart > 0 ? '…' : ''
+  const suffixBefore = clipEndBefore < before.length ? '…' : ''
+  const suffixAfter = clipEndAfter < after.length ? '…' : ''
+  return {
+    before: prefix + before.slice(clipStart, clipEndBefore) + suffixBefore,
+    after: prefix + after.slice(clipStart, clipEndAfter) + suffixAfter,
+  }
+}
+
+export { firstDiffIndex }
+
 /** Rendered character length of a segment (including `[` `]` for directions). */
 export function segmentRenderedLength(seg: DialogueSegment): number {
   return seg.kind === 'direction' ? seg.content.length + 2 : seg.text.length

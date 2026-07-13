@@ -7,7 +7,7 @@
  *
  * Repairs:
  * - Prep: strip leaked etc_emote/etc_speak prefixes; unwrap mistaken leading " before [
- * - Class C: wrap unbracketed stage direction before the first spoken quote in [brackets]
+ * - Class C: wrap every unbracketed prose run (stage direction) in [brackets], including beats between quotes
  * - Class A: close [brackets] before trapped spoken dialogue (heuristic-gated)
  * - Class B: unwrap single-word [emphasis] inside quotes → plain spoken word
  * - Class D: trim trailing quote garbage (e.g. .""'); add missing closing " only when
@@ -200,30 +200,80 @@ export function fixDoubleClosedDirectionBeforeQuote(text: string): string {
   if (!match) return text
   const outerTrim = match[1].trim()
   const innerTrim = match[2].trim()
+  // Single-word emphasis inside an outer bracket (e.g. It's [listening.]]) is Class B territory,
+  // not a mistaken double-close — splitting would regress be429002-style lines.
+  if (isEmphasisBracket(innerTrim.replace(/\.$/, ''))) return text
   if (!outerTrim) return `[${innerTrim}] ${suffix}`
   return `[${outerTrim}] [${innerTrim}] ${suffix}`
 }
 
+/** Index of the first `"` outside any `[bracket]` block at or after `start`. */
+function indexOfSpokenQuoteFrom(text: string, start: number): number {
+  let bracketDepth = 0
+  for (let i = start; i < text.length; i++) {
+    const ch = text[i]
+    if (ch === '[') bracketDepth++
+    else if (ch === ']' && bracketDepth > 0) bracketDepth--
+    else if (ch === '"' && bracketDepth === 0) return i
+  }
+  return -1
+}
+
+/** Next index of `[` or spoken `"` at or after `start`. */
+function indexOfNextBracketOrSpokenQuote(text: string, start: number): number {
+  const nextBracket = text.indexOf('[', start)
+  const nextQuote = indexOfSpokenQuoteFrom(text, start)
+  if (nextBracket === -1) return nextQuote === -1 ? text.length : nextQuote
+  if (nextQuote === -1) return nextBracket
+  return Math.min(nextBracket, nextQuote)
+}
+
 /**
- * Class C: wrap prose stage direction before the first spoken quote in [brackets].
+ * Class C: wrap every unbracketed prose run in [brackets].
  * `Kaelen's eye flickers. "Hello."` → `[Kaelen's eye flickers.] "Hello."`
+ * `...master." He looks. "And..."` → `...master." [He looks.] "And..."`
  * When an inner `[action]` already exists: `[prose] [inner] "Hello."` — not `[prose [inner]]`.
  */
 export function wrapUnbracketedDirectionBeforeQuotes(text: string): string {
-  const quoteIdx = indexOfFirstSpokenQuote(text)
-  if (quoteIdx <= 0) return text
-  const before = text.slice(0, quoteIdx).trimEnd()
-  if (!before || before.startsWith('[')) return text
+  if (indexOfFirstSpokenQuote(text) < 0) return text
 
-  const firstBracket = before.indexOf('[')
-  if (firstBracket > 0) {
-    const prose = before.slice(0, firstBracket).trimEnd()
-    const innerBlocks = before.slice(firstBracket)
-    if (!prose) return text
-    return `[${prose.trim()}] ${innerBlocks} ${text.slice(quoteIdx)}`
+  let result = ''
+  let i = 0
+  while (i < text.length) {
+    if (text[i] === '[') {
+      const closeIdx = findCloseBracket(text, i)
+      if (closeIdx === -1) {
+        result += text.slice(i)
+        break
+      }
+      result += text.slice(i, closeIdx + 1)
+      i = closeIdx + 1
+      continue
+    }
+    if (text[i] === '"') {
+      let j = i + 1
+      while (j < text.length && text[j] !== '"') j++
+      if (j >= text.length) {
+        result += text.slice(i)
+        break
+      }
+      result += text.slice(i, j + 1)
+      i = j + 1
+      continue
+    }
+    const nextSpecial = indexOfNextBracketOrSpokenQuote(text, i)
+    const chunk = text.slice(i, nextSpecial)
+    const prose = chunk.trim()
+    if (prose) {
+      const lead = chunk.match(/^\s*/)?.[0] ?? ''
+      const trail = chunk.match(/\s*$/)?.[0] ?? ''
+      result += `${lead}[${prose}]${trail}`
+    } else {
+      result += chunk
+    }
+    i = nextSpecial
   }
-
-  return `[${before.trim()}] ${text.slice(quoteIdx)}`
+  return result
 }
 
 /** Spoken text after the last unclosed `"` outside `[brackets]`, or null if balanced. */
@@ -296,6 +346,32 @@ export function unwrapEmphasisBracketsInQuotes(text: string): string {
   return result
 }
 
+/** Unwrap nested single-word [emphasis] inside outer [stage-direction] blocks. */
+export function unwrapEmphasisBracketsInDirections(text: string): string {
+  let result = ''
+  let i = 0
+  while (i < text.length) {
+    if (text[i] !== '[') {
+      result += text[i]
+      i++
+      continue
+    }
+    const closeIdx = findCloseBracket(text, i)
+    if (closeIdx === -1) {
+      result += text.slice(i)
+      break
+    }
+    const inner = text.slice(i + 1, closeIdx)
+    const fixed = inner.replace(/\[([^\]]+)\]/g, (match, content: string) => {
+      const token = content.trim().replace(/\.$/, '')
+      return isEmphasisBracket(token) ? content.trim() : match
+    })
+    result += `[${fixed}]`
+    i = closeIdx + 1
+  }
+  return result
+}
+
 export interface DialogueRepairAnalysis {
   after: string
   /** Prep: stripped etc_emote/etc_speak or leading outer quote. */
@@ -317,15 +393,16 @@ export function analyzeDialogueRepair(text: string): DialogueRepairAnalysis {
   const normalized = normalizeStageDirectionMarkers(unwrapped)
   const afterFixDouble = fixDoubleClosedDirectionBeforeQuote(normalized)
   const afterC = wrapUnbracketedDirectionBeforeQuotes(afterFixDouble)
-  const afterA = closeBracketBeforeQuotes(afterC)
+  const afterEmphasisDirs = unwrapEmphasisBracketsInDirections(afterC)
+  const afterA = closeBracketBeforeQuotes(afterEmphasisDirs)
   const afterB = unwrapEmphasisBracketsInQuotes(afterA)
   const afterD = normalizeDialogueQuotes(afterB)
   return {
     after: afterD,
     prep: stripped !== text || unwrapped !== stripped,
     classC: afterC !== normalized || afterFixDouble !== normalized,
-    classA: afterA !== afterC,
-    classB: afterB !== afterA,
+    classA: afterA !== afterEmphasisDirs,
+    classB: afterB !== afterA || afterEmphasisDirs !== afterC,
     classD: afterD !== afterB,
   }
 }

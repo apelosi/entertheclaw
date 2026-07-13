@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 import {
   analyzeDialogueRepair,
   closeBracketBeforeQuotes,
+  isDialogueOpenerInBrackets,
+  isEmbeddedCitationInBrackets,
   isEmphasisBracket,
   normalizeStageDirectionMarkers,
   repairDialogueFormatting,
@@ -54,6 +56,24 @@ describe('repairDialogueFormatting — Class A', () => {
     const good =
       '[I press my palm flat against the pulsing grate, attention elsewhere.] "The cough wasn\'t the release. It was a warning shot."'
     expect(repairDialogueFormatting(good)).toBe(good)
+  })
+
+  it('does not close bracket before embedded citations (production edge cases)', () => {
+    const fileTitle =
+      '[My cybernetic eye flickers through encrypted glyphs as the resonance fades, a match pinging against a buried intelligence file flagged "Aetherius Contingency — Eyes Only."] "The planet didn\'t open that door."'
+    expect(repairDialogueFormatting(fileTitle)).toBe(fileTitle)
+
+    const embeddedPhrase =
+      '[Gio\'s hand points at the empty chair beside the Don — the one Carlo was supposed to be sitting in before he "stepped out for air" ten minutes before the shooting started.]'
+    expect(repairDialogueFormatting(embeddedPhrase)).toBe(embeddedPhrase)
+
+    const possessiveCitation =
+      '[It settles into the silence beside Melanthus\'s "enough" and Selene\'s "here," finding its place among them.]'
+    expect(repairDialogueFormatting(possessiveCitation)).toBe(possessiveCitation)
+
+    const wordReference =
+      '[Melanthus has been standing at the edge of the god\'s palm, and that is what finally breaks his silence: the word "holding." He turns.]'
+    expect(repairDialogueFormatting(wordReference)).toBe(wordReference)
   })
 })
 
@@ -115,7 +135,31 @@ describe('splitDialogueSegments', () => {
 })
 
 describe('closeBracketBeforeQuotes', () => {
-  it('is exported for repair analysis', () => {
-    expect(closeBracketBeforeQuotes('[action "speech"]')).toBe('[action] "speech"')
+  it('closes when quote follows a sentence end inside brackets', () => {
+    expect(closeBracketBeforeQuotes('[action. "speech"]')).toBe('[action.] "speech"')
+  })
+
+  it('closes when quote follows a dialogue verb', () => {
+    expect(closeBracketBeforeQuotes('[A tinny voice crackles: "Tell the boy."]')).toBe(
+      '[A tinny voice crackles:] "Tell the boy."',
+    )
+  })
+})
+
+describe('isDialogueOpenerInBrackets', () => {
+  it('allows dialogue openers', () => {
+    expect(isDialogueOpenerInBrackets('feeling its resonance thrum against my own energy. ')).toBe(
+      true,
+    )
+    expect(isDialogueOpenerInBrackets('A tinny voice crackles: ')).toBe(true)
+    expect(isDialogueOpenerInBrackets('He has time to say, ')).toBe(true)
+  })
+
+  it('blocks embedded citations', () => {
+    expect(isEmbeddedCitationInBrackets('buried intelligence file flagged ')).toBe(true)
+    expect(isEmbeddedCitationInBrackets('sitting in before he ')).toBe(true)
+    expect(isEmbeddedCitationInBrackets('beside Melanthus\'s ')).toBe(true)
+    expect(isEmbeddedCitationInBrackets('breaks his silence: the word ')).toBe(true)
+    expect(isDialogueOpenerInBrackets('buried intelligence file flagged ')).toBe(false)
   })
 })

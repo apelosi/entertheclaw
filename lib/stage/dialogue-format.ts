@@ -3,10 +3,10 @@
  *
  * Contract:
  * - [brackets] = unspoken physical action / staging (muted gray)
- * - "quotes"   = spoken dialogue (white)
+ * - "quotes"   = spoken dialogue (white) — when outside [brackets]
  *
  * Repairs:
- * - Class A: close [brackets] before the first " inside a block that contains speech
+ * - Class A: close [brackets] before trapped spoken dialogue (heuristic-gated)
  * - Class B: unwrap single-word [emphasis] inside quotes → plain spoken word
  */
 
@@ -14,6 +14,15 @@ const DOUBLE_ASTERISK = /\*\*([^*\n]+)\*\*/g
 const SINGLE_ASTERISK = /\*([^*\n]+)\*/g
 /** Single spoken token — not multi-word stage direction inside quotes. */
 const EMPHASIS_TOKEN = /^[\w'-]+$/
+
+const TITLE_VERB_BEFORE_QUOTE =
+  /\b(flagged|titled|named|called|labeled|reading|marked|filed|entitled)$/i
+const POSSESSIVE_BEFORE_QUOTE = /\w+'s(?:\s*\\?)?$/
+const EMBEDDED_PRONOUN_BEFORE_QUOTE =
+  /\b(before|after|beside)\s+(he|she|they|it)$/i
+const THE_WORD_BEFORE_QUOTE = /\bthe word$/i
+const DIALOGUE_VERB_BEFORE_QUOTE =
+  /\b(say|says|said|whisper|whispers|murmur|murmurs|crackles|shouts|asks|mutters|calls)\s*,?\s*$/i
 
 function applyAsteriskRules(text: string, inQuotes: boolean): string {
   if (inQuotes) {
@@ -79,8 +88,34 @@ export function isEmphasisBracket(content: string): boolean {
 }
 
 /**
+ * Quoted text inside [brackets] that should stay gray — a title, cited phrase,
+ * or referenced word, not the start of out-loud dialogue.
+ */
+export function isEmbeddedCitationInBrackets(beforeQuote: string): boolean {
+  const b = beforeQuote.trimEnd()
+  if (THE_WORD_BEFORE_QUOTE.test(b)) return true
+  if (TITLE_VERB_BEFORE_QUOTE.test(b)) return true
+  if (POSSESSIVE_BEFORE_QUOTE.test(b)) return true
+  if (EMBEDDED_PRONOUN_BEFORE_QUOTE.test(b)) return true
+  return false
+}
+
+/**
+ * True when `"` inside a [bracket] block likely starts spoken dialogue that
+ * should render white outside the brackets (Class A), not an in-action citation.
+ */
+export function isDialogueOpenerInBrackets(beforeQuote: string): boolean {
+  if (isEmbeddedCitationInBrackets(beforeQuote)) return false
+  const b = beforeQuote.trimEnd()
+  if (/[.!?]\s*$/.test(b)) return true
+  if (/:\s*$/.test(b)) return true
+  if (DIALOGUE_VERB_BEFORE_QUOTE.test(b)) return true
+  return false
+}
+
+/**
  * Class A: when a bracket block contains quoted speech, close the bracket before
- * the first `"` so dialogue renders white instead of inside gray stage direction.
+ * the first dialogue-opening `"` so speech renders white instead of inside gray.
  */
 export function closeBracketBeforeQuotes(text: string): string {
   let result = ''
@@ -98,7 +133,7 @@ export function closeBracketBeforeQuotes(text: string): string {
     }
     const inner = text.slice(i + 1, closeIdx)
     const firstQuote = inner.indexOf('"')
-    if (firstQuote >= 0) {
+    if (firstQuote >= 0 && isDialogueOpenerInBrackets(inner.slice(0, firstQuote))) {
       const action = inner.slice(0, firstQuote).trimEnd()
       const spoken = inner.slice(firstQuote)
       result += `[${action}] ${spoken}`
@@ -209,5 +244,5 @@ export function segmentRenderedLength(seg: DialogueSegment): number {
 /** Shared agent-facing formatting rule (keep prompts in sync with this). */
 export const DIALOGUE_FORMAT_RULE =
   '[square brackets] are ONLY for physical actions the audience sees but does not hear (e.g. [glances at the door]). ' +
-  'All spoken words go in "double quotes". Never put [brackets] around words inside quotes — write "it is listening", not "it is [listening]". ' +
-  'For action without dialogue, use etc_emote. Do not use *asterisks*.'
+  'All spoken words go in "double quotes" outside [brackets]. Never put [brackets] around words inside quotes — write "it is listening", not "it is [listening]". ' +
+  'Quoted titles or cited phrases inside [brackets] stay in the narration. For action without dialogue, use etc_emote. Do not use *asterisks*.'

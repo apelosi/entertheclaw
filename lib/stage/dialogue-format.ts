@@ -447,35 +447,32 @@ export function isTruncatedStageDirection(text: string): boolean {
   const t = text.trim().replace(/^\[/, '').replace(/\]$/, '')
   if (!t) return false
   if (/[.!?…]$/.test(t)) return false
+  // Short beats / emphasis tokens (`to`, `with`, `sink in`) are complete, not cutoffs.
+  if (t.length < 24) return false
+  if (t.split(/\s+/).filter(Boolean).length < 5) return false
   return /\b(to|the|a|an|and|or|of|with|for|from|in|on|at|into|onto|toward|towards|my|his|her|their|its|this|that)$/i.test(
     t,
   )
 }
 
-/** `[cutoff to]` → `[cutoff to` — drop a false closing bracket on truncated direction. */
+/**
+ * Whole-line `[cutoff to]` → `[cutoff to` — drop a false closing bracket.
+ * Inline brackets are left alone (avoids eating `]` on `[to]` / `…sink in]`).
+ */
 export function openTruncatedDirectionBrackets(text: string): string {
-  let result = ''
-  let i = 0
-  while (i < text.length) {
-    if (text[i] !== '[') {
-      result += text[i]
-      i++
-      continue
-    }
-    const closeIdx = findCloseBracket(text, i)
-    if (closeIdx === -1) {
-      result += text.slice(i)
-      break
-    }
-    const inner = text.slice(i + 1, closeIdx)
-    if (isTruncatedStageDirection(inner) && !inner.includes('"')) {
-      result += `[${inner}`
-    } else {
-      result += text.slice(i, closeIdx + 1)
-    }
-    i = closeIdx + 1
+  const lead = text.match(/^\s*/)?.[0] ?? ''
+  const trail = text.match(/\s*$/)?.[0] ?? ''
+  const trimmed = text.trim()
+  if (!trimmed.startsWith('[')) return text
+  // Only rewrite a single whole-line bracket block.
+  if (trimmed.slice(1).includes('[')) return text
+  const closeIdx = findCloseBracket(trimmed, 0)
+  if (closeIdx !== trimmed.length - 1) return text
+  const inner = trimmed.slice(1, closeIdx)
+  if (isTruncatedStageDirection(inner) && !inner.includes('"')) {
+    return `${lead}[${inner}${trail}`
   }
-  return result
+  return text
 }
 
 /**
@@ -596,6 +593,10 @@ function looksLikeDirectionSegment(text: string): boolean {
   if (!t) return false
   if (FIRST_PERSON_DIRECTION.test(t)) return true
   if (STAGE_ACTION_VERB.test(t)) return true
+  // First-person physical / sensory staging inside brackets stays gray.
+  if (/^I\s+/i.test(t) && !FIRST_PERSON_SPOKEN.test(t)) return true
+  // "My voice / eyes / hand…" attribution beats are staging, not speech.
+  if (/^My\s+(voice|eyes?|gaze|hand|palm|fingers?|cybernetic)\b/i.test(t)) return true
   if (
     /^(he|she|they|his|her|their)\b/i.test(t) &&
     /\b(eyes?|gaze|hand|palm|fingers?|voice|body|lips?|boots?|staff|arm|head)\b/i.test(t)
@@ -621,6 +622,8 @@ function looksLikeSpokenAfterDirection(text: string): boolean {
   const t = text.trim()
   if (!t) return false
   if (looksLikeDirectionSegment(t)) return false
+  // Third-person narrative continuation is still staging, not speech.
+  if (/\b(he|she|they)\b/i.test(t)) return false
 
   // Demonstrative spoken revelation ("That listening post wasn't…")
   if (
@@ -651,17 +654,18 @@ export function looksLikeSpokenBracketContent(text: string): boolean {
   const t = text.trim()
   if (!t) return false
   if (looksLikeDirectionSegment(t)) return false
-  // Revelation / reportorial lines that mention body parts but have no stage verb.
+  // First-person / My-attribution blocks are staging even without a listed verb.
+  if (/^(I|My)\b/i.test(t)) return false
+  // Revelation / reportorial: "The kyber's pulse just etched a name into my palm…"
   if (
     !STAGE_ACTION_VERB.test(t) &&
-    !FIRST_PERSON_DIRECTION.test(t) &&
     /[.!?]$/.test(t) &&
+    /^(The|That|This)\b/.test(t) &&
     /\bmy\b/i.test(t) &&
-    t.split(/\s+/).filter(Boolean).length >= 8
+    t.split(/\s+/).filter(Boolean).length >= 8 &&
+    !/\b(he|she|they)\b/i.test(t) &&
+    !/\bI\b/.test(t)
   ) {
-    return true
-  }
-  if (looksLikeSpokenBareProse(t) && /^(you|you're|your|i|i'm|i've|i'll|i'd)\b/i.test(t)) {
     return true
   }
   return false

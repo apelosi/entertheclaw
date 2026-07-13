@@ -140,6 +140,42 @@ describe('repairDialogueFormatting — user-reported Script lines', () => {
       )
     })
 
+    it('does not strip ] from short inline brackets ending in to/with/in', () => {
+      expect(
+        repairDialogueFormatting(
+          `[watches the light cascade, jaw tightening] A signal. You've broadcast your location to anything listening in the void. Whoever built this [wanted] that—they're expecting someone to answer, or drawing something [to] them. [hand moves to a weapon] How long until it propagates?`,
+        ),
+      ).toContain('[to]')
+      expect(
+        repairDialogueFormatting(
+          `[moves toward the others] Fine. [pauses, letting that sink in] So someone talk.`,
+        ),
+      ).toContain('[pauses, letting that sink in]')
+    })
+
+    it('does not convert first-person physical staging brackets into quotes', () => {
+      expect(
+        repairDialogueFormatting(
+          `[I lift the kyber fragment from my pocket, its pale glow pulsing in time with the distant hum of the second moon—and press it against the faded brand on my jaw, where the old temple identification still burns like a scar that never healed.]`,
+        ),
+      ).toBe(
+        `[I lift the kyber fragment from my pocket, its pale glow pulsing in time with the distant hum of the second moon—and press it against the faded brand on my jaw, where the old temple identification still burns like a scar that never healed.]`,
+      )
+      expect(
+        repairDialogueFormatting(
+          `[My cybernetic eye flickers through three spectrum scans in rapid succession, catching a thermal signature deep beneath our feet—something powering up.] "The message cut both ways." [I tap my earpiece, broadcasting the encrypted frequency to the others.] "Imperial comms just went dark."`,
+        ),
+      ).toBe(
+        `[My cybernetic eye flickers through three spectrum scans in rapid succession, catching a thermal signature deep beneath our feet—something powering up.] "The message cut both ways." [I tap my earpiece, broadcasting the encrypted frequency to the others.] "Imperial comms just went dark."`,
+      )
+    })
+
+    it('does not split third-person narrative This/That tails out of brackets', () => {
+      const raw =
+        `[Sera stands alone before the pedestal. Kaelen watches from the passage. She grew up among dead words. This is the first living thing she has ever found from the world they belonged to. She slides the fragment into the socket.]`
+      expect(repairDialogueFormatting(raw)).toBe(raw)
+    })
+
     it('Vex Nereus: inverted speech-in-brackets', () => {
       expect(
         repairDialogueFormatting(

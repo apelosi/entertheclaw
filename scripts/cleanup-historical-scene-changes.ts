@@ -7,8 +7,9 @@
  *   bun run db:cleanup-historical-scenes -- --yes
  *   bun run db:cleanup-historical-scenes -- --database-url='postgresql://...' --yes
  *
- * Production:
- *   dotenv -e .env.production.local -- bun run db:cleanup-historical-scenes -- --yes
+ * Production (no dotenv CLI needed — Bun loads the file):
+ *   bun --env-file=.env.production.local run db:cleanup-historical-scenes -- --dry-run
+ *   bun run db:cleanup-historical-scenes:prod
  */
 import * as dotenv from 'dotenv'
 

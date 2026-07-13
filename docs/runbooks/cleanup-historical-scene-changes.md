@@ -2,32 +2,39 @@
 
 One-time correction for overzealous `scene_change` rows created before PR #80 (current-scene gate + invariants).
 
-## Affected stages
+## Affected stages (as of latest production preview)
 
 | Stage | Delete | Keep |
 |-------|--------|------|
-| **Claw Wars** | 2 duplicate vent-grate rows | Opening cantina, Outside cantina, first vent grate |
-| **The Clawfather** | Wedding duplicate + shooting duplicate | Opening wedding study, first "seconds after shooting" |
+| **Claw Wars** | 2 duplicate vent-grate rows | Opening cantina, Outside cantina, first vent grate, Ossus archives (if present) |
+| **The Clawfather** | Wedding duplicate + shooting duplicates (2–3 rows) | Opening wedding study, first "seconds after shooting" |
 | **Claw of the Titans** | Vault rephrase (hatch opened in same bronze chamber) | Oracle steps, bronze chamber, dark shaft descent |
 
 ## Preview (no DB writes)
 
-Against production feed via public API:
-
 ```bash
-bunx tsx scripts/preview-historical-scene-cleanup.ts
+bun run db:preview-historical-scenes
 ```
 
 ## Apply (production DB)
 
 **Requires production Neon branch** (`ep-muddy-wave`), not dev (`ep-polished-paper`).
 
+Bun loads env files natively — no `dotenv` CLI required:
+
 ```bash
 # Dry run
-dotenv -e .env.production.local -- bun run db:cleanup-historical-scenes -- --dry-run
+bun --env-file=.env.production.local run db:cleanup-historical-scenes -- --dry-run
 
 # Apply deletes + hospital backfill
-dotenv -e .env.production.local -- bun run db:cleanup-historical-scenes -- --yes
+bun --env-file=.env.production.local run db:cleanup-historical-scenes -- --yes
+```
+
+Shorthand scripts (same thing):
+
+```bash
+bun run db:cleanup-historical-scenes:prod:dry-run
+bun run db:cleanup-historical-scenes:prod
 ```
 
 Or pass an explicit URL:

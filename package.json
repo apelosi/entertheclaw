@@ -26,6 +26,8 @@
     "db:cleanup-verify-agents": "tsx lib/db/cleanup-verify-agents.ts",
     "db:cleanup-all-agents": "tsx lib/db/cleanup-all-agents-characters.ts",
     "db:cleanup-historical-scenes": "tsx scripts/cleanup-historical-scene-changes.ts",
+    "db:cleanup-historical-scenes:prod:dry-run": "bun --env-file=.env.production.local tsx scripts/cleanup-historical-scene-changes.ts --dry-run",
+    "db:cleanup-historical-scenes:prod": "bun --env-file=.env.production.local tsx scripts/cleanup-historical-scene-changes.ts --yes",
     "db:preview-historical-scenes": "tsx scripts/preview-historical-scene-cleanup.ts",
     "db:check-database": "tsx lib/db/check-database.ts",
     "db:bootstrap-branch": "tsx lib/db/bootstrap-branch.ts",

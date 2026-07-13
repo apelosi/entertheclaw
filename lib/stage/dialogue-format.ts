@@ -18,6 +18,8 @@ const DOUBLE_ASTERISK = /\*\*([^*\n]+)\*\*/g
 const SINGLE_ASTERISK = /\*([^*\n]+)\*/g
 /** Single spoken token — not multi-word stage direction inside quotes. */
 const EMPHASIS_TOKEN = /^[\w'-]+$/
+/** Direction runs should include at least one letter/number, not punctuation-only separators. */
+const DIRECTION_CONTENT_TOKEN = /[\p{L}\p{N}]/u
 
 const TITLE_VERB_BEFORE_QUOTE =
   /\b(flagged|titled|named|called|labeled|reading|marked|filed|entitled)$/i
@@ -265,6 +267,11 @@ export function wrapUnbracketedDirectionBeforeQuotes(text: string): string {
     const chunk = text.slice(i, nextSpecial)
     const prose = chunk.trim()
     if (prose) {
+      if (!DIRECTION_CONTENT_TOKEN.test(prose)) {
+        result += chunk
+        i = nextSpecial
+        continue
+      }
       const lead = chunk.match(/^\s*/)?.[0] ?? ''
       const trail = chunk.match(/\s*$/)?.[0] ?? ''
       result += `${lead}[${prose}]${trail}`

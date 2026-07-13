@@ -121,6 +121,11 @@ describe('repairDialogueFormatting — production regressions', () => {
     expect(fixed).not.toContain('[[listening')
   })
 
+  it('does not wrap punctuation-only separators as stage direction blocks', () => {
+    expect(repairDialogueFormatting('[nods], "Yes."')).toBe('[nods], "Yes."')
+    expect(repairDialogueFormatting('[nods] — "Yes."')).toBe('[nods] — "Yes."')
+  })
+
   it('repairs mistaken ]] from a prior Class C wrap', () => {
     const raw =
       "[Kaelen's cybernetic eye flickers as he crouches, pressing a gloved hand to the trembling ground. [He pulls out a dented datapad, its screen casting a cold blue light across the cracked earth.]] \"The Em"

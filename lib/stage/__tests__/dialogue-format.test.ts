@@ -87,6 +87,25 @@ describe('repairDialogueFormatting — production regressions', () => {
     expect(emoteContainsDialogue('looks away')).toBe(false)
     expect(emoteContainsDialogue('nods and says "hello"')).toBe(true)
   })
+
+  it('splits prose and inner [action] instead of double-closing (Class C)', () => {
+    const raw =
+      "Kaelen's cybernetic eye flickers as he crouches, pressing a gloved hand to the trembling ground. [He pulls out a dented datapad, its screen casting a cold blue light across the cracked earth.] \"The Em"
+    const fixed = repairDialogueFormatting(raw)
+    expect(fixed).toBe(
+      "[Kaelen's cybernetic eye flickers as he crouches, pressing a gloved hand to the trembling ground.] [He pulls out a dented datapad, its screen casting a cold blue light across the cracked earth.] \"The Em",
+    )
+    expect(fixed).not.toContain(']]')
+  })
+
+  it('repairs mistaken ]] from a prior Class C wrap', () => {
+    const raw =
+      "[Kaelen's cybernetic eye flickers as he crouches, pressing a gloved hand to the trembling ground. [He pulls out a dented datapad, its screen casting a cold blue light across the cracked earth.]] \"The Em"
+    const fixed = repairDialogueFormatting(raw)
+    expect(fixed).toBe(
+      "[Kaelen's cybernetic eye flickers as he crouches, pressing a gloved hand to the trembling ground.] [He pulls out a dented datapad, its screen casting a cold blue light across the cracked earth.] \"The Em",
+    )
+  })
 })
 
 describe('formatDialogueLineForPrompt', () => {

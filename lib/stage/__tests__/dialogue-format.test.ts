@@ -111,6 +111,38 @@ describe('repairDialogueFormatting — production regressions', () => {
     expect(analysis.classC).toBe(true)
   })
 
+  it('unwraps mistaken leading quote on legacy Pyros rows', () => {
+    const raw =
+      '"Pyros runs a calloused thumb along the edge of his hammer, the metal singing a low note. "I have forged nails for the temple and hinges for the vault, but this — this is the sound of the earth remembering its first master." He looks to Kassandra. "And that master was not a god."'
+    expect(repairDialogueFormatting(raw)).toBe(
+      '[Pyros runs a calloused thumb along the edge of his hammer, the metal singing a low note.] "I have forged nails for the temple and hinges for the vault, but this — this is the sound of the earth remembering its first master." [He looks to Kassandra.] "And that master was not a god."',
+    )
+  })
+
+  it('quotes trailing first-person speech instead of bracketing it', () => {
+    const raw =
+      '[He gasps and pulls his hand back.] "The vessel is found." I did not say that. It said that. Through me.'
+    expect(repairDialogueFormatting(raw)).toBe(
+      '[He gasps and pulls his hand back.] "The vessel is found." "I did not say that. It said that. Through me."',
+    )
+  })
+
+  it('normalizes stored backslash-quote escapes without [\\] artifacts', () => {
+    const raw =
+      '[He glances away.] \\"Even defiance requires allies.\\"'
+    expect(repairDialogueFormatting(raw)).toBe(
+      '[He glances away.] "Even defiance requires allies."',
+    )
+  })
+
+  it('brackets short quoted beats when staging follows ("Palermo." Then...)', () => {
+    const raw =
+      '[fingers tracing a word into the grappa on the floor:] "Palermo." Then his arm falls limp.'
+    expect(repairDialogueFormatting(raw)).toBe(
+      '[fingers tracing a word into the grappa on the floor:] "Palermo." [Then his arm falls limp.]',
+    )
+  })
+
   it('does not split single-word emphasis nested in outer bracket before quote', () => {
     const raw =
       "[The bridle isn't waiting. It's [listening.]] \"It knows we've opened the door.\""

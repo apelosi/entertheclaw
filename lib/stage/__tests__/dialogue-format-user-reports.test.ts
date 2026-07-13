@@ -198,6 +198,30 @@ describe('repairDialogueFormatting — user-reported Script lines', () => {
         `[Melanthus's hand goes to the dead caduceus at his belt as the tripod shudders. He meets Kassandra's grey eyes.] "What comes after." "You say that like you've already seen it, priestess."`,
       )
     })
+
+    it('quotes Underboss "You understand?" monologues instead of bracketing them', () => {
+      expect(
+        repairDialogueFormatting(
+          `8:22 AM. Another check. Another all-clear. This is how you run an empire — not with noise, but with vigilance. You understand?`,
+        ),
+      ).toBe(
+        `"8:22 AM. Another check. Another all-clear. This is how you run an empire — not with noise, but with vigilance. You understand?"`,
+      )
+      expect(
+        repairDialogueFormatting(
+          `I trust the family kept things in order while I was away. A man steps out for a day and comes back to find... well, let's just say I hope nobody mistook my absence for weakness. You understand?`,
+        ),
+      ).toBe(
+        `"I trust the family kept things in order while I was away. A man steps out for a day and comes back to find... well, let's just say I hope nobody mistook my absence for weakness. You understand?"`,
+      )
+      expect(
+        repairDialogueFormatting(
+          `I've been patient. But patience runs thin when there's business to handle. So let me make this simple — anyone with something to say, say it now. Otherwise, I make the calls myself. You understand?`,
+        ),
+      ).toBe(
+        `"I've been patient. But patience runs thin when there's business to handle. So let me make this simple — anyone with something to say, say it now. Otherwise, I make the calls myself. You understand?"`,
+      )
+    })
   })
 
   describe('idempotent on already-correct multi-beat lines', () => {

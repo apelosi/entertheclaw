@@ -322,7 +322,6 @@ function isJunkBareProse(trimmed: string): boolean {
 export function looksLikeSpokenBareProse(trimmed: string): boolean {
   if (!trimmed) return false
   if (FIRST_PERSON_DIRECTION.test(trimmed)) return false
-  if (STAGE_ACTION_VERB.test(trimmed)) return false
   // Attribution stays direction (gray), not spoken quotes.
   if (
     /^(he|she|they|it)\s+(says|said|whispers|whispered|mutters|asks|replies|answers)\b/i.test(
@@ -335,21 +334,25 @@ export function looksLikeSpokenBareProse(trimmed: string): boolean {
   if (/^(he|she|they)\s+[a-z]/i.test(trimmed) && !/\?\s*$/.test(trimmed)) {
     return false
   }
-  // Third-person / named physical staging → direction, not speech.
+
+  // Clear speech signals win even when the line contains verbs like "run"/"steps"
+  // used metaphorically ("how you run an empire", "patience runs thin").
+  if (FIRST_PERSON_SPOKEN.test(trimmed)) return true
+  if (/^I(?:'m|'ve|'ll|'d|’m|’ve|’ll|’d)\b/i.test(trimmed)) return true
+  if (/^(you|you're|your|yours|you’re)\b/i.test(trimmed)) return true
+  if (/\?\s*$/.test(trimmed)) return true
+  if (/\byou understand\?\s*$/i.test(trimmed)) return true
+
+  // Physical staging cues without a speech signal → direction.
+  if (STAGE_ACTION_VERB.test(trimmed)) return false
   if (
     /\b(eyes?|gaze|hand|palm|fingers?|voice|body|lips?|tremor|floor|boots?|flickers?|scanning|crouches?|pressing|cybernetic)\b/i.test(
       trimmed,
-    ) &&
-    !/\?\s*$/.test(trimmed) &&
-    !/^(you|you're|your|yours)\b/i.test(trimmed)
+    )
   ) {
     return false
   }
-  if (FIRST_PERSON_SPOKEN.test(trimmed)) return true
-  // Second-person address / challenge.
-  if (/^(you|you're|your|yours)\b/i.test(trimmed)) return true
-  // Questions are almost always spoken.
-  if (/\?\s*$/.test(trimmed)) return true
+
   // Complete sentence with no staging cues → speech.
   if (
     /[.!]\s*$/.test(trimmed) &&

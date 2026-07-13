@@ -144,6 +144,16 @@ async function main() {
     ? await db.select().from(stages).where(eq(stages.name, STAGE_FILTER))
     : await db.select({ id: stages.id, name: stages.name }).from(stages)
 
+  if (STAGE_FILTER && stageRows.length === 0) {
+    const allNames = await db.select({ name: stages.name }).from(stages)
+    const names = allNames.map((r) => r.name).sort()
+    throw new Error(
+      `No stage named ${JSON.stringify(STAGE_FILTER)}.\n` +
+        `Exact names:\n  - ${names.join('\n  - ')}\n` +
+        `Tip: use --stage='Claw of the Titans' (include "the").`,
+    )
+  }
+
   let scanned = 0
   let repaired = 0
   let prepCount = 0

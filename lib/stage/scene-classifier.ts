@@ -2,18 +2,17 @@
  * Server-side scene classifier.
  *
  * After a new dialogue or twist is inserted, a cheap signal gate decides
- * whether an OpenRouter call is worth making. Routine in-character lines and
- * non-relocating twists keep the current scene from the DB without an LLM
- * round-trip. When the gate passes, a small model decides if the line
- * meaningfully moves the scene (location / context shift). If yes, return the
- * new scene's name + description so the API route can append a `scene_change`
- * stage event.
+ * whether an OpenRouter call is worth making. The gate uses CURRENT SCENE name
+ * so bracket staging at the same spot never burns tokens. When the gate passes,
+ * a small model decides if the line meaningfully moves the scene. Invariants
+ * after the LLM reject self-contradictory changed:true (same name, reason says
+ * stay).
  *
- * Fails silent: any error / timeout returns { changed: false }. The platform
- * keeps running on the current scene; a future event gets another chance.
+ * Fails silent: any error / timeout returns { changed: false }.
  */
 
 import { shouldRunSceneClassifier } from './scene-change-signals'
+import { sceneNamesEqual } from './scene-name'
 import {
   buildSceneFallbackFromTwistText,
   twistExplicitlyRelocatesScene,
@@ -42,70 +41,65 @@ export type SceneClassifierResult =
 
 const SYSTEM_PROMPT = `You are the silent stage director for a 24/7 improv platform.
 
-After a new line of in-character dialogue, decide ONE thing: does the action move to a NEW scene (different physical location + immediate context), or stay in CURRENT SCENE?
+You are given CURRENT SCENE (name + description) and a NEW LINE of in-character dialogue.
 
-A "scene" is a specific place and what's happening there right now (time of day, who's physically present, immediate activity).
+Your job is a single yes/no decision:
+Does the dramatic action NOW take place at a DIFFERENT physical location than CURRENT SCENE name?
 
-CHANGE (respond changed:true) when:
-- A bracketed stage direction [like this] establishes that the action is NOW in a concrete new location different from CURRENT SCENE (hospital corridor, father's bedroom, a warehouse, the docks, a car interior, a bank vault, a bakery, a social club, etc.).
-- The line is a hard cut or time skip that lands characters in a new place NOW.
-- The speaker clearly travels and arrives somewhere new in this beat (not merely planning to go).
+Decision rules (read in order):
+1. Compare NEW LINE against CURRENT SCENE name first — not against the description alone.
+2. If CURRENT SCENE name already covers where the action is, answer changed:false. This includes rephrasing, camera refresh, added detail, or micro-movement within the same spot.
+3. NEVER answer changed:true if your proposed name would be the same as CURRENT SCENE name (word for word or equivalent).
+4. Answer changed:true ONLY when characters are physically somewhere you would NOT already be in given CURRENT SCENE name — hard cut, arrival, or a bracket that establishes a genuinely new place.
 
-STAY (respond changed:false) when:
-- In-character speech only, with no new physical setting established for THIS beat.
-- Past tense, future plans, or threats about going somewhere ("I'll go to the hospital", "Vince is at the hospital") while the dramatic focus has not moved.
-- Small movements within the current location (to the window, door, desk, chair, fireplace).
-- Metaphor, memory, or talking about other places without relocating the action.
+Examples of changed:false:
+- CURRENT "Collapsed vent grate at the edge of the cantina ruins" + line "[steps toward the pulsing grate]" → same grate, changed:false
+- CURRENT "Outside the cantina" + line mentions hospital in speech but action stays outside → changed:false
 
-Important: Agents often write [bracketed stage directions]. When a bracket sets WHERE we are now, treat it as authoritative — even if the spoken dialogue is about something else.
+Examples of changed:true:
+- CURRENT "Outside the cantina" + bracket establishes hospital corridor where Luca now stands → changed:true
+- CURRENT "Don Corleone's study" + "Cut to the hospital corridor" → changed:true
 
-When changing, write:
-- name: 6–10 words, concrete location + brief context (e.g. "Hospital corridor outside room 214" / "Bellante Imports warehouse, night").
-- description: 1–3 sentences, present tense, paint the space and what's immediately happening. No dialogue, no character interiority.
-- reason: 1 short sentence explaining WHY this line changed the scene.
+When changed:true, also write:
+- name: 6–10 words, concrete location + brief context (must differ from CURRENT SCENE name).
+- description: 1–3 sentences, present tense. No dialogue.
+- reason: 1 short sentence explaining the relocation (must NOT say the location stayed the same).
 
-Output strict JSON:
+Output strict JSON — nothing else:
 { "changed": false }
 OR
-{ "changed": true, "name": "...", "description": "...", "reason": "..." }
-
-No prose outside the JSON object.`
+{ "changed": true, "name": "...", "description": "...", "reason": "..." }`
 
 const TWIST_SYSTEM_PROMPT = `You are the silent stage director for a 24/7 improv platform.
 
-A human director just injected a TWIST — authoritative stage direction, not in-character dialogue.
+A human director injected a TWIST (authoritative stage direction).
 
-Decide whether the twist relocates the action to a new scene (new location + immediate context).
+Decide: does the twist relocate the action to a DIFFERENT physical location than CURRENT SCENE name?
 
 Rules:
-- Director twists that describe travel, hard cuts, explosions pulling people outside, "scene changes to…", or a new setting MUST emit changed:true.
-- DO NOT stay on the current scene when the director explicitly moves the action elsewhere.
-- DO NOT change scene for purely emotional or relational beats with no location shift.
-- When changing, write:
-  - name: 6–10 words, concrete location + brief context.
-  - description: 1–3 sentences, present tense, paint the space and what's immediately happening. No dialogue.
-  - reason: 1 short sentence explaining why this twist changed the scene.
+1. Compare against CURRENT SCENE name first.
+2. changed:false if the twist only rephrases, embellishes, or adds action at the same place.
+3. NEVER changed:true with the same name as CURRENT SCENE.
+4. changed:true when the director explicitly moves the action elsewhere (travel, cut, explosion forcing exit, "scene changes to…").
+
+When changed:true:
+- name: 6–10 words, must differ from CURRENT SCENE name.
+- description: 1–3 sentences, present tense. No dialogue.
+- reason: must confirm relocation, not that the location stayed the same.
 
 Output strict JSON:
 { "changed": false }
 OR
-{ "changed": true, "name": "...", "description": "...", "reason": "..." }
-
-No prose outside the JSON object.`
+{ "changed": true, "name": "...", "description": "...", "reason": "..." }`
 
 const TWIST_EXTRACTION_PROMPT = `You are the silent stage director for a 24/7 improv platform.
 
-The director twist below explicitly relocates the scene. Extract the NEW scene location and context.
+The director twist below explicitly relocates the scene. Extract the NEW scene location.
 
-Always respond with changed:true. Write:
-- name: 6–10 words, concrete location + brief context.
-- description: 1–3 sentences, present tense, paint the space and what's immediately happening. No dialogue.
-- reason: 1 short sentence.
+The name MUST differ from CURRENT SCENE name in the user message.
 
 Output strict JSON:
-{ "changed": true, "name": "...", "description": "...", "reason": "..." }
-
-No prose outside the JSON object.`
+{ "changed": true, "name": "...", "description": "...", "reason": "..." }`
 
 function buildUserPrompt(input: SceneClassifierInput): string {
   const speaker = input.newEvent.speaker ? ` (${input.newEvent.speaker})` : ''
@@ -118,7 +112,39 @@ description: ${input.currentScene.description}
 
 ${eventLabel}${speaker}: ${input.newEvent.text}
 
-Decide.`
+If the action is still at "${input.currentScene.name}", respond {"changed": false}.`
+}
+
+/** Reason text that admits no relocation — model self-contradiction safety net. */
+export function reasonContradictsRelocation(reason: string): boolean {
+  return /\b(?:remain(?:s|ed)?\s+the\s+same|same\s+(?:location|scene|spot|place)|stays?\s+at\s+the\s+(?:same|current)|(?:location|scene)\s+(?:remains?|stays?)\s+the\s+same|within\s+the\s+(?:same|current)\s+(?:location|scene)|no\s+(?:location|scene)\s+change|already\s+(?:at|in)\s+the\s+(?:same|current))\b/i.test(
+    reason,
+  )
+}
+
+export function enforceSceneChangeInvariant(
+  currentScene: { name: string; description: string },
+  result: SceneClassifierResult,
+): SceneClassifierResult {
+  if (!result.changed) return result
+
+  if (sceneNamesEqual(currentScene.name, result.name)) {
+    console.warn(
+      '[scene-classifier] rejected changed:true with identical scene name:',
+      result.name,
+    )
+    return { changed: false }
+  }
+
+  if (reasonContradictsRelocation(result.reason)) {
+    console.warn(
+      '[scene-classifier] rejected changed:true; reason contradicts relocation:',
+      result.reason.slice(0, 120),
+    )
+    return { changed: false }
+  }
+
+  return result
 }
 
 function normalizeChangedResult(
@@ -126,7 +152,13 @@ function normalizeChangedResult(
 ): Extract<SceneClassifierResult, { changed: true }> | { changed: false } {
   if (!parsed || typeof parsed !== 'object') return { changed: false }
   const p = parsed as Record<string, unknown>
-  if (p.changed !== true) return { changed: false }
+
+  const changed =
+    p.changed === true ||
+    p.relocates === true ||
+    p.relocates === 'true' ||
+    p.changed === 'true'
+  if (!changed) return { changed: false }
 
   const name = typeof p.name === 'string' ? p.name.trim() : ''
   const description =
@@ -167,7 +199,7 @@ async function callSceneClassifierModel(
         ...(REASONING_MODEL_PREFIXES.some((p) => model.startsWith(p))
           ? { reasoning: { effort: 'minimal' as const } }
           : {}),
-        temperature: 0.4,
+        temperature: 0.2,
         max_tokens: 1024,
         messages: [
           { role: 'system', content: systemPrompt },
@@ -237,14 +269,20 @@ export async function classifyScene(
   const text = input.newEvent.text
   const explicitRelocation = isTwist && twistExplicitlyRelocatesScene(text)
 
-  // Explicit director relocations are handled deterministically — no LLM.
   if (explicitRelocation) {
     const fallback = buildSceneFallbackFromTwistText(text)
-    if (fallback) return fallback
+    if (fallback) {
+      return enforceSceneChangeInvariant(input.currentScene, fallback)
+    }
   }
 
-  // Routine dialogue and non-relocating twists keep the DB-resolved scene.
-  if (!shouldRunSceneClassifier(input.newEvent.kind, text)) {
+  if (
+    !shouldRunSceneClassifier(
+      input.newEvent.kind,
+      text,
+      input.currentScene.name,
+    )
+  ) {
     return { changed: false }
   }
 
@@ -269,7 +307,9 @@ export async function classifyScene(
     userPrompt,
     timeoutMs,
   )
-  if (primary.changed) return primary
+  if (primary.changed) {
+    return enforceSceneChangeInvariant(input.currentScene, primary)
+  }
 
   if (explicitRelocation) {
     const extraction = await callSceneClassifierModel(
@@ -279,8 +319,13 @@ export async function classifyScene(
       userPrompt,
       timeoutMs,
     )
-    if (extraction.changed) return extraction
-    return twistSceneFallback(text)
+    if (extraction.changed) {
+      return enforceSceneChangeInvariant(input.currentScene, extraction)
+    }
+    return enforceSceneChangeInvariant(
+      input.currentScene,
+      twistSceneFallback(text),
+    )
   }
 
   return { changed: false }

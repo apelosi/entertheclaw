@@ -206,7 +206,7 @@ async function main() {
       if (!text) continue
 
       const keywords = getMatchingRelocationSignals(kind, text)
-      const shouldCall = shouldRunSceneClassifier(kind, text)
+      const shouldCall = shouldRunSceneClassifier(kind, text, sceneBefore.name)
       if (!shouldCall) continue
 
       const sceneBefore = { ...currentScene }

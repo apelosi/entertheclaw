@@ -4,7 +4,12 @@
  * Genre-agnostic: no hardcoded place nouns (hospital, cantina, etc.). Detects
  * relocation *shape* — bracket stage directions, travel verbs, time cuts —
  * then lets the LLM decide if the scene actually moves.
+ *
+ * When `currentSceneName` is provided, bracket-only staging that references
+ * place tokens already in the current scene is treated as in-scene movement
+ * (no OpenRouter call).
  */
+import { sceneContentTokens } from './scene-name'
 import { twistExplicitlyRelocatesScene } from './twist-scene-fallback'
 
 type SignalRule = { id: string; re: RegExp }
@@ -83,10 +88,108 @@ const TWIST_IMPLICIT_RULES: SignalRule[] = [
   },
 ]
 
+/** Rules that always warrant an LLM check when they fire. */
+const STRONG_DIALOGUE_RULES = new Set([
+  'arrive_at',
+  'travel_to',
+  'enter_into',
+  'exit_from',
+  'return_to',
+  'time_cut',
+  'we_are_at',
+  'find_ourselves',
+  'stage_dir_marker',
+  'location_tag',
+])
+
 function matchRules(text: string, rules: SignalRule[]): string[] {
   const t = text.trim()
   if (!t) return []
   return rules.filter((r) => r.re.test(t)).map((r) => r.id)
+}
+
+const MOTION_OR_FILLER = new Set([
+  'toward',
+  'towards',
+  'forward',
+  'through',
+  'pulsing',
+  'pressing',
+  'crackling',
+  'trembling',
+  'flickering',
+  'counter',
+  'beside',
+  'against',
+  'along',
+  'around',
+  'across',
+  'closer',
+  'slowly',
+  'quickly',
+])
+
+function extractBracketChunks(text: string): string[] {
+  return [...text.matchAll(/\[([^\]]+)\]/g)].map((m) => m[1])
+}
+
+function bracketIntroducesNovelPlace(
+  bracket: string,
+  sceneTokenSet: Set<string>,
+): boolean {
+  const cues = [
+    ...bracket.matchAll(
+      /\b(?:toward|towards|to|into|through|at|in|on|near|beside|against)\s+(?:the\s+|a\s+)?([^.[\]]{3,80})/gi,
+    ),
+  ]
+  for (const m of cues) {
+    if (/\b(?:my|your|his|her|their|our|its)\b/i.test(m[1])) continue
+    const phraseTokens = sceneContentTokens(m[1]).filter(
+      (t) => t.length >= 4 && !MOTION_OR_FILLER.has(t),
+    )
+    if (phraseTokens.some((t) => !sceneTokenSet.has(t))) return true
+  }
+
+  const settingMatch = bracket.match(
+    /\b(?:the\s+)?([a-z][a-z\s']{2,50}?)\s+(?:is|are|was|were)\b/i,
+  )
+  if (settingMatch) {
+    const phraseTokens = sceneContentTokens(settingMatch[1]).filter(
+      (t) => t.length >= 4,
+    )
+    if (phraseTokens.some((t) => !sceneTokenSet.has(t))) return true
+  }
+
+  const strongInBracket = matchRules(bracket, DIALOGUE_SIGNAL_RULES).some(
+    (id) => STRONG_DIALOGUE_RULES.has(id),
+  )
+  return strongInBracket
+}
+
+/**
+ * Bracket staging that only references place tokens already present in the
+ * current scene name (e.g. "step toward the grate" while already at the vent
+ * grate) is movement within the scene, not a relocation.
+ */
+export function bracketStagingAnchoredToCurrentScene(
+  currentSceneName: string,
+  text: string,
+): boolean {
+  const rules = matchRules(text, DIALOGUE_SIGNAL_RULES)
+  if (!rules.includes('bracket_staging')) return false
+  if (rules.some((id) => STRONG_DIALOGUE_RULES.has(id))) return false
+
+  const brackets = extractBracketChunks(text)
+  if (brackets.length === 0) return false
+
+  const sceneTokenSet = new Set(sceneContentTokens(currentSceneName))
+
+  return brackets.every((bracket) => {
+    if (bracketIntroducesNovelPlace(bracket, sceneTokenSet)) return false
+    return sceneContentTokens(bracket).some(
+      (t) => t.length >= 4 && sceneTokenSet.has(t),
+    )
+  })
 }
 
 /** True when an in-character line might relocate the scene. */
@@ -106,10 +209,22 @@ export function twistMightRelocateScene(text: string): boolean {
 export function shouldRunSceneClassifier(
   kind: 'dialogue' | 'twist',
   text: string,
+  currentSceneName?: string,
 ): boolean {
-  return kind === 'twist'
-    ? twistMightRelocateScene(text)
-    : dialogueMightChangeScene(text)
+  if (kind === 'twist') {
+    return twistMightRelocateScene(text)
+  }
+
+  if (!dialogueMightChangeScene(text)) return false
+
+  if (
+    currentSceneName &&
+    bracketStagingAnchoredToCurrentScene(currentSceneName, text)
+  ) {
+    return false
+  }
+
+  return true
 }
 
 /** Labels for which structural rules fired (for audit CSVs). */

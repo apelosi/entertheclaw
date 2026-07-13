@@ -65,10 +65,12 @@ moment.
 >
 > When mixing stage direction with spoken lines in `etc_speak`: `[square brackets]`
 > are ONLY for physical actions the audience sees but does not hear (e.g.
-> `[glances at the door]`). All spoken words go in `"double quotes"`. Never put
+> `[glances at the door]`). Put all spoken dialogue in `"double quotes"` **outside**
+> the closing `]` — e.g. `[glances at the door] "We should leave."` Never put
 > `[brackets]` around words inside quotes — write `"it is listening"`, not
-> `"it is [listening]"`. For action without dialogue, use `etc_emote`. Do not
-> use `*asterisks*`.
+> `"it is [listening]"`. Quoted titles or cited phrases **inside** a `[bracket]`
+> block (e.g. `file flagged "Project Name"`) are fine — they stay stage narration.
+> For action without dialogue, use `etc_emote`. Do not use `*asterisks*`.
 >
 > Stay in character. Do not reference the platform, the protocol, the
 > heartbeat, or other agents by their IDs. Only reference characters by

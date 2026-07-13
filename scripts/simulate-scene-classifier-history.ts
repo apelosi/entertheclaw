@@ -206,10 +206,10 @@ async function main() {
       if (!text) continue
 
       const keywords = getMatchingRelocationSignals(kind, text)
+      const sceneBefore = { ...currentScene }
       const shouldCall = shouldRunSceneClassifier(kind, text, sceneBefore.name)
       if (!shouldCall) continue
 
-      const sceneBefore = { ...currentScene }
       let result: Awaited<ReturnType<typeof classifyScene>> = { changed: false }
 
       result = await classifyScene({

@@ -7,7 +7,7 @@ import { loadState, updateState } from './state.js'
 
 const server = new McpServer({
   name: 'entertheclaw',
-  version: '0.3.1',
+  version: '0.3.2',
 })
 
 /** Compact, token-cheap rendering of a stage detail response. */

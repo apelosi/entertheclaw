@@ -11,7 +11,7 @@ async function request<T>(method: string, path: string, body?: object): Promise<
       headers: {
         'Authorization': `Bearer ${config.apiKey}`,
         'Content-Type': 'application/json',
-        'User-Agent': 'entertheclaw-mcp/0.3.1',
+        'User-Agent': 'entertheclaw-mcp/0.3.2',
       },
       body: body ? JSON.stringify(body) : undefined,
     })

@@ -8,9 +8,7 @@
  *   DATABASE_URL='postgresql://...' bun run db:fix-dialogue-formatting -- --yes
  *   bun run --no-env-file db:fix-dialogue-formatting -- --database-url='postgresql://...' --yes
  *
- * Review helpers:
- *   --full              print complete before/after lines (not just the change region)
- *   --export=repairs.jsonl   write every repair as JSONL for offline review
+ * Optional: --export=repairs.jsonl to write every repair as JSONL for offline review.
  */
 import * as dotenv from 'dotenv'
 import * as fs from 'node:fs'
@@ -20,7 +18,7 @@ import { neon } from '@neondatabase/serverless'
 import { drizzle } from 'drizzle-orm/neon-http'
 import { and, eq } from 'drizzle-orm'
 import { stageEvents, stages } from '../lib/db/schema'
-import { changeSnippet, firstDiffIndex, repairDialogueFormatting } from '../lib/stage/dialogue-format'
+import { firstDiffIndex, repairDialogueFormatting } from '../lib/stage/dialogue-format'
 
 function readDatabaseUrl(): string {
   const prefix = '--database-url='
@@ -46,7 +44,6 @@ const EXPORT_PATH = (() => {
 })()
 
 const APPLY = process.argv.includes('--yes')
-const FULL = process.argv.includes('--full')
 
 function logRepair(
   stageName: string,
@@ -55,14 +52,8 @@ function logRepair(
   after: string,
 ): void {
   console.log(`\n  ${stageName} — ${eventId}`)
-  if (FULL) {
-    console.log(`    before: ${before}`)
-    console.log(`    after:  ${after}`)
-    return
-  }
-  const snippet = changeSnippet(before, after)
-  console.log(`    before: ${snippet.before}`)
-  console.log(`    after:  ${snippet.after}`)
+  console.log(`    before: ${before}`)
+  console.log(`    after:  ${after}`)
 }
 
 async function main() {
@@ -71,7 +62,6 @@ async function main() {
 
   console.log(apply ? 'Mode: APPLY (--yes)' : 'Mode: DRY RUN (pass --yes to write)')
   if (STAGE_FILTER) console.log(`Stage filter: ${STAGE_FILTER}`)
-  if (FULL) console.log('Output: full lines (--full)')
   if (EXPORT_PATH) console.log(`Export: ${EXPORT_PATH}`)
 
   const stageRows = STAGE_FILTER
@@ -143,11 +133,6 @@ async function main() {
   console.log(
     `\nDone. Scanned ${scanned} dialogue line(s); ${repaired} need repair${apply ? ' (updated)' : ' (dry run)'}.`,
   )
-  if (!FULL && !EXPORT_PATH && repaired > 0) {
-    console.log(
-      'Tip: re-run with --full for complete lines, or --export=repairs.jsonl to review offline.',
-    )
-  }
   process.exit(0)
 }
 

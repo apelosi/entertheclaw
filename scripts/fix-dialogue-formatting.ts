@@ -1,11 +1,13 @@
 /**
- * Repair dialogue lines (prep + Class A/B/C/D formatting).
+ * Repair dialogue lines (prep + Class A/B/C/D/E/F formatting).
  *
- * Prep: strip etc_emote/etc_speak leakage; unwrap mistaken leading " before [
- * Prep: strip tool leakage; normalize stored \" escapes; unwrap mistaken leading "
- * Class C: bracket stage direction / quote bare speech between spoken quotes (substantial or dialogue beats)
+ * Prep: strip etc_emote/etc_speak leakage; normalize smart quotes + stored \" escapes;
+ *       unwrap mistaken leading "; convert outer-"…'speech'" wraps; strip trailing junk
+ * Class E: reverse inverted speech-in-brackets mangling
+ * Class C: bracket stage direction / quote bare speech between spoken quotes
  * Class A: close [brackets] before quoted speech trapped inside them
- * Class B: unwrap single-word [emphasis] inside quotes → plain spoken word
+ * Class B: unwrap short [emphasis] inside quotes → plain spoken words
+ * Class F: split `"Speech. [action] More."` into separate quote spans
  * Class D: balance missing closing quotes; trim trailing quote garbage
  *
  * Also reclassifies emote rows that contain spoken dialogue (isEmote → dialogue).
@@ -16,7 +18,9 @@
  *   bun run --no-env-file db:fix-dialogue-formatting -- --database-url='postgresql://...'
  *   bun run --no-env-file db:fix-dialogue-formatting -- --database-url='postgresql://...' --yes
  *
- * Optional: --export=repairs.jsonl, --stage='Claw Wars'
+ * Optional: --export=wars.jsonl, --stage='Claw Wars'
+ * When --export is set, per-row before/after go only to the jsonl file (terminal
+ * prints the Done. summary). Without --export, repairs still log to stdout.
  */
 import * as dotenv from 'dotenv'
 import * as fs from 'node:fs'
@@ -36,10 +40,22 @@ import {
 function readDatabaseUrl(): string {
   const prefix = '--database-url='
   const arg = process.argv.find((a) => a.startsWith(prefix))
-  if (arg) return arg.slice(prefix.length).trim()
-  const url = process.env.DATABASE_URL ?? process.env.NEON_DATABASE_URL
+  const url = (arg ? arg.slice(prefix.length) : process.env.DATABASE_URL ?? process.env.NEON_DATABASE_URL)?.trim()
   if (!url) {
     throw new Error('Set DATABASE_URL or pass --database-url=...')
+  }
+  // Neon HTTP driver requires a Latin-1 URL. Unicode ellipsis (…) from chat
+  // placeholders, smart quotes, or non-ASCII passwords fail with ByteString errors.
+  for (let i = 0; i < url.length; i++) {
+    const code = url.charCodeAt(i)
+    if (code > 255) {
+      const ch = url[i]
+      const name = code === 0x2026 ? 'ellipsis (…) — did you paste a placeholder URL?' : `U+${code.toString(16).toUpperCase()}`
+      throw new Error(
+        `DATABASE_URL has a non-ASCII character at index ${i}: ${name}.\n` +
+          'Use a plain ASCII postgres URL. Do not copy "…" placeholders from chat.',
+      )
+    }
   }
   return url
 }
@@ -108,15 +124,19 @@ function logRepair(
     classB?: boolean
     classC?: boolean
     classD?: boolean
+    classE?: boolean
+    classF?: boolean
     reclassified?: boolean
   },
 ): void {
   const tags = [
     flags.reclassified ? 'reclassified emote→dialogue' : null,
     flags.prep ? 'Prep' : null,
+    flags.classE ? 'Class E' : null,
     flags.classC ? 'Class C' : null,
     flags.classA ? 'Class A' : null,
     flags.classB ? 'Class B' : null,
+    flags.classF ? 'Class F' : null,
     flags.classD ? 'Class D' : null,
   ]
     .filter(Boolean)
@@ -138,6 +158,16 @@ async function main() {
     ? await db.select().from(stages).where(eq(stages.name, STAGE_FILTER))
     : await db.select({ id: stages.id, name: stages.name }).from(stages)
 
+  if (STAGE_FILTER && stageRows.length === 0) {
+    const allNames = await db.select({ name: stages.name }).from(stages)
+    const names = allNames.map((r) => r.name).sort()
+    throw new Error(
+      `No stage named ${JSON.stringify(STAGE_FILTER)}.\n` +
+        `Exact names:\n  - ${names.join('\n  - ')}\n` +
+        `Tip: use --stage='Claw of the Titans' (include "the").`,
+    )
+  }
+
   let scanned = 0
   let repaired = 0
   let prepCount = 0
@@ -145,6 +175,8 @@ async function main() {
   let classBCount = 0
   let classCCount = 0
   let classDCount = 0
+  let classECount = 0
+  let classFCount = 0
   let reclassifiedCount = 0
   const exportRows: Array<{
     stage: string
@@ -156,6 +188,8 @@ async function main() {
     classB: boolean
     classC: boolean
     classD: boolean
+    classE: boolean
+    classF: boolean
     reclassified: boolean
     changeAt: number
   }> = []
@@ -182,15 +216,8 @@ async function main() {
       if (result.analysis?.classB) classBCount++
       if (result.analysis?.classC) classCCount++
       if (result.analysis?.classD) classDCount++
-
-      logRepair(stage.name, row.id, c.text, result.text, {
-        prep: result.analysis?.prep,
-        classA: result.analysis?.classA,
-        classB: result.analysis?.classB,
-        classC: result.analysis?.classC,
-        classD: result.analysis?.classD,
-        reclassified: result.reclassified,
-      })
+      if (result.analysis?.classE) classECount++
+      if (result.analysis?.classF) classFCount++
 
       if (EXPORT_PATH) {
         exportRows.push({
@@ -203,8 +230,21 @@ async function main() {
           classB: result.analysis?.classB ?? false,
           classC: result.analysis?.classC ?? false,
           classD: result.analysis?.classD ?? false,
+          classE: result.analysis?.classE ?? false,
+          classF: result.analysis?.classF ?? false,
           reclassified: result.reclassified,
           changeAt: firstDiffIndex(c.text, result.text),
+        })
+      } else {
+        logRepair(stage.name, row.id, c.text, result.text, {
+          prep: result.analysis?.prep,
+          classA: result.analysis?.classA,
+          classB: result.analysis?.classB,
+          classC: result.analysis?.classC,
+          classD: result.analysis?.classD,
+          classE: result.analysis?.classE,
+          classF: result.analysis?.classF,
+          reclassified: result.reclassified,
         })
       }
 
@@ -238,9 +278,11 @@ async function main() {
   console.log(`  Rows changed:     ${repaired}${apply ? ' (updated)' : ' (dry run)'}`)
   console.log(`  Reclassified:     ${reclassifiedCount} emote→dialogue`)
   console.log(`  Prep:             ${prepCount}`)
-  console.log(`  Class C only:     ${classCCount}`)
+  console.log(`  Class E:          ${classECount}`)
+  console.log(`  Class C:          ${classCCount}`)
   console.log(`  Class A:          ${classACount}`)
   console.log(`  Class B:          ${classBCount}`)
+  console.log(`  Class F:          ${classFCount}`)
   console.log(`  Class D:          ${classDCount}`)
   process.exit(0)
 }

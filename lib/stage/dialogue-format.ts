@@ -6,25 +6,32 @@
  * - "quotes"   = spoken dialogue (white) — when outside [brackets]
  *
  * Repairs:
- * - Prep: strip tool leakage; normalize stored \" escapes; unwrap mistaken leading "
+ * - Prep: strip tool leakage; normalize smart/curly quotes + stored \" escapes;
+ *   unwrap mistaken leading "; convert outer-"…'speech'" wraps; strip trailing junk
+ * - Class E: reverse inverted speech-in-brackets mangling (`[speech.]" [act] "[speech.]"`)
  * - Class C: bracket unbracketed stage direction between substantial spoken quotes; quote bare speech
- * - Class A: close [brackets] before trapped spoken dialogue (heuristic-gated)
- * - Class B: unwrap single-word [emphasis] inside quotes → plain spoken word
+ * - Class A: close [brackets] before trapped spoken dialogue (quoted or bare tail)
+ * - Class B: unwrap short [emphasis] inside quotes → plain spoken words
+ * - Class F: split `"Speech. [action] More speech."` into separate quote spans
  * - Class D: trim trailing quote garbage (e.g. .""'); add missing closing " only when
  *   speech ends with . ! ? — not for mid-word agent truncations (leave those open)
+ * - Truncation: cutoff stage directions keep an opening `[` without a false closing `]`
  */
 
 const DOUBLE_ASTERISK = /\*\*([^*\n]+)\*\*/g
 const SINGLE_ASTERISK = /\*([^*\n]+)\*/g
 /** Single spoken token — not multi-word stage direction inside quotes. */
 const EMPHASIS_TOKEN = /^[\w'-]+$/
+/** Physical-action verbs — content with these is stage direction, not spoken emphasis. */
+const STAGE_ACTION_VERB =
+  /\b(glances?|presses?|steps?|draws?|turns?|looks?|reaches?|runs?|pulls?|holds?|whispers?|mutters?|points?|spits?|jerks?|twitches?|opens?|closes?|raises?|lowers?|nods?|shakes?|traces?|flicks?|flickers?|drifts?|locks?|snaps?|forces?|falls?|escapes?|crouches?|scans?|scanning)\b/i
 
 const TITLE_VERB_BEFORE_QUOTE =
   /\b(flagged|titled|named|called|labeled|reading|marked|filed|entitled)$/i
 const POSSESSIVE_BEFORE_QUOTE = /\w+'s(?:\s*\\?)?$/
 const EMBEDDED_PRONOUN_BEFORE_QUOTE =
   /\b(before|after|beside)\s+(he|she|they|it)$/i
-const THE_WORD_BEFORE_QUOTE = /\bthe word$/i
+const THE_WORD_BEFORE_QUOTE = /\bthe words?$/i
 const DIALOGUE_VERB_BEFORE_QUOTE =
   /\b(say|says|said|whisper|whispers|murmur|murmurs|crackles|shouts|asks|mutters|calls)\s*,?\s*$/i
 /** First-person attribution / action — stage direction, not out-loud speech. */
@@ -32,7 +39,7 @@ const FIRST_PERSON_DIRECTION =
   /^I\s+(?:echo|whisper|mutter|murmur|press|step|steps|draw|turn|look|glance|reach|kneel|crouch|straighten|shift|limp|gasps?|watches?|glances?)\b/i
 /** First-person lines that are the spoken words, not physical staging. */
 const FIRST_PERSON_SPOKEN =
-  /^I\s+(?:did|do|don't|does|can|will|would|have|had|am|was|were|see|saw|think|thought|know|knew|said|say|tells?|told|mean|meant|need|want|gave|give|didn't)\b/i
+  /^I\s+(?:did|do|don't|does|can|will|would|have|had|am|was|were|see|saw|think|thought|know|knew|said|say|tells?|told|mean|meant|need|want|gave|give|didn't|commanded|trust|see|saw)\b/i
 
 function isEscapedAt(text: string, index: number): boolean {
   return index > 0 && text[index - 1] === '\\'
@@ -161,6 +168,11 @@ export function normalizeStoredQuoteEscapes(text: string): string {
   return text.replace(/\\"/g, '"')
 }
 
+/** Normalize curly/smart double quotes to straight `"` so quote scanners work. */
+export function normalizeSmartQuotes(text: string): string {
+  return text.replace(/[\u201c\u201d\u00ab\u00bb]/g, '"')
+}
+
 /**
  * `] 'speech...'"` → `] "speech..."` — legacy single-quote dialogue with a stray closing `"`.
  */
@@ -202,6 +214,9 @@ export function shouldRunClassC(text: string): boolean {
 /**
  * Prep: drop a mistaken opening `"` when the first span is stage direction
  * and more quoted speech follows (`"Pyros runs... "I have forged..."`).
+ *
+ * Must NOT touch valid multi-beat lines (`"Speech." [action] "More."`) — those have a
+ * real closer, and `rest` continues with `[` / whitespace, not the next speech opener.
  */
 export function unwrapMistakenLeadingQuote(text: string): string {
   const trimmed = text.trim()
@@ -212,22 +227,262 @@ export function unwrapMistakenLeadingQuote(text: string): string {
   const rest = trimmed.slice(closeIdx + 1)
   if (!rest.trim()) return trimmed
   if (!/[.!?]\s*$/.test(firstSpan.trim())) return trimmed
+  // In the mistaken Pyros form the "closer" is actually the next speech opener, so
+  // rest continues with letters. Valid `"Speech." [action]...` continues with `[`.
+  if (!/^\s*[A-Za-z]/.test(rest)) return trimmed
   if (indexOfSpokenQuoteFrom(rest, 0, false) < 0) return trimmed
   return trimmed.slice(1)
+}
+
+/**
+ * Prep: `"Direction prose. 'Spoken line.'"` → `[Direction prose.] "Spoken line."`
+ * (agents sometimes wrap the whole beat in outer doubles and put speech in singles).
+ */
+export function unwrapOuterQuoteWithInnerSingleSpeech(text: string): string {
+  const trimmed = text.trim()
+  if (!trimmed.startsWith('"') || !trimmed.endsWith('"')) return trimmed
+  if (trimmed.length < 4) return trimmed
+  const inner = trimmed.slice(1, -1)
+  const match = inner.match(/^(.+?[.!?])\s+['\u2018](.+)['\u2019]\s*$/s)
+  if (!match) return trimmed
+  const direction = match[1].trim()
+  const speech = match[2].trim()
+  if (!direction || !speech) return trimmed
+  if (direction.includes('"') || speech.includes('"')) return trimmed
+  return `[${direction}] "${speech}"`
+}
+
+/**
+ * Convert substantial `'speech'` / `‘speech’` outside [brackets] and outside
+ * double quotes into `"speech"`. Skips apostrophes in words (`Sera's`).
+ */
+export function normalizeSingleQuotedSpeech(text: string): string {
+  let result = ''
+  let i = 0
+  let bracketDepth = 0
+  let inDoubleQuotes = false
+  while (i < text.length) {
+    const ch = text[i]
+    if (ch === '[' ) {
+      bracketDepth++
+      result += ch
+      i++
+      continue
+    }
+    if (ch === ']' && bracketDepth > 0) {
+      bracketDepth--
+      result += ch
+      i++
+      continue
+    }
+    if (ch === '"' && bracketDepth === 0 && !isEscapedAt(text, i)) {
+      inDoubleQuotes = !inDoubleQuotes
+      result += ch
+      i++
+      continue
+    }
+    const isSingleOpener = ch === "'" || ch === '\u2018'
+    if (!inDoubleQuotes && bracketDepth === 0 && isSingleOpener) {
+      const closer = ch === '\u2018' ? '\u2019' : "'"
+      // Apostrophe in a word (Sera's) — not speech.
+      if (i > 0 && /[A-Za-z]/.test(text[i - 1])) {
+        result += ch
+        i++
+        continue
+      }
+      let j = i + 1
+      while (j < text.length) {
+        if (text[j] === closer) {
+          // Mid-word apostrophe (whatever's / Titan's) is not a closer.
+          if (
+            j > 0 &&
+            j + 1 < text.length &&
+            /[A-Za-z]/.test(text[j - 1]) &&
+            /[A-Za-z]/.test(text[j + 1])
+          ) {
+            j++
+            continue
+          }
+          break
+        }
+        j++
+      }
+      if (j < text.length) {
+        const content = text.slice(i + 1, j)
+        if (isSubstantialSpokenQuoteContent(content)) {
+          result += `"${content}"`
+          i = j + 1
+          continue
+        }
+        // Short citations ('carry' / 'choose.') stay single-quoted — emit the
+        // whole pair so the closing ' is not re-read as a new opener (that bug
+        // produced: it was 'choose." … gave us "carry').
+        result += text.slice(i, j + 1)
+        i = j + 1
+        continue
+      }
+    }
+    result += ch
+    i++
+  }
+  return result
+}
+
+/** True when bare prose is too small / garbage-like to wrap as stage direction. */
+function isJunkBareProse(trimmed: string): boolean {
+  if (!trimmed) return true
+  if (/^[A-Z]$/.test(trimmed)) return true
+  if (trimmed.length <= 2 && !/[a-z]/.test(trimmed)) return true
+  return false
+}
+
+/**
+ * `'Cited phrase'—yes.` / `"Cited phrase"—yes.` → `"Cited phrase—yes."`
+ * Agents echo a prior line and affirm it; Class C otherwise wraps `—yes.` as `[—yes.]`.
+ */
+export function absorbAffirmationAfterQuote(text: string): string {
+  return text
+    .replace(/"([^"]+)"\s*—\s*yes\.?/gi, '"$1—yes."')
+    .replace(/'([^']+)'\s*—\s*yes\.?/gi, '"$1—yes."')
+    .replace(/\u201c([^\u201d]+)\u201d\s*—\s*yes\.?/gi, '"$1—yes."')
+}
+
+export function looksLikeSpokenBareProse(trimmed: string): boolean {
+  if (!trimmed) return false
+  if (FIRST_PERSON_DIRECTION.test(trimmed)) return false
+  // Attribution stays direction (gray), not spoken quotes.
+  if (
+    /^(he|she|they|it)\s+(says|said|whispers|whispered|mutters|asks|replies|answers)\b/i.test(
+      trimmed,
+    )
+  ) {
+    return false
+  }
+  // Third-person physical beat: "He tilts his head..." / "She turns away."
+  if (/^(he|she|they)\s+[a-z]/i.test(trimmed) && !/\?\s*$/.test(trimmed)) {
+    return false
+  }
+
+  // Clear speech signals win even when the line contains verbs like "run"/"steps"
+  // used metaphorically ("how you run an empire", "patience runs thin").
+  if (FIRST_PERSON_SPOKEN.test(trimmed)) return true
+  if (/^I(?:'m|'ve|'ll|'d|’m|’ve|’ll|’d)\b/i.test(trimmed)) return true
+  if (/^(you|you're|your|yours|you’re)\b/i.test(trimmed)) return true
+  if (/\?\s*$/.test(trimmed)) return true
+  if (/\byou understand\?\s*$/i.test(trimmed)) return true
+  // Long monologue with mid-line first person ("… I respect … look me in the eye.").
+  if (
+    /\bI(?:'m|'ve|'ll|'d|’m|’ve|’ll|’d)?\s+\w+/i.test(trimmed) &&
+    /[.!]\s*$/.test(trimmed) &&
+    trimmed.split(/\s+/).filter(Boolean).length >= 12
+  ) {
+    return true
+  }
+
+  // Physical staging cues without a speech signal → direction.
+  // Only weigh early-line cues so idioms mid-speech ("the voice that…", "in the eye")
+  // do not force brackets around spoken monologue.
+  const early = trimmed.slice(0, Math.min(56, trimmed.length))
+  if (STAGE_ACTION_VERB.test(early) && !/^(I|You)\b/i.test(trimmed)) return false
+  if (
+    /\b(eyes?|gaze|hand|palm|fingers?|voice|body|lips?|tremor|floor|boots?|flickers?|scanning|crouches?|pressing|cybernetic)\b/i.test(
+      early,
+    ) &&
+    !/^(I|You)\b/i.test(trimmed)
+  ) {
+    return false
+  }
+
+  // Complete sentence with no staging cues → speech.
+  if (
+    /[.!]\s*$/.test(trimmed) &&
+    trimmed.split(/\s+/).filter(Boolean).length >= 4
+  ) {
+    return true
+  }
+  return false
 }
 
 /** Wrap bare prose as [direction] or "speech" depending on content. */
 export function wrapBareProse(prose: string): string {
   const trimmed = prose.trim()
-  if (!trimmed) return prose
-  if (FIRST_PERSON_SPOKEN.test(trimmed) && !FIRST_PERSON_DIRECTION.test(trimmed)) {
-    const lead = prose.match(/^\s*/)?.[0] ?? ''
-    const trail = prose.match(/\s*$/)?.[0] ?? ''
-    return `${lead}"${trimmed}"${trail}`
-  }
+  if (!trimmed || isJunkBareProse(trimmed)) return prose
   const lead = prose.match(/^\s*/)?.[0] ?? ''
   const trail = prose.match(/\s*$/)?.[0] ?? ''
+  // "This says" / "She said" lead-ins before a cited phrase are spoken, not staging.
+  if (/^(this|that|he|she|they)\s+(says|said)\.?$/i.test(trimmed)) {
+    return `${lead}"${trimmed}"${trail}`
+  }
+  if (looksLikeSpokenBareProse(trimmed)) {
+    return `${lead}"${trimmed}"${trail}`
+  }
   return `${lead}[${trimmed}]${trail}`
+}
+
+/** Full-line bare stage direction with no markers at all → wrap in [brackets]. */
+export function wrapBareDirectionLine(text: string): string {
+  const trimmed = text.trim()
+  if (!trimmed) return text
+  if (trimmed.includes('[') || trimmed.includes('"')) return text
+  if (isJunkBareProse(trimmed)) return text
+  if (looksLikeSpokenBareProse(trimmed)) {
+    return `"${trimmed}"`
+  }
+  // Leave short bare utterances like "Hello there" alone — not safe to assume direction.
+  const looksLikeDirection =
+    STAGE_ACTION_VERB.test(trimmed) ||
+    /\b(eyes?|gaze|hand|palm|fingers?|voice|body|lips?|tremor|floor|boots?)\b/i.test(trimmed) ||
+    (!/[.!?]\s*$/.test(trimmed) && trimmed.length >= 24)
+  if (!looksLikeDirection) return text
+  // Cutoff mid-phrase: open `[` only — a closing `]` would fake a finished beat.
+  if (isTruncatedStageDirection(trimmed)) return `[${trimmed}`
+  return `[${trimmed}]`
+}
+
+/**
+ * True when stage-direction text looks cut off mid-phrase (agent truncation),
+ * so we should not invent a closing `]`.
+ */
+export function isTruncatedStageDirection(text: string): boolean {
+  const t = text.trim().replace(/^\[/, '').replace(/\]$/, '')
+  if (!t) return false
+  if (/[.!?…]$/.test(t)) return false
+  // Short beats / emphasis tokens (`to`, `with`, `sink in`) are complete, not cutoffs.
+  if (t.length < 24) return false
+  if (t.split(/\s+/).filter(Boolean).length < 5) return false
+  return /\b(to|the|a|an|and|or|of|with|for|from|in|on|at|into|onto|toward|towards|my|his|her|their|its|this|that)$/i.test(
+    t,
+  )
+}
+
+/**
+ * Whole-line `[cutoff to]` → `[cutoff to` — drop a false closing bracket.
+ * Inline brackets are left alone (avoids eating `]` on `[to]` / `…sink in]`).
+ */
+export function openTruncatedDirectionBrackets(text: string): string {
+  const lead = text.match(/^\s*/)?.[0] ?? ''
+  const trail = text.match(/\s*$/)?.[0] ?? ''
+  const trimmed = text.trim()
+  if (!trimmed.startsWith('[')) return text
+  // Only rewrite a single whole-line bracket block.
+  if (trimmed.slice(1).includes('[')) return text
+  const closeIdx = findCloseBracket(trimmed, 0)
+  if (closeIdx !== trimmed.length - 1) return text
+  const inner = trimmed.slice(1, closeIdx)
+  if (isTruncatedStageDirection(inner) && !inner.includes('"')) {
+    return `${lead}[${inner}${trail}`
+  }
+  return text
+}
+
+/**
+ * Strip trailing single-letter fragments agents leave after a complete line
+ * (`..."standing on." P` or `..."yourself." [C]`).
+ */
+export function stripTrailingFragmentGarbage(text: string): string {
+  return text
+    .replace(/\s+\[[A-Z]\]\s*$/g, '')
+    .replace(/\s+[A-Z]\s*$/g, '')
 }
 
 /** Find the index of the closing `]` for `[` at `start`, respecting nesting. */
@@ -247,6 +502,22 @@ function findCloseBracket(text: string, start: number): number {
 export function isEmphasisBracket(content: string): boolean {
   const trimmed = content.trim()
   return trimmed.length > 0 && !/\s/.test(trimmed) && EMPHASIS_TOKEN.test(trimmed)
+}
+
+/**
+ * True when bracket content inside spoken quotes is emphasis / foreign phrase,
+ * not a physical stage direction (`[my]`, `[sangue freddo]`).
+ */
+export function isSpokenEmphasisBracket(content: string): boolean {
+  const trimmed = content.trim()
+  if (!trimmed) return false
+  if (isEmphasisBracket(trimmed)) return true
+  const words = trimmed.split(/\s+/).filter(Boolean)
+  if (words.length < 2 || words.length > 4) return false
+  if (/[.!?]$/.test(trimmed)) return false
+  if (STAGE_ACTION_VERB.test(trimmed)) return false
+  if (trimmed.length > 40) return false
+  return true
 }
 
 /**
@@ -278,8 +549,149 @@ export function isDialogueOpenerInBrackets(beforeQuote: string): boolean {
 /**
  * Class A: when a bracket block contains quoted speech, close the bracket before
  * the first dialogue-opening `"` so speech renders white instead of inside gray.
+ * Also handles unclosed `[… "speech"` (agent forgot the closing `]`).
  */
 export function closeBracketBeforeQuotes(text: string): string {
+  let result = ''
+  let i = 0
+  while (i < text.length) {
+    if (text[i] !== '[') {
+      result += text[i]
+      i++
+      continue
+    }
+    const closeIdx = findCloseBracket(text, i)
+    if (closeIdx === -1) {
+      const rest = text.slice(i + 1)
+      const firstQuote = rest.indexOf('"')
+      if (firstQuote >= 0 && isDialogueOpenerInBrackets(rest.slice(0, firstQuote))) {
+        const action = rest.slice(0, firstQuote).trimEnd()
+        const spoken = rest.slice(firstQuote)
+        result += `[${action}] ${spoken}`
+      } else {
+        result += text.slice(i)
+      }
+      break
+    }
+    const inner = text.slice(i + 1, closeIdx)
+    const firstQuote = inner.indexOf('"')
+    if (firstQuote >= 0 && isDialogueOpenerInBrackets(inner.slice(0, firstQuote))) {
+      const action = inner.slice(0, firstQuote).trimEnd()
+      const spoken = inner.slice(firstQuote)
+      result += `[${action}] ${spoken}`
+    } else {
+      result += text.slice(i, closeIdx + 1)
+    }
+    i = closeIdx + 1
+  }
+  return result
+}
+
+/** True when bracket-inner text is physical staging (not out-loud speech). */
+function looksLikeDirectionSegment(text: string): boolean {
+  const t = text.trim()
+  if (!t) return false
+  if (FIRST_PERSON_DIRECTION.test(t)) return true
+  if (STAGE_ACTION_VERB.test(t)) return true
+  // First-person physical / sensory staging inside brackets stays gray.
+  if (/^I\s+/i.test(t) && !FIRST_PERSON_SPOKEN.test(t)) return true
+  // "My voice / eyes / hand…" attribution beats are staging, not speech.
+  if (/^My\s+(voice|eyes?|gaze|hand|palm|fingers?|cybernetic)\b/i.test(t)) return true
+  if (
+    /^(he|she|they|his|her|their)\b/i.test(t) &&
+    /\b(eyes?|gaze|hand|palm|fingers?|voice|body|lips?|boots?|staff|arm|head)\b/i.test(t)
+  ) {
+    return true
+  }
+  // Short third-person physical beat: "His staff taps the stone twice."
+  if (
+    /^(he|she|they|his|her)\b/i.test(t) &&
+    t.split(/\s+/).filter(Boolean).length <= 12
+  ) {
+    return true
+  }
+  return false
+}
+
+/**
+ * Spoken continuation after a stage beat (often missing its own quotes).
+ * Keep this strict — narrative continuations like "The tiny wings shiver…"
+ * must stay inside [brackets].
+ */
+function looksLikeSpokenAfterDirection(text: string): boolean {
+  const t = text.trim()
+  if (!t) return false
+  if (looksLikeDirectionSegment(t)) return false
+  // Third-person narrative continuation is still staging, not speech.
+  if (/\b(he|she|they)\b/i.test(t)) return false
+
+  // Demonstrative spoken revelation ("That listening post wasn't…")
+  if (
+    /^(that|this|these|those)\b/i.test(t) &&
+    t.split(/\s+/).filter(Boolean).length >= 5
+  ) {
+    return true
+  }
+  // Second / first person spoken forms
+  if (/^(you|you're|your|yours|you’re|i|i'm|i've|i'll|i'd|i’m|i’ve|i’ll|i’d)\b/i.test(t)) {
+    return looksLikeSpokenBareProse(t) || /[.!?]$/.test(t)
+  }
+  // Colon-tail speech: "the drill isn't digging…"
+  if (
+    /^(the|it|there)\b/i.test(t) &&
+    /\b(isn't|aren't|wasn't|weren't|don't|doesn't|didn't|won't|can't|isn’t|aren’t|wasn’t|weren’t|don’t|doesn’t|didn’t|won’t|can’t)\b/i.test(
+      t,
+    ) &&
+    t.split(/\s+/).filter(Boolean).length >= 6
+  ) {
+    return true
+  }
+  return false
+}
+
+/** Whole `[bracket]` whose content is spoken reportage, not physical staging. */
+export function looksLikeSpokenBracketContent(text: string): boolean {
+  const t = text.trim()
+  if (!t) return false
+  if (looksLikeDirectionSegment(t)) return false
+  // First-person / My-attribution blocks are staging even without a listed verb.
+  if (/^(I|My)\b/i.test(t)) return false
+  // Ongoing physical/sensory beats stay gray ("pulses hot", "stirs", "groans").
+  if (
+    /\b(pulses|pulsing|stirs|stirring|fades|fading|groans|groaning|flickers|flickering|vibrates|vibrating|hums|humming|burns|burning|threading)\b/i.test(
+      t,
+    )
+  ) {
+    return false
+  }
+  // Revelation / reportorial speech only — e.g. "The kyber's pulse just etched a name…"
+  if (
+    !STAGE_ACTION_VERB.test(t) &&
+    /[.!?]$/.test(t) &&
+    /^(The|That|This)\b/.test(t) &&
+    /\bmy\b/i.test(t) &&
+    /\b(etched|carved|wrote|named|revealed|showed|told)\b/i.test(t) &&
+    t.split(/\s+/).filter(Boolean).length >= 8 &&
+    !/\b(he|she|they)\b/i.test(t) &&
+    !/\bI\b/.test(t)
+  ) {
+    return true
+  }
+  return false
+}
+
+function capitalizeSpoken(text: string): string {
+  const t = text.trim()
+  if (!t) return t
+  return t.charAt(0).toUpperCase() + t.slice(1)
+}
+
+/**
+ * Class A (bare speech): split spoken tails out of closed [brackets] that lack
+ * inner quotes — e.g. `[action. That speech.]` / `[feel it: the drill…]` /
+ * convert speech-only brackets to `"…"`.
+ */
+export function splitSpokenContentFromBrackets(text: string): string {
   let result = ''
   let i = 0
   while (i < text.length) {
@@ -294,14 +706,53 @@ export function closeBracketBeforeQuotes(text: string): string {
       break
     }
     const inner = text.slice(i + 1, closeIdx)
-    const firstQuote = inner.indexOf('"')
-    if (firstQuote >= 0 && isDialogueOpenerInBrackets(inner.slice(0, firstQuote))) {
-      const action = inner.slice(0, firstQuote).trimEnd()
-      const spoken = inner.slice(firstQuote)
-      result += `[${action}] ${spoken}`
-    } else {
+    if (inner.includes('"')) {
       result += text.slice(i, closeIdx + 1)
+      i = closeIdx + 1
+      continue
     }
+
+    const colonIdx = inner.indexOf(':')
+    if (colonIdx >= 0) {
+      const before = inner.slice(0, colonIdx).trimEnd()
+      const after = inner.slice(colonIdx + 1).trimStart()
+      if (
+        before &&
+        after &&
+        looksLikeDirectionSegment(before) &&
+        looksLikeSpokenAfterDirection(after)
+      ) {
+        result += `[${before}:] "${capitalizeSpoken(after)}"`
+        i = closeIdx + 1
+        continue
+      }
+    }
+
+    const sentenceRe = /[.!?]\s+/g
+    let sentenceSplit: string | null = null
+    let match: RegExpExecArray | null
+    while ((match = sentenceRe.exec(inner)) !== null) {
+      const before = inner.slice(0, match.index + 1).trimEnd()
+      const after = inner.slice(match.index + match[0].length).trimStart()
+      if (!before || !after) continue
+      if (!looksLikeDirectionSegment(before)) continue
+      if (!looksLikeSpokenAfterDirection(after)) continue
+      sentenceSplit = `[${before}] "${after}"`
+      break
+    }
+    if (sentenceSplit) {
+      result += sentenceSplit
+      i = closeIdx + 1
+      continue
+    }
+
+    if (looksLikeSpokenBracketContent(inner)) {
+      result += `"${inner.trim()}"`
+      i = closeIdx + 1
+      continue
+    }
+
+    result += text.slice(i, closeIdx + 1)
     i = closeIdx + 1
   }
   return result
@@ -325,6 +776,171 @@ export function fixDoubleClosedDirectionBeforeQuote(text: string): string {
   if (isEmphasisBracket(innerTrim.replace(/\.$/, ''))) return text
   if (!outerTrim) return `[${innerTrim}] ${suffix}`
   return `[${outerTrim}] [${innerTrim}] ${suffix}`
+}
+
+/**
+ * Class E: reverse inverted speech-in-brackets mangling.
+ * `[Speech.]" [action] "[More speech.]"` → `"Speech." [action] "More speech."`
+ * Also handles `""More speech."` after the action.
+ */
+export function repairInvertedSpeechBrackets(text: string): string {
+  const formBracketedSecond =
+    /^\[([^\]]+)\]"\s*(\[[^\]]+\])\s*"\[([^\]]+)\]"?\s*$/s
+  const mA = text.match(formBracketedSecond)
+  if (mA) {
+    return `"${mA[1].trim()}" ${mA[2].trim()} "${mA[3].trim()}"`
+  }
+
+  const formDoubleQuoteSecond =
+    /^\[([^\]]+)\]"\s*(\[[^\]]+\])\s*""([^"]+)"\s*$/s
+  const mB = text.match(formDoubleQuoteSecond)
+  if (mB) {
+    return `"${mB[1].trim()}" ${mB[2].trim()} "${mB[3].trim()}"`
+  }
+
+  const formQuotedSecond =
+    /^\[([^\]]+)\]"\s*(\[[^\]]+\])\s*"([^"]+)"\s*$/s
+  const mC = text.match(formQuotedSecond)
+  if (mC) {
+    return `"${mC[1].trim()}" ${mC[2].trim()} "${mC[3].trim()}"`
+  }
+
+  const twoPart = /^\[([^\]]+)\]"\s*(\[[^\]]+\])\s*$/s
+  const m2 = text.match(twoPart)
+  if (m2) {
+    return `"${m2[1].trim()}" ${m2[2].trim()}`
+  }
+
+  // `"Speech.""" [action] "[More.]"` — opening quote + triple close + bracketed second.
+  const formQuotedTripleBracketedSecond =
+    /^"([^"]+?)"{2,}\s*(\[[^\]]+\])\s*"\[([^\]]+)\]"?\s*$/s
+  const mQt = text.match(formQuotedTripleBracketedSecond)
+  if (mQt) {
+    return `"${mQt[1].trim()}" ${mQt[2].trim()} "${mQt[3].trim()}"`
+  }
+
+  // `"Speech.""" [action] "More."` — opening quote + triple close + normal second.
+  const formQuotedTripleQuotedSecond =
+    /^"([^"]+?)"{2,}\s*(\[[^\]]+\])\s*"([^"\[][^"]*)"\s*$/s
+  const mQq = text.match(formQuotedTripleQuotedSecond)
+  if (mQq) {
+    return `"${mQq[1].trim()}" ${mQq[2].trim()} "${mQq[3].trim()}"`
+  }
+
+  const leadingBare =
+    /^([^\[\]]+?)"{2,}\s*(\[[^\]]+\])\s*"\[([^\]]+)\]"?\s*$/s
+  const m3 = text.match(leadingBare)
+  if (m3) {
+    const s1 = m3[1].trim().replace(/^["']+/, '').replace(/["']+$/, '')
+    return `"${s1}" ${m3[2].trim()} "${m3[3].trim()}"`
+  }
+
+  return text
+}
+
+/**
+ * Unwrap nested `["citation"]` / `['citation']` inside stage direction so cited
+ * prop text stays as plain quotes in gray narration (not a nested bracket).
+ */
+export function unwrapNestedCitationBrackets(text: string): string {
+  let result = ''
+  let i = 0
+  while (i < text.length) {
+    if (text[i] !== '[') {
+      result += text[i]
+      i++
+      continue
+    }
+    const closeIdx = findCloseBracket(text, i)
+    if (closeIdx === -1) {
+      result += text.slice(i)
+      break
+    }
+    let inner = text.slice(i + 1, closeIdx)
+    // Unwrap innermost [ "..." ] wrappers repeatedly.
+    let prev = ''
+    while (prev !== inner) {
+      prev = inner
+      inner = inner.replace(
+        /\[\s*("([^"]*)"|'([^']*)'|\u201c([^\u201d]*)\u201d)\s*\]/g,
+        '$1',
+      )
+    }
+    result += `[${inner}]`
+    i = closeIdx + 1
+  }
+  return result
+}
+
+/**
+ * Class F: `"Speech. [action] More speech."` → `"Speech." [action] "More speech."`
+ */
+export function splitQuotesAroundInnerDirections(text: string): string {
+  let result = ''
+  let i = 0
+  let bracketDepth = 0
+  while (i < text.length) {
+    const ch = text[i]
+    if (ch === '[') {
+      bracketDepth++
+      result += ch
+      i++
+      continue
+    }
+    if (ch === ']' && bracketDepth > 0) {
+      bracketDepth--
+      result += ch
+      i++
+      continue
+    }
+    if (ch === '"' && bracketDepth === 0 && !isEscapedAt(text, i)) {
+      const closeIdx = findCloseQuote(text, i)
+      if (closeIdx < 0) {
+        result += text.slice(i)
+        break
+      }
+      const inner = text.slice(i + 1, closeIdx)
+      if (!inner.includes('[')) {
+        result += text.slice(i, closeIdx + 1)
+        i = closeIdx + 1
+        continue
+      }
+      let rebuilt = ''
+      let pending = ''
+      let j = 0
+      const flushSpeech = () => {
+        const t = pending.trim()
+        if (!t) {
+          pending = ''
+          return
+        }
+        rebuilt += (rebuilt ? ' ' : '') + `"${t}"`
+        pending = ''
+      }
+      while (j < inner.length) {
+        if (inner[j] === '[') {
+          flushSpeech()
+          const bc = findCloseBracket(inner, j)
+          if (bc < 0) {
+            pending += inner.slice(j)
+            break
+          }
+          rebuilt += (rebuilt ? ' ' : '') + inner.slice(j, bc + 1)
+          j = bc + 1
+          continue
+        }
+        pending += inner[j]
+        j++
+      }
+      flushSpeech()
+      result += rebuilt || text.slice(i, closeIdx + 1)
+      i = closeIdx + 1
+      continue
+    }
+    result += ch
+    i++
+  }
+  return result
 }
 
 /** Index of the first `"` outside [brackets] at or after `start`. */
@@ -412,6 +1028,14 @@ export function unclosedSpokenTail(text: string): string | null {
   return text.slice(lastQuoteIdx + 1)
 }
 
+/** Drop an empty trailing spoken quote after balanced content (`[acts.] "`). */
+export function stripEmptyTrailingQuote(text: string): string {
+  if (!/\s+"\s*$/.test(text)) return text
+  const trimmed = text.replace(/\s+"\s*$/, '')
+  if (unclosedSpokenTail(trimmed) !== null) return text
+  return trimmed
+}
+
 /**
  * True when an unclosed spoken quote looks complete (ends . ! ?) and only
  * lacks a closing `"`. Mid-word agent truncations are left open on purpose.
@@ -450,12 +1074,17 @@ export function unwrapEmphasisBracketsInQuotes(text: string): string {
     }
     const closeIdx = findCloseQuote(text, i)
     if (closeIdx < 0) {
-      result += text.slice(i)
+      // Truncated / unclosed spoken quote — still unwrap [emphasis] inside.
+      const inner = text.slice(i + 1)
+      const fixed = inner.replace(/\[([^\]]+)\]/g, (match, content: string) =>
+        isSpokenEmphasisBracket(content) ? content.trim() : match,
+      )
+      result += `"${fixed}`
       break
     }
     const inner = text.slice(i + 1, closeIdx)
     const fixed = inner.replace(/\[([^\]]+)\]/g, (match, content: string) =>
-      isEmphasisBracket(content) ? content.trim() : match,
+      isSpokenEmphasisBracket(content) ? content.trim() : match,
     )
     result += `"${fixed}"`
     i = closeIdx + 1
@@ -493,42 +1122,74 @@ export interface DialogueRepairAnalysis {
   after: string
   /** Prep: stripped etc_emote/etc_speak or leading outer quote. */
   prep: boolean
+  /** Class E: reversed inverted speech-in-brackets mangling. */
+  classE: boolean
   /** Class C: wrapped unbracketed stage direction before spoken quotes. */
   classC: boolean
   /** Class A: quotes were trapped inside an outer [bracket] block. */
   classA: boolean
-  /** Class B: single-word emphasis [word] inside quotes was unwrapped. */
+  /** Class B: short emphasis [word(s)] inside quotes was unwrapped. */
   classB: boolean
-  /** Class D: balanced or trimmed stray closing quotes. */
+  /** Class F: split spoken quotes around inner [stage direction]. */
+  classF: boolean
+  /** Class D: balanced or trimmed stray closing quotes / trailing junk. */
   classD: boolean
 }
 
 /** Run repair steps and report which class(es) changed the line. */
 export function analyzeDialogueRepair(text: string): DialogueRepairAnalysis {
   const stripped = stripAgentToolLeakage(text)
-  const escaped = normalizeStoredQuoteEscapes(stripped)
-  const singleQuoted = normalizeSingleQuotedSpeechAfterAction(escaped)
-  const unwrappedOuter = unwrapOuterDialogueQuotes(singleQuoted)
-  const unwrapped = unwrapMistakenLeadingQuote(unwrappedOuter)
+  const smart = normalizeSmartQuotes(stripped)
+  const escaped = normalizeStoredQuoteEscapes(smart)
+  const singleQuotedAfterAction = normalizeSingleQuotedSpeechAfterAction(escaped)
+  const unwrappedOuter = unwrapOuterDialogueQuotes(singleQuotedAfterAction)
+  const unwrappedSingle = unwrapOuterQuoteWithInnerSingleSpeech(unwrappedOuter)
+  const normalizedSingles = normalizeSingleQuotedSpeech(unwrappedSingle)
+  const affirmed = absorbAffirmationAfterQuote(normalizedSingles)
+  const unwrapped = unwrapMistakenLeadingQuote(affirmed)
   const normalized = normalizeStageDirectionMarkers(unwrapped)
-  const afterFixDouble = fixDoubleClosedDirectionBeforeQuote(normalized)
+  const afterE = repairInvertedSpeechBrackets(normalized)
+  const afterFixDouble = fixDoubleClosedDirectionBeforeQuote(afterE)
   const afterC = wrapUnbracketedDirectionBeforeQuotes(afterFixDouble)
-  const afterEmphasisDirs = unwrapEmphasisBracketsInDirections(afterC)
+  const afterBare = wrapBareDirectionLine(afterC)
+  const afterCite = unwrapNestedCitationBrackets(afterBare)
+  const afterEmphasisDirs = unwrapEmphasisBracketsInDirections(afterCite)
   const afterA = closeBracketBeforeQuotes(afterEmphasisDirs)
-  const afterB = unwrapEmphasisBracketsInQuotes(afterA)
-  const afterD = normalizeDialogueQuotes(afterB)
+  const afterSplit = splitSpokenContentFromBrackets(afterA)
+  const afterB = unwrapEmphasisBracketsInQuotes(afterSplit)
+  const afterF = splitQuotesAroundInnerDirections(afterB)
+  const afterTrunc = openTruncatedDirectionBrackets(afterF)
+  const afterJunk = stripTrailingFragmentGarbage(afterTrunc)
+  const afterEmpty = stripEmptyTrailingQuote(afterJunk)
+  const afterD = normalizeDialogueQuotes(afterEmpty)
   return {
     after: afterD,
     prep:
       stripped !== text ||
-      escaped !== stripped ||
-      singleQuoted !== escaped ||
-      unwrappedOuter !== singleQuoted ||
-      unwrapped !== unwrappedOuter,
-    classC: afterC !== normalized || afterFixDouble !== normalized,
-    classA: afterA !== afterEmphasisDirs,
-    classB: afterB !== afterA || afterEmphasisDirs !== afterC,
-    classD: afterD !== afterB,
+      smart !== stripped ||
+      escaped !== smart ||
+      singleQuotedAfterAction !== escaped ||
+      unwrappedOuter !== singleQuotedAfterAction ||
+      unwrappedSingle !== unwrappedOuter ||
+      normalizedSingles !== unwrappedSingle ||
+      affirmed !== normalizedSingles ||
+      unwrapped !== affirmed,
+    classE: afterE !== normalized,
+    classC:
+      afterC !== afterFixDouble ||
+      afterFixDouble !== afterE ||
+      afterBare !== afterC ||
+      afterTrunc !== afterF,
+    classA: afterA !== afterEmphasisDirs || afterSplit !== afterA,
+    classB:
+      afterB !== afterSplit ||
+      afterEmphasisDirs !== afterCite ||
+      afterCite !== afterBare,
+    classF: afterF !== afterB,
+    classD:
+      afterD !== afterEmpty ||
+      afterEmpty !== afterJunk ||
+      afterJunk !== afterTrunc,
   }
 }
 
@@ -580,10 +1241,20 @@ export function segmentRenderedLength(seg: DialogueSegment): number {
 
 /** Line-format rules for etc_speak content (not tool invocation). */
 export const DIALOGUE_SPEAK_FORMAT_RULE =
-  '[square brackets] are ONLY for physical actions the audience sees but does not hear (e.g. [glances at the door]). ' +
-  'All spoken words go in "double quotes" outside [brackets]. Never put [brackets] around words inside quotes — write "it is listening", not "it is [listening]". ' +
-  'Quoted titles or cited phrases inside [brackets] stay in the narration. Do not use *asterisks*. ' +
-  'Output only the line text — never prefix with tool names like etc_emote or etc_speak.'
+  'Format every line as [physical action] "spoken words". ' +
+  'Correct: [glances at the door] "We should leave." ' +
+  'Multi-beat: "First." [turns] "Second." — close quotes before each [action], reopen after. ' +
+  'Every line must start with [ or ". Never leave bare narration without brackets. ' +
+  'Close ] before spoken words begin (wrong: [acts. "Hello."] → right: [acts.] "Hello."). ' +
+  'Never wrap spoken words in [brackets] (wrong: [We should leave.] → right: "We should leave."). ' +
+  'Never put [brackets] around words inside quotes ' +
+  '(write "it is listening" / "my mask" / "sangue freddo", not "it is [listening]" / "[my] mask"). ' +
+  'Never leave stage direction inside spoken quotes ' +
+  '(wrong: "Hello. [nods] More." → right: "Hello." [nods] "More."). ' +
+  'Never invent trailing junk like [P] or [C] after a finished line. ' +
+  'Cited text on props stays as plain quotes inside narration ' +
+  '(write [reads the words "The priest\'s real name."], not [["The priest\'s real name."]]). ' +
+  'Do not use *asterisks*. Output only the line text — never prefix with tool names like etc_emote or etc_speak.'
 
 /**
  * Shared agent-facing formatting rule (keep prompts in sync with this).

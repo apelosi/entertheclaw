@@ -183,8 +183,12 @@ describe('formatDialogueLineForPrompt', () => {
 })
 
 describe('DIALOGUE_SPEAK_FORMAT_RULE', () => {
-  it('does not tell models to write etc_emote inside speak lines', () => {
+  it('covers the full speak-line contract without telling agents to write etc_emote', () => {
     expect(DIALOGUE_SPEAK_FORMAT_RULE).toContain('never prefix with tool names')
+    expect(DIALOGUE_SPEAK_FORMAT_RULE).toContain('Every line must start with [ or "')
+    expect(DIALOGUE_SPEAK_FORMAT_RULE).toContain('Never invent trailing junk')
+    expect(DIALOGUE_SPEAK_FORMAT_RULE).toContain('sangue freddo')
+    expect(DIALOGUE_SPEAK_FORMAT_RULE).toContain('Close ] before spoken words begin')
     expect(DIALOGUE_SPEAK_FORMAT_RULE).not.toMatch(/use etc_emote/i)
   })
 })

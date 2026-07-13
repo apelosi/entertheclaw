@@ -43,7 +43,7 @@ const STOP_WORDS = new Set([
 export function normalizeSceneName(name: string): string {
   return name
     .toLowerCase()
-    .replace(/['']/g, '')
+    .replace(/[''\u2018\u2019\u201B]/g, '')
     .replace(/[^a-z0-9\s]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim()

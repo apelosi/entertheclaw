@@ -1,11 +1,13 @@
 /**
- * Repair dialogue lines (prep + Class A/B/C/D formatting).
+ * Repair dialogue lines (prep + Class A/B/C/D/E/F formatting).
  *
- * Prep: strip etc_emote/etc_speak leakage; unwrap mistaken leading " before [
- * Prep: strip tool leakage; normalize stored \" escapes; unwrap mistaken leading "
- * Class C: bracket stage direction / quote bare speech between spoken quotes (substantial or dialogue beats)
+ * Prep: strip etc_emote/etc_speak leakage; normalize smart quotes + stored \" escapes;
+ *       unwrap mistaken leading "; convert outer-"…'speech'" wraps; strip trailing junk
+ * Class E: reverse inverted speech-in-brackets mangling
+ * Class C: bracket stage direction / quote bare speech between spoken quotes
  * Class A: close [brackets] before quoted speech trapped inside them
- * Class B: unwrap single-word [emphasis] inside quotes → plain spoken word
+ * Class B: unwrap short [emphasis] inside quotes → plain spoken words
+ * Class F: split `"Speech. [action] More."` into separate quote spans
  * Class D: balance missing closing quotes; trim trailing quote garbage
  *
  * Also reclassifies emote rows that contain spoken dialogue (isEmote → dialogue).
@@ -108,15 +110,19 @@ function logRepair(
     classB?: boolean
     classC?: boolean
     classD?: boolean
+    classE?: boolean
+    classF?: boolean
     reclassified?: boolean
   },
 ): void {
   const tags = [
     flags.reclassified ? 'reclassified emote→dialogue' : null,
     flags.prep ? 'Prep' : null,
+    flags.classE ? 'Class E' : null,
     flags.classC ? 'Class C' : null,
     flags.classA ? 'Class A' : null,
     flags.classB ? 'Class B' : null,
+    flags.classF ? 'Class F' : null,
     flags.classD ? 'Class D' : null,
   ]
     .filter(Boolean)
@@ -145,6 +151,8 @@ async function main() {
   let classBCount = 0
   let classCCount = 0
   let classDCount = 0
+  let classECount = 0
+  let classFCount = 0
   let reclassifiedCount = 0
   const exportRows: Array<{
     stage: string
@@ -156,6 +164,8 @@ async function main() {
     classB: boolean
     classC: boolean
     classD: boolean
+    classE: boolean
+    classF: boolean
     reclassified: boolean
     changeAt: number
   }> = []
@@ -182,6 +192,8 @@ async function main() {
       if (result.analysis?.classB) classBCount++
       if (result.analysis?.classC) classCCount++
       if (result.analysis?.classD) classDCount++
+      if (result.analysis?.classE) classECount++
+      if (result.analysis?.classF) classFCount++
 
       logRepair(stage.name, row.id, c.text, result.text, {
         prep: result.analysis?.prep,
@@ -189,6 +201,8 @@ async function main() {
         classB: result.analysis?.classB,
         classC: result.analysis?.classC,
         classD: result.analysis?.classD,
+        classE: result.analysis?.classE,
+        classF: result.analysis?.classF,
         reclassified: result.reclassified,
       })
 
@@ -203,6 +217,8 @@ async function main() {
           classB: result.analysis?.classB ?? false,
           classC: result.analysis?.classC ?? false,
           classD: result.analysis?.classD ?? false,
+          classE: result.analysis?.classE ?? false,
+          classF: result.analysis?.classF ?? false,
           reclassified: result.reclassified,
           changeAt: firstDiffIndex(c.text, result.text),
         })
@@ -238,9 +254,11 @@ async function main() {
   console.log(`  Rows changed:     ${repaired}${apply ? ' (updated)' : ' (dry run)'}`)
   console.log(`  Reclassified:     ${reclassifiedCount} emote→dialogue`)
   console.log(`  Prep:             ${prepCount}`)
-  console.log(`  Class C only:     ${classCCount}`)
+  console.log(`  Class E:          ${classECount}`)
+  console.log(`  Class C:          ${classCCount}`)
   console.log(`  Class A:          ${classACount}`)
   console.log(`  Class B:          ${classBCount}`)
+  console.log(`  Class F:          ${classFCount}`)
   console.log(`  Class D:          ${classDCount}`)
   process.exit(0)
 }

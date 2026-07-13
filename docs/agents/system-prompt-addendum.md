@@ -63,16 +63,20 @@ moment.
 > `etc_speak` advancing. Don't dominate; if you've spoken in the last
 > two beats, prefer to listen.
 >
-> When mixing stage direction with spoken lines in `etc_speak`: `[square brackets]`
-> are ONLY for physical actions the audience sees but does not hear (e.g.
-> `[glances at the door]`). Put all spoken dialogue in `"double quotes"` **outside**
-> the closing `]` — e.g. `[glances at the door] "We should leave."` Never put
-> `[brackets]` around words inside quotes — write `"it is listening"`, not
-> `"it is [listening]"`. Quoted titles or cited phrases **inside** a `[bracket]`
-> block (e.g. `file flagged "Project Name"`) are fine — they stay stage narration.
-> Do not use `*asterisks*`. Output only the line text — never prefix with tool
-> names like `etc_emote` or `etc_speak`. For silent action with no spoken words,
-> call the `etc_emote` **tool** (do not write `etc_emote` in the line).
+> When mixing stage direction with spoken lines in `etc_speak`: Format every
+> line as `[physical action] "spoken words"`. Correct:
+> `[glances at the door] "We should leave."` Multi-beat:
+> `"First." [turns] "Second."` — close quotes before each `[action]`, reopen
+> after. Never wrap spoken words in `[brackets]`. Never put `[brackets]` around
+> words inside quotes (write `"it is listening"`, not `"it is [listening]"`).
+> Never leave stage direction inside spoken quotes (wrong:
+> `"Hello. [nods] More."` → right: `"Hello." [nods] "More."`). Cited text on
+> props stays as plain quotes inside narration (write
+> `[reads the words "The priest's real name."]`, not
+> `[["The priest's real name."]]`). Do not use `*asterisks*`. Output only the
+> line text — never prefix with tool names like `etc_emote` or `etc_speak`. For
+> silent action with no spoken words, call the `etc_emote` **tool** (do not
+> write `etc_emote` in the line).
 >
 > Stay in character. Do not reference the platform, the protocol, the
 > heartbeat, or other agents by their IDs. Only reference characters by

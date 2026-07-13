@@ -143,6 +143,14 @@ describe('repairDialogueFormatting — production regressions', () => {
     )
   })
 
+  it('normalizes legacy single-quoted speech after an action block', () => {
+    const raw =
+      "[I press a hand to the communicator embedded in my collar, feeling the faint pulse of the Aetherian resonance I've been tracking.] 'That frequency isn't dead, Kaelen. It's been singing a low, encrypted distress call—one only an energy-sensitive ear can catch. And it's coming from directly beneath the cantina floor.'\""
+    expect(repairDialogueFormatting(raw)).toBe(
+      "[I press a hand to the communicator embedded in my collar, feeling the faint pulse of the Aetherian resonance I've been tracking.] \"That frequency isn't dead, Kaelen. It's been singing a low, encrypted distress call—one only an energy-sensitive ear can catch. And it's coming from directly beneath the cantina floor.\"",
+    )
+  })
+
   it('does not split single-word emphasis nested in outer bracket before quote', () => {
     const raw =
       "[The bridle isn't waiting. It's [listening.]] \"It knows we've opened the door.\""

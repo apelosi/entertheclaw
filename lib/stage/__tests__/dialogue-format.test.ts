@@ -98,6 +98,29 @@ describe('repairDialogueFormatting — production regressions', () => {
     expect(fixed).not.toContain(']]')
   })
 
+  it('wraps unbracketed stage direction between spoken quotes (multi-segment Class C)', () => {
+    const raw =
+      'Pyros runs a calloused thumb along the edge of his hammer, the metal singing a low note. "I have forged nails for the temple and hinges for the vault, but this — this is the sound of the earth remembering its first master." He looks to Kassandra. "And that master was not a god."'
+    const fixed = repairDialogueFormatting(raw)
+    expect(fixed).toBe(
+      '[Pyros runs a calloused thumb along the edge of his hammer, the metal singing a low note.] "I have forged nails for the temple and hinges for the vault, but this — this is the sound of the earth remembering its first master." [He looks to Kassandra.] "And that master was not a god."',
+    )
+    const segments = splitDialogueSegments(fixed)
+    expect(segments.map((s) => s.kind)).toEqual(['direction', 'spoken', 'direction', 'spoken'])
+    const analysis = analyzeDialogueRepair(raw)
+    expect(analysis.classC).toBe(true)
+  })
+
+  it('does not split single-word emphasis nested in outer bracket before quote', () => {
+    const raw =
+      "[The bridle isn't waiting. It's [listening.]] \"It knows we've opened the door.\""
+    const fixed = repairDialogueFormatting(raw)
+    expect(fixed).toBe(
+      "[The bridle isn't waiting. It's listening.] \"It knows we've opened the door.\"",
+    )
+    expect(fixed).not.toContain('[[listening')
+  })
+
   it('repairs mistaken ]] from a prior Class C wrap', () => {
     const raw =
       "[Kaelen's cybernetic eye flickers as he crouches, pressing a gloved hand to the trembling ground. [He pulls out a dented datapad, its screen casting a cold blue light across the cracked earth.]] \"The Em"

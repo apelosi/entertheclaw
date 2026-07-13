@@ -2,7 +2,7 @@
  * Repair dialogue lines (prep + Class A/B/C/D formatting).
  *
  * Prep: strip etc_emote/etc_speak leakage; unwrap mistaken leading " before [
- * Class C: wrap unbracketed stage direction before spoken quotes in [brackets]
+ * Class C: wrap every unbracketed prose run in [brackets] when the line has spoken quotes
  * Class A: close [brackets] before quoted speech trapped inside them
  * Class B: unwrap single-word [emphasis] inside quotes → plain spoken word
  * Class D: balance missing closing quotes; trim trailing quote garbage

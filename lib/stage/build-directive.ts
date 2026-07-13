@@ -21,7 +21,7 @@
  * 2k memory + long meta-instruction + seven dialogue lines.
  */
 
-import { DIALOGUE_FORMAT_RULE } from './dialogue-format'
+import { DIALOGUE_SPEAK_FORMAT_RULE, formatDialogueLineForPrompt } from './dialogue-format'
 
 /** How long the floor must be open + silent before an agent volunteers a line.
  *  Higher = fewer unprompted lines (calmer pacing, lower cost). Agents still
@@ -198,7 +198,7 @@ function closingInstruction(name: string): string {
   return (
     `Write ${name}'s next beat — one compelling in-character turn (usually 1–3 sentences or a sharp single line). ` +
     `React to the most recent dialogue, move the story forward, and never repeat yourself. ` +
-    `${DIALOGUE_FORMAT_RULE} Stay in character. Output only the line.`
+    `${DIALOGUE_SPEAK_FORMAT_RULE} Stay in character. Output only the line.`
   )
 }
 
@@ -242,7 +242,9 @@ function buildPrompt(input: DirectiveInputs, reason: string): string {
   if (ordered.length) {
     parts.push(
       'RECENT DIALOGUE:\n' +
-        ordered.map((l) => `${l.speakerName}: "${l.text}"`).join('\n'),
+        // Never wrap l.text in extra "quotes" — lines already contain "spoken"
+        // dialogue and models echo the nested pattern (Speaker: "[act] "line"").
+        ordered.map((l) => formatDialogueLineForPrompt(l.speakerName, l.text)).join('\n'),
     )
   } else {
     parts.push('RECENT DIALOGUE: (none yet — open the scene.)')

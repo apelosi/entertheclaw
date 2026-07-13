@@ -121,6 +121,26 @@ describe('buildDirective prompt size', () => {
     expect(directive.prompt!.length).toBeLessThan(MAX_PROMPT_CHARS_STRESS)
   })
 
+  it('does not nest extra quotes around lines that already contain dialogue quotes', () => {
+    const directive = buildDirective(
+      baseInput({
+        recentDialogue: [
+          {
+            speakerName: 'Kaelen Voss',
+            text: '[steps from shadow] "Only because you lied to the council."',
+            agentId: 'agent-2',
+          },
+        ],
+        addressedToYou: true,
+      }),
+    )
+    const block = directive.prompt!.split('RECENT DIALOGUE:\n')[1].split('\n\nCUE:')[0]
+    expect(block).toBe(
+      'Kaelen Voss: [steps from shadow] "Only because you lied to the council."',
+    )
+    expect(block).not.toMatch(/"\[/)
+  })
+
   it('uses structured sections and a short backstory hook', () => {
     const directive = buildDirective(baseInput())
     const prompt = directive.prompt!

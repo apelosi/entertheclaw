@@ -157,7 +157,9 @@ export function CastCard({
         })}
       </div>
 
-      <Link
+      {/* Native anchor (not Link) so the tap always navigates — see stage-action-bar. */}
+      {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
+      <a
         href={agentInvitePathForStage(stageId)}
         className={cn(
           'inline-flex h-10 w-full items-center justify-center gap-2 rounded-sm bg-[#C41E3A] px-4 font-mono text-xs font-medium uppercase tracking-[0.15em] text-[#F0EDE8] transition-all max-md:h-9 max-md:px-3 max-md:text-[11px]',
@@ -165,7 +167,7 @@ export function CastCard({
         )}
       >
         <span aria-hidden>+</span> Invite an Agent
-      </Link>
+      </a>
 
       {(hasMine || activeAgentId) && <IndicatorLegend className="pt-0.5" />}
     </>

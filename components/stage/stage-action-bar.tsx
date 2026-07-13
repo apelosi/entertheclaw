@@ -63,18 +63,17 @@ export function StageActionBar({
         >
           Twist
         </button>
-        {/* A <button> (not a Link) with a hard navigation: an <a>/Link tap can
-            be swallowed inside this sticky + backdrop-blur bar on mobile Safari,
-            while the sibling Twist <button> works — so match it. */}
-        <button
-          type="button"
-          onClick={() => {
-            window.location.href = inviteHref
-          }}
+        {/* A plain native anchor (not a Link/onClick): the browser navigates on
+            tap without relying on React's synthetic click, which Chrome's mobile
+            touch-emulation (and some real mobile browsers) can fail to deliver
+            for this button while the sibling Twist button still works. */}
+        {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
+        <a
+          href={inviteHref}
           className="inline-flex flex-1 items-center justify-center rounded-sm border border-[#C41E3A]/70 px-3 py-1.5 font-mono text-[11px] font-medium uppercase tracking-[0.15em] text-[#C41E3A] transition-colors hover:bg-[#C41E3A]/10"
         >
           + Invite
-        </button>
+        </a>
       </div>
     </div>
   )

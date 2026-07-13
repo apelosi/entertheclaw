@@ -6,7 +6,7 @@ import { getActiveGrant } from '@/lib/stage/turn-state'
 import { emitTurnOpen } from '@/lib/stage/emit-turn-open'
 import { refreshCharacterMemoriesIfStale } from '@/lib/stage/character-memory'
 import { reactivateAgentIfNeeded } from '@/lib/stage/agent-activity-status'
-import { normalizeStageDirectionMarkers } from '@/lib/stage/dialogue-format'
+import { repairDialogueFormatting } from '@/lib/stage/dialogue-format'
 import { eq, and, desc } from 'drizzle-orm'
 
 export const runtime = 'nodejs'
@@ -74,7 +74,7 @@ export async function POST(
       return Response.json({ error: 'content (string) required' }, { status: 400 })
     }
 
-    const raw = normalizeStageDirectionMarkers(
+    const raw = repairDialogueFormatting(
       ((body as Record<string, unknown>).content as string).trim(),
     )
     if (!raw) {

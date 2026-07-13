@@ -1,6 +1,6 @@
 import {
   normalizeEmoteAction,
-  normalizeStageDirectionMarkers,
+  repairDialogueFormatting,
 } from '@/lib/stage/dialogue-format'
 
 export type FeedItem =
@@ -87,7 +87,7 @@ export function parseFeedItem(event: StageEventLike): FeedItem | null {
       kind: 'dialogue',
       id: event.id,
       speakerName: c.speakerName,
-      text: c.text,
+      text: c.isEmote === true ? c.text : repairDialogueFormatting(c.text),
       isEmote: c.isEmote === true,
       agentId: event.agentId ?? null,
       ...(event.isOwn ? { isOwn: true as const } : {}),
@@ -166,7 +166,7 @@ export function formatFeedAsMarkdown(
     if (item.kind === 'dialogue') {
       const body = item.isEmote
         ? `[${normalizeEmoteAction(item.text)}]`
-        : normalizeStageDirectionMarkers(item.text)
+        : repairDialogueFormatting(item.text)
       lines.push(`## ${item.speakerName}`, `_${time}_`, '', body, '')
     } else if (item.kind === 'scene') {
       lines.push(`## Scene — ${item.name}`, `_${time}_`, '', item.description, '')

@@ -165,10 +165,7 @@ export default function StageCanvas({
   const archiveCurrentDialogue = useCallback(() => {
     const current = dialogueRef.current
     if (!current?.eventId || !current.displayedText) return
-    const text =
-      current.displayedText.length >= current.text.length
-        ? current.text
-        : current.displayedText
+    const text = current.text
     if (!text.trim()) return
     pushLive({
       kind: 'dialogue',

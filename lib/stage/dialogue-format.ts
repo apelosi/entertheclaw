@@ -10,7 +10,8 @@
  * - Class C: wrap unbracketed stage direction before the first spoken quote in [brackets]
  * - Class A: close [brackets] before trapped spoken dialogue (heuristic-gated)
  * - Class B: unwrap single-word [emphasis] inside quotes → plain spoken word
- * - Class D: balance missing closing quotes; trim trailing quote garbage (e.g. .""')
+ * - Class D: trim trailing quote garbage (e.g. .""'); add missing closing " only when
+ *   speech ends with . ! ? — not for mid-word agent truncations (leave those open)
  */
 
 const DOUBLE_ASTERISK = /\*\*([^*\n]+)\*\*/g
@@ -203,17 +204,39 @@ export function wrapUnbracketedDirectionBeforeQuotes(text: string): string {
   return `[${before.trim()}] ${text.slice(quoteIdx)}`
 }
 
-/** Append a closing `"` when an opening spoken quote was never closed. */
-export function ensureClosingQuote(text: string): string {
+/** Spoken text after the last unclosed `"` outside `[brackets]`, or null if balanced. */
+export function unclosedSpokenTail(text: string): string | null {
   let bracketDepth = 0
   let quotes = 0
+  let lastQuoteIdx = -1
   for (let i = 0; i < text.length; i++) {
     const ch = text[i]
     if (ch === '[') bracketDepth++
     else if (ch === ']' && bracketDepth > 0) bracketDepth--
-    else if (ch === '"' && bracketDepth === 0) quotes++
+    else if (ch === '"' && bracketDepth === 0) {
+      quotes++
+      lastQuoteIdx = i
+    }
   }
-  if (quotes % 2 === 1) return text + '"'
+  if (quotes % 2 === 0 || lastQuoteIdx < 0) return null
+  return text.slice(lastQuoteIdx + 1)
+}
+
+/**
+ * True when an unclosed spoken quote looks complete (ends . ! ?) and only
+ * lacks a closing `"`. Mid-word agent truncations are left open on purpose.
+ */
+export function shouldAppendClosingQuote(text: string): boolean {
+  const tail = unclosedSpokenTail(text)
+  if (tail === null) return false
+  const spoken = tail.trimEnd()
+  if (!spoken) return false
+  return /[.!?]$/.test(spoken)
+}
+
+/** Append a closing `"` only for complete sentences missing the final quote. */
+export function ensureClosingQuote(text: string): string {
+  if (shouldAppendClosingQuote(text)) return text + '"'
   return text
 }
 

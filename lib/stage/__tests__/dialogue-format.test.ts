@@ -120,9 +120,35 @@ describe('wrapUnbracketedDirectionBeforeQuotes', () => {
 })
 
 describe('normalizeDialogueQuotes', () => {
-  it('adds a missing closing quote', () => {
-    expect(ensureClosingQuote('[acts.] "unfinished')).toBe('[acts.] "unfinished"')
+  it('adds a missing closing quote only when speech ends with . ! ?', () => {
+    expect(
+      ensureClosingQuote(
+        "[Kaelen's eye flickers.] \"A bloodline key means the sender wasn't just any intelligence—they were family.",
+      ),
+    ).toBe(
+      "[Kaelen's eye flickers.] \"A bloodline key means the sender wasn't just any intelligence—they were family.\"",
+    )
+  })
+
+  it('leaves mid-word agent truncations without a closing quote', () => {
+    const truncated =
+      '[My cybernetic eye flickers.] "Ghosts leave traces, Seraphis—and I just picked up a signature that matches the encryption on Aetherius’s old relay network. Someone’s transmitting from the temple ruins right'
+    expect(ensureClosingQuote(truncated)).toBe(truncated)
+    expect(normalizeDialogueQuotes(truncated)).toBe(truncated)
+  })
+
+  it('does not close an empty spoken quote', () => {
+    const empty = '[acts.] "'
+    expect(ensureClosingQuote(empty)).toBe(empty)
+  })
+
+  it('trims trailing quote garbage on complete lines', () => {
     expect(normalizeDialogueQuotes('family.')).toBe('family.')
+    expect(
+      normalizeDialogueQuotes(
+        '[action.] "done."\'"',
+      ),
+    ).toBe('[action.] "done."')
   })
 })
 

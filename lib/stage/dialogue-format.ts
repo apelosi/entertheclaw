@@ -408,6 +408,10 @@ export function wrapBareProse(prose: string): string {
   if (!trimmed || isJunkBareProse(trimmed)) return prose
   const lead = prose.match(/^\s*/)?.[0] ?? ''
   const trail = prose.match(/\s*$/)?.[0] ?? ''
+  // "This says" / "She said" lead-ins before a cited phrase are spoken, not staging.
+  if (/^(this|that|he|she|they)\s+(says|said)\.?$/i.test(trimmed)) {
+    return `${lead}"${trimmed}"${trail}`
+  }
   if (looksLikeSpokenBareProse(trimmed)) {
     return `${lead}"${trimmed}"${trail}`
   }

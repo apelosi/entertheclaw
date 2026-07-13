@@ -249,6 +249,16 @@ describe('repairDialogueFormatting — user-reported Script lines', () => {
       expect(fixed).toContain("'carry'")
       expect(fixed).toContain("'choose.'")
     })
+
+    it('quotes "This says" lead-ins instead of bracketing them', () => {
+      expect(
+        repairDialogueFormatting(
+          `[She turns the tablet over in her hands.] This says 'Once to command it.' I commanded the wave. So what comes next?`,
+        ),
+      ).toBe(
+        `[She turns the tablet over in her hands.] "This says" "Once to command it." "I commanded the wave. So what comes next?"`,
+      )
+    })
   })
 
   describe('idempotent on already-correct multi-beat lines', () => {

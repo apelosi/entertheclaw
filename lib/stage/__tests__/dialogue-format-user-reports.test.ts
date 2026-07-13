@@ -79,10 +79,65 @@ describe('repairDialogueFormatting — user-reported Script lines', () => {
   })
 
   describe('Claw Wars', () => {
-    it('Sera Vex: bare truncated narration gets brackets', () => {
+    it('Sera Vex: truncated direction opens [ without closing ]', () => {
       expect(
         repairDialogueFormatting('Her pale eyes drift from the flickering terminal to'),
-      ).toBe('[Her pale eyes drift from the flickering terminal to]')
+      ).toBe('[Her pale eyes drift from the flickering terminal to')
+      expect(
+        repairDialogueFormatting(
+          '[Her pale eyes drift from the flickering terminal to]',
+        ),
+      ).toBe('[Her pale eyes drift from the flickering terminal to')
+    })
+
+    it('Seraphis: unwraps [layered] inside an unclosed spoken quote', () => {
+      expect(
+        repairDialogueFormatting(
+          `[Seraphis's fingers hover over the data chip, the amber spark dying as he pulls back—his green eyes darken, fixed on the rusted casing.] "The protocol wasn't scrubbed—it was [layered]. This chip`,
+        ),
+      ).toBe(
+        `[Seraphis's fingers hover over the data chip, the amber spark dying as he pulls back—his green eyes darken, fixed on the rusted casing.] "The protocol wasn't scrubbed—it was layered. This chip`,
+      )
+    })
+
+    it('Seraphis: closes unclosed [ before quoted speech', () => {
+      expect(
+        repairDialogueFormatting(
+          `[I press my palm flat against the corroded grate, feeling the vibration climb through my bones like a living current. The kyber crystal in my pocket pulses in rhythm — not with the planet, but with something beneath it. "This seal wasn't meant to keep something in. It was meant to keep something out — and the earthquake just cracked the door."`,
+        ),
+      ).toBe(
+        `[I press my palm flat against the corroded grate, feeling the vibration climb through my bones like a living current. The kyber crystal in my pocket pulses in rhythm — not with the planet, but with something beneath it.] "This seal wasn't meant to keep something in. It was meant to keep something out — and the earthquake just cracked the door."`,
+      )
+    })
+
+    it('Seraphis: splits spoken tail out of closed brackets', () => {
+      expect(
+        repairDialogueFormatting(
+          `[I close my eyes, feeling the residual tremor in the earth through my boots—the same frequency as the crystal in my pocket. That listening post wasn't scrubbed from archives. It was burned out of the Aether itself—and the Empire didn't do it.]`,
+        ),
+      ).toBe(
+        `[I close my eyes, feeling the residual tremor in the earth through my boots—the same frequency as the crystal in my pocket.] "That listening post wasn't scrubbed from archives. It was burned out of the Aether itself—and the Empire didn't do it."`,
+      )
+    })
+
+    it('Sera Vex: speech-only brackets become quotes', () => {
+      expect(
+        repairDialogueFormatting(
+          `[The kyber's pulse just etched a name into my palm—a bloodline older than the Je'daii themselves.]`,
+        ),
+      ).toBe(
+        `"The kyber's pulse just etched a name into my palm—a bloodline older than the Je'daii themselves."`,
+      )
+    })
+
+    it('Vex Nereus: splits spoken revelation after colon inside brackets', () => {
+      expect(
+        repairDialogueFormatting(
+          `[I press both palms flat against the cracked earth, the Aether shuddering up my arms like a current reversed—then I feel it: the drill isn't digging toward the vault. It's digging away from something rising up to meet it.]`,
+        ),
+      ).toBe(
+        `[I press both palms flat against the cracked earth, the Aether shuddering up my arms like a current reversed—then I feel it:] "The drill isn't digging toward the vault. It's digging away from something rising up to meet it."`,
+      )
     })
 
     it('Vex Nereus: inverted speech-in-brackets', () => {

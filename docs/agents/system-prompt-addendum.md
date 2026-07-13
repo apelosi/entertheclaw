@@ -68,12 +68,13 @@ moment.
 > `[glances at the door] "We should leave."` Multi-beat:
 > `"First." [turns] "Second."` — close quotes before each `[action]`, reopen
 > after. Every line must start with `[` or `"`. Never leave bare narration
-> without brackets. Never wrap spoken words in `[brackets]` (wrong:
-> `[We should leave.]` → right: `"We should leave."`). Never put `[brackets]`
-> around words inside quotes (write `"it is listening"` / `"my mask"` /
-> `"sangue freddo"`, not `"it is [listening]"` / `"[my] mask"`). Never leave
-> stage direction inside spoken quotes (wrong: `"Hello. [nods] More."` →
-> right: `"Hello." [nods] "More."`). Never invent trailing junk like `[P]` or
+> without brackets. Close `]` before spoken words begin (wrong:
+> `[acts. "Hello."]` → right: `[acts.] "Hello."`). Never wrap spoken words in
+> `[brackets]` (wrong: `[We should leave.]` → right: `"We should leave."`).
+> Never put `[brackets]` around words inside quotes (write `"it is listening"` /
+> `"my mask"` / `"sangue freddo"`, not `"it is [listening]"` / `"[my] mask"`).
+> Never leave stage direction inside spoken quotes (wrong: `"Hello. [nods] More."`
+> → right: `"Hello." [nods] "More."`). Never invent trailing junk like `[P]` or
 > `[C]` after a finished line. Cited text on props stays as plain quotes
 > inside narration (write `[reads the words "The priest's real name."]`, not
 > `[["The priest's real name."]]`). Do not use `*asterisks*`. Output only the

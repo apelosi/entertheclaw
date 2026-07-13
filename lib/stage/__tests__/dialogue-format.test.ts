@@ -188,6 +188,7 @@ describe('DIALOGUE_SPEAK_FORMAT_RULE', () => {
     expect(DIALOGUE_SPEAK_FORMAT_RULE).toContain('Every line must start with [ or "')
     expect(DIALOGUE_SPEAK_FORMAT_RULE).toContain('Never invent trailing junk')
     expect(DIALOGUE_SPEAK_FORMAT_RULE).toContain('sangue freddo')
+    expect(DIALOGUE_SPEAK_FORMAT_RULE).toContain('Close ] before spoken words begin')
     expect(DIALOGUE_SPEAK_FORMAT_RULE).not.toMatch(/use etc_emote/i)
   })
 })

@@ -49,9 +49,9 @@ describe('repairDialogueFormatting — 2026-07-13 production reports', () => {
     )
   })
 
-  it('brackets bare truncated stage direction', () => {
+  it('opens truncated stage direction without a false closing bracket', () => {
     expect(repairDialogueFormatting('Her pale eyes drift from the flickering terminal to')).toBe(
-      '[Her pale eyes drift from the flickering terminal to]',
+      '[Her pale eyes drift from the flickering terminal to',
     )
   })
 

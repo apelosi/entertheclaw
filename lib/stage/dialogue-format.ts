@@ -6,8 +6,11 @@
  * - "quotes"   = spoken dialogue (white) — when outside [brackets]
  *
  * Repairs:
+ * - Prep: strip leaked etc_emote/etc_speak prefixes; unwrap mistaken leading " before [
+ * - Class C: wrap unbracketed stage direction before the first spoken quote in [brackets]
  * - Class A: close [brackets] before trapped spoken dialogue (heuristic-gated)
  * - Class B: unwrap single-word [emphasis] inside quotes → plain spoken word
+ * - Class D: balance missing closing quotes; trim trailing quote garbage (e.g. .""')
  */
 
 const DOUBLE_ASTERISK = /\*\*([^*\n]+)\*\*/g
@@ -60,11 +63,49 @@ export function normalizeStageDirectionMarkers(text: string): string {
 
 /** Strip outer * / ** wrappers from a full-line emote (no brackets added). */
 export function normalizeEmoteAction(text: string): string {
-  const trimmed = text.trim()
+  const trimmed = stripAgentToolLeakage(text).trim()
   const double = trimmed.match(/^\*\*([^*\n]+)\*\*$/)
   if (double) return double[1].trim()
   const single = trimmed.match(/^\*([^*\n]+)\*$/)
   if (single) return single[1].trim()
+  return trimmed
+}
+
+const AGENT_TOOL_LEAK = /^(?:etc_(?:emote|speak|claim_turn)|etc)\s+/i
+
+/** Remove tool names agents sometimes paste into line content. */
+export function stripAgentToolLeakage(text: string): string {
+  let result = text.trimStart()
+  while (AGENT_TOOL_LEAK.test(result)) {
+    result = result.replace(AGENT_TOOL_LEAK, '').trimStart()
+  }
+  return result
+}
+
+/** Index of the first `"` outside any [bracket] block (spoken dialogue opener). */
+export function indexOfFirstSpokenQuote(text: string): number {
+  let bracketDepth = 0
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i]
+    if (ch === '[') bracketDepth++
+    else if (ch === ']' && bracketDepth > 0) bracketDepth--
+    else if (ch === '"' && bracketDepth === 0) return i
+  }
+  return -1
+}
+
+/** True when stored emote text includes out-loud dialogue in quotes. */
+export function emoteContainsDialogue(text: string): boolean {
+  return indexOfFirstSpokenQuote(text) >= 0
+}
+
+/**
+ * Prep: strip a mistaken leading `"` when the line should start with `[action]`.
+ * `"[glances away] "Hello."` → `[glances away] "Hello."`
+ */
+export function unwrapOuterDialogueQuotes(text: string): string {
+  const trimmed = text.trim()
+  if (trimmed.startsWith('"[')) return trimmed.slice(1)
   return trimmed
 }
 
@@ -150,6 +191,41 @@ export function closeBracketBeforeQuotes(text: string): string {
  * `"it's [listening]."` → `"it's listening."`
  * Multi-word `[glances at the door]` inside quotes is left unchanged.
  */
+/**
+ * Class C: wrap prose stage direction before the first spoken quote in [brackets].
+ * `Kaelen's eye flickers. "Hello."` → `[Kaelen's eye flickers.] "Hello."`
+ */
+export function wrapUnbracketedDirectionBeforeQuotes(text: string): string {
+  const quoteIdx = indexOfFirstSpokenQuote(text)
+  if (quoteIdx <= 0) return text
+  const before = text.slice(0, quoteIdx).trimEnd()
+  if (!before || before.startsWith('[')) return text
+  return `[${before.trim()}] ${text.slice(quoteIdx)}`
+}
+
+/** Append a closing `"` when an opening spoken quote was never closed. */
+export function ensureClosingQuote(text: string): string {
+  let bracketDepth = 0
+  let quotes = 0
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i]
+    if (ch === '[') bracketDepth++
+    else if (ch === ']' && bracketDepth > 0) bracketDepth--
+    else if (ch === '"' && bracketDepth === 0) quotes++
+  }
+  if (quotes % 2 === 1) return text + '"'
+  return text
+}
+
+/**
+ * Class D: fix trailing quote garbage (`.""'`) and balance missing closers.
+ */
+export function normalizeDialogueQuotes(text: string): string {
+  let result = ensureClosingQuote(text)
+  result = result.replace(/(\.)"["']+$/g, '$1"')
+  return result
+}
+
 export function unwrapEmphasisBracketsInQuotes(text: string): string {
   let result = ''
   let i = 0
@@ -177,21 +253,34 @@ export function unwrapEmphasisBracketsInQuotes(text: string): string {
 
 export interface DialogueRepairAnalysis {
   after: string
+  /** Prep: stripped etc_emote/etc_speak or leading outer quote. */
+  prep: boolean
+  /** Class C: wrapped unbracketed stage direction before spoken quotes. */
+  classC: boolean
   /** Class A: quotes were trapped inside an outer [bracket] block. */
   classA: boolean
   /** Class B: single-word emphasis [word] inside quotes was unwrapped. */
   classB: boolean
+  /** Class D: balanced or trimmed stray closing quotes. */
+  classD: boolean
 }
 
 /** Run repair steps and report which class(es) changed the line. */
 export function analyzeDialogueRepair(text: string): DialogueRepairAnalysis {
-  const normalized = normalizeStageDirectionMarkers(text)
-  const afterA = closeBracketBeforeQuotes(normalized)
+  const stripped = stripAgentToolLeakage(text)
+  const unwrapped = unwrapOuterDialogueQuotes(stripped)
+  const normalized = normalizeStageDirectionMarkers(unwrapped)
+  const afterC = wrapUnbracketedDirectionBeforeQuotes(normalized)
+  const afterA = closeBracketBeforeQuotes(afterC)
   const afterB = unwrapEmphasisBracketsInQuotes(afterA)
+  const afterD = normalizeDialogueQuotes(afterB)
   return {
-    after: afterB,
-    classA: afterA !== normalized,
+    after: afterD,
+    prep: stripped !== text || unwrapped !== stripped,
+    classC: afterC !== normalized,
+    classA: afterA !== afterC,
     classB: afterB !== afterA,
+    classD: afterD !== afterB,
   }
 }
 

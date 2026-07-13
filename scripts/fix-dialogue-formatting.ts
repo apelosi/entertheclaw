@@ -1,8 +1,13 @@
 /**
- * Repair dialogue lines (Class A + Class B formatting).
+ * Repair dialogue lines (prep + Class A/B/C/D formatting).
  *
- * Class A: close [brackets] before quoted speech trapped inside them.
- * Class B: unwrap single-word [emphasis] inside quotes → plain spoken word.
+ * Prep: strip etc_emote/etc_speak leakage; unwrap mistaken leading " before [
+ * Class C: wrap unbracketed stage direction before spoken quotes in [brackets]
+ * Class A: close [brackets] before quoted speech trapped inside them
+ * Class B: unwrap single-word [emphasis] inside quotes → plain spoken word
+ * Class D: balance missing closing quotes; trim trailing quote garbage
+ *
+ * Also reclassifies emote rows that contain spoken dialogue (isEmote → dialogue).
  *
  * Dry-run by default. Pass --yes to write updates.
  *
@@ -20,7 +25,12 @@ import { neon } from '@neondatabase/serverless'
 import { drizzle } from 'drizzle-orm/neon-http'
 import { and, eq } from 'drizzle-orm'
 import { stageEvents, stages } from '../lib/db/schema'
-import { analyzeDialogueRepair, firstDiffIndex } from '../lib/stage/dialogue-format'
+import {
+  analyzeDialogueRepair,
+  emoteContainsDialogue,
+  firstDiffIndex,
+  normalizeEmoteAction,
+} from '../lib/stage/dialogue-format'
 
 function readDatabaseUrl(): string {
   const prefix = '--database-url='
@@ -47,16 +57,66 @@ const EXPORT_PATH = (() => {
 
 const APPLY = process.argv.includes('--yes')
 
+function repairRow(content: Record<string, unknown>): {
+  text: string
+  isEmote: boolean
+  analysis: ReturnType<typeof analyzeDialogueRepair> | null
+  reclassified: boolean
+} | null {
+  if (typeof content.text !== 'string') return null
+  const wasEmote = content.isEmote === true
+
+  if (wasEmote) {
+    if (!emoteContainsDialogue(content.text)) {
+      const normalized = normalizeEmoteAction(content.text)
+      if (normalized === content.text) return null
+      return {
+        text: normalized,
+        isEmote: true,
+        analysis: null,
+        reclassified: false,
+      }
+    }
+    const analysis = analyzeDialogueRepair(content.text)
+    return {
+      text: analysis.after,
+      isEmote: false,
+      analysis,
+      reclassified: true,
+    }
+  }
+
+  const analysis = analyzeDialogueRepair(content.text)
+  if (analysis.after === content.text) return null
+  return {
+    text: analysis.after,
+    isEmote: false,
+    analysis,
+    reclassified: false,
+  }
+}
+
 function logRepair(
   stageName: string,
   eventId: string,
   before: string,
   after: string,
-  flags: { classA: boolean; classB: boolean },
+  flags: {
+    prep?: boolean
+    classA?: boolean
+    classB?: boolean
+    classC?: boolean
+    classD?: boolean
+    reclassified?: boolean
+  },
 ): void {
   const tags = [
+    flags.reclassified ? 'reclassified emote→dialogue' : null,
+    flags.prep ? 'Prep' : null,
+    flags.classC ? 'Class C' : null,
     flags.classA ? 'Class A' : null,
     flags.classB ? 'Class B' : null,
+    flags.classD ? 'Class D' : null,
   ]
     .filter(Boolean)
     .join(', ')
@@ -79,16 +139,23 @@ async function main() {
 
   let scanned = 0
   let repaired = 0
+  let prepCount = 0
   let classACount = 0
   let classBCount = 0
-  let bothCount = 0
+  let classCCount = 0
+  let classDCount = 0
+  let reclassifiedCount = 0
   const exportRows: Array<{
     stage: string
     eventId: string
     before: string
     after: string
+    prep: boolean
     classA: boolean
     classB: boolean
+    classC: boolean
+    classD: boolean
+    reclassified: boolean
     changeAt: number
   }> = []
 
@@ -101,44 +168,60 @@ async function main() {
     for (const row of events) {
       if (typeof row.content !== 'object' || row.content === null) continue
       const c = row.content as Record<string, unknown>
-      if (c.isEmote === true) continue
       if (typeof c.text !== 'string') continue
       scanned++
 
-      const analysis = analyzeDialogueRepair(c.text)
-      if (analysis.after === c.text) continue
+      const result = repairRow(c)
+      if (!result) continue
 
       repaired++
-      if (analysis.classA) classACount++
-      if (analysis.classB) classBCount++
-      if (analysis.classA && analysis.classB) bothCount++
+      if (result.reclassified) reclassifiedCount++
+      if (result.analysis?.prep) prepCount++
+      if (result.analysis?.classA) classACount++
+      if (result.analysis?.classB) classBCount++
+      if (result.analysis?.classC) classCCount++
+      if (result.analysis?.classD) classDCount++
 
-      logRepair(stage.name, row.id, c.text, analysis.after, analysis)
+      logRepair(stage.name, row.id, c.text, result.text, {
+        prep: result.analysis?.prep,
+        classA: result.analysis?.classA,
+        classB: result.analysis?.classB,
+        classC: result.analysis?.classC,
+        classD: result.analysis?.classD,
+        reclassified: result.reclassified,
+      })
 
       if (EXPORT_PATH) {
         exportRows.push({
           stage: stage.name,
           eventId: row.id,
           before: c.text,
-          after: analysis.after,
-          classA: analysis.classA,
-          classB: analysis.classB,
-          changeAt: firstDiffIndex(c.text, analysis.after),
+          after: result.text,
+          prep: result.analysis?.prep ?? false,
+          classA: result.analysis?.classA ?? false,
+          classB: result.analysis?.classB ?? false,
+          classC: result.analysis?.classC ?? false,
+          classD: result.analysis?.classD ?? false,
+          reclassified: result.reclassified,
+          changeAt: firstDiffIndex(c.text, result.text),
         })
       }
 
       if (apply) {
+        const nextContent: Record<string, unknown> = {
+          ...c,
+          text: result.text,
+          isEmote: result.isEmote,
+        }
+        if (!result.isEmote) {
+          delete nextContent.isEmote
+        }
+        if (typeof c.safeText === 'string') {
+          nextContent.safeText = c.safeText.replace(c.text, result.text)
+        }
         await db
           .update(stageEvents)
-          .set({
-            content: {
-              ...c,
-              text: analysis.after,
-              ...(typeof c.safeText === 'string'
-                ? { safeText: c.safeText.replace(c.text, analysis.after) }
-                : {}),
-            },
-          })
+          .set({ content: nextContent })
           .where(eq(stageEvents.id, row.id))
       }
     }
@@ -150,11 +233,14 @@ async function main() {
     console.log(`\nWrote ${exportRows.length} repair(s) to ${EXPORT_PATH}`)
   }
 
-  console.log(`\nDone. Scanned ${scanned} dialogue line(s).`)
+  console.log(`\nDone. Scanned ${scanned} dialogue row(s).`)
   console.log(`  Rows changed:     ${repaired}${apply ? ' (updated)' : ' (dry run)'}`)
-  console.log(`  Class A only:     ${classACount - bothCount}`)
-  console.log(`  Class B only:     ${classBCount - bothCount}`)
-  console.log(`  Both A + B:       ${bothCount}`)
+  console.log(`  Reclassified:     ${reclassifiedCount} emote→dialogue`)
+  console.log(`  Prep:             ${prepCount}`)
+  console.log(`  Class C only:     ${classCCount}`)
+  console.log(`  Class A:          ${classACount}`)
+  console.log(`  Class B:          ${classBCount}`)
+  console.log(`  Class D:          ${classDCount}`)
   process.exit(0)
 }
 

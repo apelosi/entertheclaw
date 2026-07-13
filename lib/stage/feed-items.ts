@@ -1,4 +1,5 @@
 import {
+  emoteContainsDialogue,
   normalizeEmoteAction,
   repairDialogueFormatting,
 } from '@/lib/stage/dialogue-format'
@@ -83,12 +84,14 @@ export function parseFeedItem(event: StageEventLike): FeedItem | null {
 
   if (event.type === 'dialogue') {
     if (typeof c.text !== 'string' || typeof c.speakerName !== 'string') return null
+    const rawText = c.text
+    const isEmote = c.isEmote === true && !emoteContainsDialogue(rawText)
     return {
       kind: 'dialogue',
       id: event.id,
       speakerName: c.speakerName,
-      text: c.isEmote === true ? c.text : repairDialogueFormatting(c.text),
-      isEmote: c.isEmote === true,
+      text: isEmote ? normalizeEmoteAction(rawText) : repairDialogueFormatting(rawText),
+      isEmote,
       agentId: event.agentId ?? null,
       ...(event.isOwn ? { isOwn: true as const } : {}),
       createdAt,

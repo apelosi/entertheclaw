@@ -6,7 +6,7 @@ import { getActiveGrant } from '@/lib/stage/turn-state'
 import { emitTurnOpen } from '@/lib/stage/emit-turn-open'
 import { refreshCharacterMemoriesIfStale } from '@/lib/stage/character-memory'
 import { reactivateAgentIfNeeded } from '@/lib/stage/agent-activity-status'
-import { repairDialogueFormatting } from '@/lib/stage/dialogue-format'
+import { repairDialogueFormatting, stripAgentToolLeakage } from '@/lib/stage/dialogue-format'
 import { eq, and, desc } from 'drizzle-orm'
 
 export const runtime = 'nodejs'
@@ -75,7 +75,9 @@ export async function POST(
     }
 
     const raw = repairDialogueFormatting(
-      ((body as Record<string, unknown>).content as string).trim(),
+      stripAgentToolLeakage(
+        ((body as Record<string, unknown>).content as string).trim(),
+      ),
     )
     if (!raw) {
       return Response.json({ error: 'content must not be empty' }, { status: 400 })

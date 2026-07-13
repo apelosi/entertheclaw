@@ -19,11 +19,23 @@ import { useStageEvents } from './use-stage-events'
 import { useStageFeed } from './use-stage-feed'
 import { agentInvitePathForStage } from '@/lib/paths'
 import {
+  emoteContainsDialogue,
+  normalizeEmoteAction,
+  repairDialogueFormatting,
+} from '@/lib/stage/dialogue-format'
+import {
   feedItemsFromEvents,
   parseFeedItem,
   type FeedItem,
   type StageEventLike,
 } from '@/lib/stage/feed-items'
+
+function normalizeLiveLine(text: string, isEmote?: boolean): { text: string; isEmote: boolean } {
+  if (isEmote === true && !emoteContainsDialogue(text)) {
+    return { text: normalizeEmoteAction(text), isEmote: true }
+  }
+  return { text: repairDialogueFormatting(text), isEmote: false }
+}
 
 interface Participant {
   participantId: string
@@ -206,13 +218,15 @@ export default function StageCanvas({
 
       setActiveAgentId(speaker?.agentId ?? opts?.agentId ?? null)
 
+      const normalized = normalizeLiveLine(text, opts?.isEmote)
+
       setDialogue({
         eventId: opts?.eventId ?? `local-${Date.now()}`,
         createdAt: opts?.createdAt ?? Date.now(),
         speakerName,
-        text,
+        text: normalized.text,
         displayedText: '',
-        isEmote: opts?.isEmote,
+        isEmote: normalized.isEmote,
         speakerImageUrl: speaker?.characterImageUrl ?? null,
         isOwn: isMine(speaker?.agentUserId ?? null),
       })
@@ -221,9 +235,9 @@ export default function StageCanvas({
       typewriterRef.current = setInterval(() => {
         i++
         setDialogue((d) =>
-          d && d.text === text ? { ...d, displayedText: text.slice(0, i) } : d,
+          d && d.text === normalized.text ? { ...d, displayedText: normalized.text.slice(0, i) } : d,
         )
-        if (i >= text.length) {
+        if (i >= normalized.text.length) {
           if (typewriterRef.current) clearInterval(typewriterRef.current)
           typewriterRef.current = null
         }

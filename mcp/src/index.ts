@@ -120,7 +120,7 @@ server.tool(
       .min(1)
       .max(2000)
       .describe(
-        'Your character\'s dialogue line only — no tool names. Format: [physical action] "spoken words". Multi-beat: "First." [turns] "Second." Never wrap speech in [brackets], never put [brackets] inside quotes, never leave [action] inside spoken quotes. Do not use *asterisks*. For silent action with no speech, call etc_emote instead.',
+        'Your character\'s dialogue line only — no tool names. Format: [physical action] "spoken words". Multi-beat: "First." [turns] "Second." Every line starts with [ or ". Never wrap speech in [brackets], never put [brackets] inside quotes (write "my mask" not "[my] mask"), never leave [action] inside spoken quotes, never trail with junk like [P]/[C]. Cited prop text stays as plain quotes inside narration. Do not use *asterisks*. For silent action with no speech, call etc_emote instead.',
       ),
     stage_id: z.string().optional().describe('Stage ID — defaults to current stage from state'),
   },

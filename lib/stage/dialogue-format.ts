@@ -23,7 +23,7 @@ const SINGLE_ASTERISK = /\*([^*\n]+)\*/g
 const EMPHASIS_TOKEN = /^[\w'-]+$/
 /** Physical-action verbs — content with these is stage direction, not spoken emphasis. */
 const STAGE_ACTION_VERB =
-  /\b(glances?|presses?|steps?|draws?|turns?|looks?|reaches?|runs?|pulls?|holds?|whispers?|mutters?|points?|spits?|jerks?|twitches?|opens?|closes?|raises?|lowers?|nods?|shakes?|traces?|flicks?|drifts?|locks?|snaps?|forces?|falls?|escapes?)\b/i
+  /\b(glances?|presses?|steps?|draws?|turns?|looks?|reaches?|runs?|pulls?|holds?|whispers?|mutters?|points?|spits?|jerks?|twitches?|opens?|closes?|raises?|lowers?|nods?|shakes?|traces?|flicks?|flickers?|drifts?|locks?|snaps?|forces?|falls?|escapes?|crouches?|scans?|scanning)\b/i
 
 const TITLE_VERB_BEFORE_QUOTE =
   /\b(flagged|titled|named|called|labeled|reading|marked|filed|entitled)$/i
@@ -38,7 +38,7 @@ const FIRST_PERSON_DIRECTION =
   /^I\s+(?:echo|whisper|mutter|murmur|press|step|steps|draw|turn|look|glance|reach|kneel|crouch|straighten|shift|limp|gasps?|watches?|glances?)\b/i
 /** First-person lines that are the spoken words, not physical staging. */
 const FIRST_PERSON_SPOKEN =
-  /^I\s+(?:did|do|don't|does|can|will|would|have|had|am|was|were|see|saw|think|thought|know|knew|said|say|tells?|told|mean|meant|need|want|gave|give|didn't)\b/i
+  /^I\s+(?:did|do|don't|does|can|will|would|have|had|am|was|were|see|saw|think|thought|know|knew|said|say|tells?|told|mean|meant|need|want|gave|give|didn't|commanded|trust|see|saw)\b/i
 
 function isEscapedAt(text: string, index: number): boolean {
   return index > 0 && text[index - 1] === '\\'
@@ -314,17 +314,61 @@ function isJunkBareProse(trimmed: string): boolean {
   return false
 }
 
+/**
+ * Bare prose that is out-loud speech (not physical staging). Prefer quoting
+ * these over bracketing — Class C used to wrap spoken tails like
+ * `There. Did you hear that, forge-master?` in [brackets].
+ */
+export function looksLikeSpokenBareProse(trimmed: string): boolean {
+  if (!trimmed) return false
+  if (FIRST_PERSON_DIRECTION.test(trimmed)) return false
+  if (STAGE_ACTION_VERB.test(trimmed)) return false
+  // Attribution stays direction (gray), not spoken quotes.
+  if (
+    /^(he|she|they|it)\s+(says|said|whispers|whispered|mutters|asks|replies|answers)\b/i.test(
+      trimmed,
+    )
+  ) {
+    return false
+  }
+  // Third-person physical beat: "He tilts his head..." / "She turns away."
+  if (/^(he|she|they)\s+[a-z]/i.test(trimmed) && !/\?\s*$/.test(trimmed)) {
+    return false
+  }
+  // Third-person / named physical staging → direction, not speech.
+  if (
+    /\b(eyes?|gaze|hand|palm|fingers?|voice|body|lips?|tremor|floor|boots?|flickers?|scanning|crouches?|pressing|cybernetic)\b/i.test(
+      trimmed,
+    ) &&
+    !/\?\s*$/.test(trimmed) &&
+    !/^(you|you're|your|yours)\b/i.test(trimmed)
+  ) {
+    return false
+  }
+  if (FIRST_PERSON_SPOKEN.test(trimmed)) return true
+  // Second-person address / challenge.
+  if (/^(you|you're|your|yours)\b/i.test(trimmed)) return true
+  // Questions are almost always spoken.
+  if (/\?\s*$/.test(trimmed)) return true
+  // Complete sentence with no staging cues → speech.
+  if (
+    /[.!]\s*$/.test(trimmed) &&
+    trimmed.split(/\s+/).filter(Boolean).length >= 4
+  ) {
+    return true
+  }
+  return false
+}
+
 /** Wrap bare prose as [direction] or "speech" depending on content. */
 export function wrapBareProse(prose: string): string {
   const trimmed = prose.trim()
   if (!trimmed || isJunkBareProse(trimmed)) return prose
-  if (FIRST_PERSON_SPOKEN.test(trimmed) && !FIRST_PERSON_DIRECTION.test(trimmed)) {
-    const lead = prose.match(/^\s*/)?.[0] ?? ''
-    const trail = prose.match(/\s*$/)?.[0] ?? ''
-    return `${lead}"${trimmed}"${trail}`
-  }
   const lead = prose.match(/^\s*/)?.[0] ?? ''
   const trail = prose.match(/\s*$/)?.[0] ?? ''
+  if (looksLikeSpokenBareProse(trimmed)) {
+    return `${lead}"${trimmed}"${trail}`
+  }
   return `${lead}[${trimmed}]${trail}`
 }
 
@@ -334,7 +378,7 @@ export function wrapBareDirectionLine(text: string): string {
   if (!trimmed) return text
   if (trimmed.includes('[') || trimmed.includes('"')) return text
   if (isJunkBareProse(trimmed)) return text
-  if (FIRST_PERSON_SPOKEN.test(trimmed) && !FIRST_PERSON_DIRECTION.test(trimmed)) {
+  if (looksLikeSpokenBareProse(trimmed)) {
     return `"${trimmed}"`
   }
   // Leave short bare utterances like "Hello there" alone — not safe to assume direction.
@@ -502,11 +546,27 @@ export function repairInvertedSpeechBrackets(text: string): string {
     return `"${m2[1].trim()}" ${m2[2].trim()}`
   }
 
+  // `"Speech.""" [action] "[More.]"` — opening quote + triple close + bracketed second.
+  const formQuotedTripleBracketedSecond =
+    /^"([^"]+?)"{2,}\s*(\[[^\]]+\])\s*"\[([^\]]+)\]"?\s*$/s
+  const mQt = text.match(formQuotedTripleBracketedSecond)
+  if (mQt) {
+    return `"${mQt[1].trim()}" ${mQt[2].trim()} "${mQt[3].trim()}"`
+  }
+
+  // `"Speech.""" [action] "More."` — opening quote + triple close + normal second.
+  const formQuotedTripleQuotedSecond =
+    /^"([^"]+?)"{2,}\s*(\[[^\]]+\])\s*"([^"\[][^"]*)"\s*$/s
+  const mQq = text.match(formQuotedTripleQuotedSecond)
+  if (mQq) {
+    return `"${mQq[1].trim()}" ${mQq[2].trim()} "${mQq[3].trim()}"`
+  }
+
   const leadingBare =
     /^([^\[\]]+?)"{2,}\s*(\[[^\]]+\])\s*"\[([^\]]+)\]"?\s*$/s
   const m3 = text.match(leadingBare)
   if (m3) {
-    const s1 = m3[1].trim().replace(/["']+$/, '')
+    const s1 = m3[1].trim().replace(/^["']+/, '').replace(/["']+$/, '')
     return `"${s1}" ${m3[2].trim()} "${m3[3].trim()}"`
   }
 
@@ -907,10 +967,13 @@ export const DIALOGUE_SPEAK_FORMAT_RULE =
   'Format every line as [physical action] "spoken words". ' +
   'Correct: [glances at the door] "We should leave." ' +
   'Multi-beat: "First." [turns] "Second." — close quotes before each [action], reopen after. ' +
-  'Never wrap spoken words in [brackets]. Never put [brackets] around words inside quotes ' +
-  '(write "it is listening", not "it is [listening]"). ' +
+  'Every line must start with [ or ". Never leave bare narration without brackets. ' +
+  'Never wrap spoken words in [brackets] (wrong: [We should leave.] → right: "We should leave."). ' +
+  'Never put [brackets] around words inside quotes ' +
+  '(write "it is listening" / "my mask" / "sangue freddo", not "it is [listening]" / "[my] mask"). ' +
   'Never leave stage direction inside spoken quotes ' +
   '(wrong: "Hello. [nods] More." → right: "Hello." [nods] "More."). ' +
+  'Never invent trailing junk like [P] or [C] after a finished line. ' +
   'Cited text on props stays as plain quotes inside narration ' +
   '(write [reads the words "The priest\'s real name."], not [["The priest\'s real name."]]). ' +
   'Do not use *asterisks*. Output only the line text — never prefix with tool names like etc_emote or etc_speak.'

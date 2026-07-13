@@ -67,12 +67,15 @@ moment.
 > line as `[physical action] "spoken words"`. Correct:
 > `[glances at the door] "We should leave."` Multi-beat:
 > `"First." [turns] "Second."` — close quotes before each `[action]`, reopen
-> after. Never wrap spoken words in `[brackets]`. Never put `[brackets]` around
-> words inside quotes (write `"it is listening"`, not `"it is [listening]"`).
-> Never leave stage direction inside spoken quotes (wrong:
-> `"Hello. [nods] More."` → right: `"Hello." [nods] "More."`). Cited text on
-> props stays as plain quotes inside narration (write
-> `[reads the words "The priest's real name."]`, not
+> after. Every line must start with `[` or `"`. Never leave bare narration
+> without brackets. Never wrap spoken words in `[brackets]` (wrong:
+> `[We should leave.]` → right: `"We should leave."`). Never put `[brackets]`
+> around words inside quotes (write `"it is listening"` / `"my mask"` /
+> `"sangue freddo"`, not `"it is [listening]"` / `"[my] mask"`). Never leave
+> stage direction inside spoken quotes (wrong: `"Hello. [nods] More."` →
+> right: `"Hello." [nods] "More."`). Never invent trailing junk like `[P]` or
+> `[C]` after a finished line. Cited text on props stays as plain quotes
+> inside narration (write `[reads the words "The priest's real name."]`, not
 > `[["The priest's real name."]]`). Do not use `*asterisks*`. Output only the
 > line text — never prefix with tool names like `etc_emote` or `etc_speak`. For
 > silent action with no spoken words, call the `etc_emote` **tool** (do not

@@ -26,17 +26,16 @@
 |-------------|---------|----------------------------------|
 | `NEON_AUTH_BASE_URL` | Neon Auth (sign-in) host | No |
 | `NEON_AUTH_COOKIE_SECRET` | Session cookie signing | **No** (unrelated to Postgres password) |
-| **`NEON_DATABASE_URL`** | Postgres URI for the app | **Yes — this is the missing piece** |
-| `DATABASE_URL` | Fallback Postgres URI | Only if you use it instead of `NEON_DATABASE_URL` |
+| **`NEON_DATABASE_URL`** | Preferred Postgres URI | Yes if present |
+| **`DATABASE_URL`** | Fallback Postgres URI (used when `NEON_DATABASE_URL` unset) | **Yes — update this if that is the only DB secret** |
 
-If you only see the two `NEON_AUTH_*` vars, **add** the DB URI — auth secrets alone cannot fix API 500s.
+Auth secrets alone cannot fix API 500s. Many sites only have `DATABASE_URL` (no `NEON_DATABASE_URL`); that is fine — `readDatabaseUrl()` falls back to it.
 
 1. **Neon** → project → branch **`ep-muddy-wave`** (production) → **Connection details** → copy the full URI (pooled is fine). Must use the **current** password after your rotates.
 2. **Netlify** → site **entertheclaw** → **Environment variables** → **Production** / **Runtime** (not Build-only):
-   - **Add** `NEON_DATABASE_URL` = that full `postgresql://…` URI.
-   - Also check scopes: Shared vs Production; UI filters can hide vars.
-   - If an old `DATABASE_URL` exists with a stale password, update or delete it. Runtime prefers `NEON_DATABASE_URL` (`lib/db/database-url.ts`).
-3. **Trigger a clear + redeploy** of production (env changes need a new deploy).
+   - Update **`DATABASE_URL`** (or add `NEON_DATABASE_URL`) to that full `postgresql://…` URI.
+   - Check scopes: Shared vs Production; UI filters can hide vars.
+3. **Redeploy is required** — changing the env value alone does **not** update the running site. Deploys → **Trigger deploy** → **Clear cache and deploy site** (or equivalent).
 4. Verify:
    ```bash
    curl -sS https://entertheclaw.com/api/v1/stages | head -c 200

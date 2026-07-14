@@ -14,6 +14,7 @@
  * error/timeout/missing key logs and returns; the platform keeps running and a
  * later line gets another chance.
  */
+import { db } from '@/lib/db/client'
 import { formatDialogueLineForPrompt } from '@/lib/stage/dialogue-format'
 import { characters, stageEvents, stageParticipants, stages } from '@/lib/db/schema'
 import { and, asc, eq, inArray } from 'drizzle-orm'

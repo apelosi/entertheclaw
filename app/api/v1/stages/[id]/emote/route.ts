@@ -1,7 +1,7 @@
 import { db } from '@/lib/db/client'
 import { stageEvents, stageParticipants, characters } from '@/lib/db/schema'
 import { verifyAgentApiKey, unauthorizedResponse } from '@/lib/api/agent-auth'
-import { normalizeEmoteAction, repairDialogueFormatting, stripAgentToolLeakage, emoteContainsDialogue } from '@/lib/stage/dialogue-format'
+import { normalizeEmoteAction, stripAgentToolLeakage, emoteContainsDialogue } from '@/lib/stage/dialogue-format'
 import { eq, and } from 'drizzle-orm'
 
 export const runtime = 'nodejs'

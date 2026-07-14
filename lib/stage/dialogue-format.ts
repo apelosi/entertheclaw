@@ -177,7 +177,7 @@ export function normalizeSmartQuotes(text: string): string {
  * `] 'speech...'"` → `] "speech..."` — legacy single-quote dialogue with a stray closing `"`.
  */
 export function normalizeSingleQuotedSpeechAfterAction(text: string): string {
-  let trimmed = text.trimEnd()
+  const trimmed = text.trimEnd()
   if (trimmed.endsWith('"') && !trimmed.endsWith('\\"')) {
     const withoutTrailing = trimmed.slice(0, -1).trimEnd()
     const match = withoutTrailing.match(/^([\s\S]*?\])\s+'([\s\S]+)'$/)
@@ -243,7 +243,7 @@ export function unwrapOuterQuoteWithInnerSingleSpeech(text: string): string {
   if (!trimmed.startsWith('"') || !trimmed.endsWith('"')) return trimmed
   if (trimmed.length < 4) return trimmed
   const inner = trimmed.slice(1, -1)
-  const match = inner.match(/^(.+?[.!?])\s+['\u2018](.+)['\u2019]\s*$/s)
+  const match = inner.match(/^([\s\S]+?[.!?])\s+['\u2018]([\s\S]+)['\u2019]\s*$/)
   if (!match) return trimmed
   const direction = match[1].trim()
   const speech = match[2].trim()
@@ -785,27 +785,27 @@ export function fixDoubleClosedDirectionBeforeQuote(text: string): string {
  */
 export function repairInvertedSpeechBrackets(text: string): string {
   const formBracketedSecond =
-    /^\[([^\]]+)\]"\s*(\[[^\]]+\])\s*"\[([^\]]+)\]"?\s*$/s
+    /^\[([^\]]+)\]"\s*(\[[^\]]+\])\s*"\[([^\]]+)\]"?\s*$/
   const mA = text.match(formBracketedSecond)
   if (mA) {
     return `"${mA[1].trim()}" ${mA[2].trim()} "${mA[3].trim()}"`
   }
 
   const formDoubleQuoteSecond =
-    /^\[([^\]]+)\]"\s*(\[[^\]]+\])\s*""([^"]+)"\s*$/s
+    /^\[([^\]]+)\]"\s*(\[[^\]]+\])\s*""([^"]+)"\s*$/
   const mB = text.match(formDoubleQuoteSecond)
   if (mB) {
     return `"${mB[1].trim()}" ${mB[2].trim()} "${mB[3].trim()}"`
   }
 
   const formQuotedSecond =
-    /^\[([^\]]+)\]"\s*(\[[^\]]+\])\s*"([^"]+)"\s*$/s
+    /^\[([^\]]+)\]"\s*(\[[^\]]+\])\s*"([^"]+)"\s*$/
   const mC = text.match(formQuotedSecond)
   if (mC) {
     return `"${mC[1].trim()}" ${mC[2].trim()} "${mC[3].trim()}"`
   }
 
-  const twoPart = /^\[([^\]]+)\]"\s*(\[[^\]]+\])\s*$/s
+  const twoPart = /^\[([^\]]+)\]"\s*(\[[^\]]+\])\s*$/
   const m2 = text.match(twoPart)
   if (m2) {
     return `"${m2[1].trim()}" ${m2[2].trim()}`
@@ -813,7 +813,7 @@ export function repairInvertedSpeechBrackets(text: string): string {
 
   // `"Speech.""" [action] "[More.]"` — opening quote + triple close + bracketed second.
   const formQuotedTripleBracketedSecond =
-    /^"([^"]+?)"{2,}\s*(\[[^\]]+\])\s*"\[([^\]]+)\]"?\s*$/s
+    /^"([^"]+?)"{2,}\s*(\[[^\]]+\])\s*"\[([^\]]+)\]"?\s*$/
   const mQt = text.match(formQuotedTripleBracketedSecond)
   if (mQt) {
     return `"${mQt[1].trim()}" ${mQt[2].trim()} "${mQt[3].trim()}"`
@@ -821,14 +821,14 @@ export function repairInvertedSpeechBrackets(text: string): string {
 
   // `"Speech.""" [action] "More."` — opening quote + triple close + normal second.
   const formQuotedTripleQuotedSecond =
-    /^"([^"]+?)"{2,}\s*(\[[^\]]+\])\s*"([^"\[][^"]*)"\s*$/s
+    /^"([^"]+?)"{2,}\s*(\[[^\]]+\])\s*"([^"\[][^"]*)"\s*$/
   const mQq = text.match(formQuotedTripleQuotedSecond)
   if (mQq) {
     return `"${mQq[1].trim()}" ${mQq[2].trim()} "${mQq[3].trim()}"`
   }
 
   const leadingBare =
-    /^([^\[\]]+?)"{2,}\s*(\[[^\]]+\])\s*"\[([^\]]+)\]"?\s*$/s
+    /^([^\[\]]+?)"{2,}\s*(\[[^\]]+\])\s*"\[([^\]]+)\]"?\s*$/
   const m3 = text.match(leadingBare)
   if (m3) {
     const s1 = m3[1].trim().replace(/^["']+/, '').replace(/["']+$/, '')

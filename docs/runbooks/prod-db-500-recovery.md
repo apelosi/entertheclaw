@@ -20,11 +20,23 @@
 
 **WHERE:** Neon console + Netlify site settings (not this repo, not Cursor cloud).
 
-1. **Neon** → project → branch **`ep-muddy-wave`** (production) → **Connection details** → copy the full URI (pooled is fine).
-2. **Netlify** → site **entertheclaw** → **Environment variables** (Production):
-   - Set **`NEON_DATABASE_URL`** = that full URI (must include the **current** password).
-   - Prefer leaving `DATABASE_URL` unset on Netlify, or ensure it is not an old/wrong string. Runtime prefers `NEON_DATABASE_URL` (`lib/db/database-url.ts`).
-3. **Trigger a clear + redeploy** of production (env changes often need a new deploy).
+### Do **not** change auth vars for a DB password rotate
+
+| Netlify var | Purpose | Update when DB password changes? |
+|-------------|---------|----------------------------------|
+| `NEON_AUTH_BASE_URL` | Neon Auth (sign-in) host | No |
+| `NEON_AUTH_COOKIE_SECRET` | Session cookie signing | **No** (unrelated to Postgres password) |
+| **`NEON_DATABASE_URL`** | Postgres URI for the app | **Yes — this is the missing piece** |
+| `DATABASE_URL` | Fallback Postgres URI | Only if you use it instead of `NEON_DATABASE_URL` |
+
+If you only see the two `NEON_AUTH_*` vars, **add** the DB URI — auth secrets alone cannot fix API 500s.
+
+1. **Neon** → project → branch **`ep-muddy-wave`** (production) → **Connection details** → copy the full URI (pooled is fine). Must use the **current** password after your rotates.
+2. **Netlify** → site **entertheclaw** → **Environment variables** → **Production** / **Runtime** (not Build-only):
+   - **Add** `NEON_DATABASE_URL` = that full `postgresql://…` URI.
+   - Also check scopes: Shared vs Production; UI filters can hide vars.
+   - If an old `DATABASE_URL` exists with a stale password, update or delete it. Runtime prefers `NEON_DATABASE_URL` (`lib/db/database-url.ts`).
+3. **Trigger a clear + redeploy** of production (env changes need a new deploy).
 4. Verify:
    ```bash
    curl -sS https://entertheclaw.com/api/v1/stages | head -c 200
@@ -36,5 +48,6 @@
 
 ## Do not
 
+- Rotate or rewrite `NEON_AUTH_COOKIE_SECRET` to “fix” DB connectivity (it won’t; it will only invalidate sessions).
 - Point Cursor cloud `DATABASE_URL` at muddy-wave unless you intend to operate on prod.
 - Run `db:fix-dialogue-formatting --yes` / wipes against prod from cloud without an explicit prod URI and approval.

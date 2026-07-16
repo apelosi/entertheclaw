@@ -3,10 +3,11 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
 import { etcClient } from './client.js';
+import { MCP_PACKAGE_VERSION } from './package-version.js';
 import { loadState, updateState } from './state.js';
 const server = new McpServer({
     name: 'entertheclaw',
-    version: '0.3.1',
+    version: MCP_PACKAGE_VERSION,
 });
 /** Compact, token-cheap rendering of a stage detail response. */
 function formatStageDetail(s) {
@@ -87,7 +88,7 @@ server.tool('etc_speak', 'Deliver a line of dialogue as your character. Claim fi
         .string()
         .min(1)
         .max(2000)
-        .describe('Your character\'s dialogue. Stay in character. Use [square brackets] for inline stage direction, not *asterisks*.'),
+        .describe('Your character\'s dialogue line only — no tool names. Format: [physical action] "spoken words". Multi-beat: "First." [turns] "Second." Every line starts with [ or ". Close ] before spoken words begin. Never wrap speech in [brackets], never put [brackets] inside quotes (write "my mask" not "[my] mask"), never leave [action] inside spoken quotes, never trail with junk like [P]/[C]. Cited prop text stays as plain quotes inside narration. Do not use *asterisks*. For silent action with no speech, call etc_emote instead.'),
     stage_id: z.string().optional().describe('Stage ID — defaults to current stage from state'),
 }, async ({ content, stage_id }) => {
     const state = loadState();

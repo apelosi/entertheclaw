@@ -8,7 +8,8 @@ Continue Enter The Claw. Read docs/SESSION-HANDOFF.md first.
 Recent work (merged + shipped):
 - PR #61: trim directive.prompt (E2), slim MCP act=true payload (E1), skill.md
   stateless contract (E3), vitest size tests (E4). Merged to main.
-- entertheclaw-mcp@0.3.1 published to npm (owner: apelosi).
+- entertheclaw-mcp@0.3.2 on npm (owner: apelosi) — pin invite/MCP config to
+  this via lib/agents/mcp-package-version.ts (reads mcp/package.json).
 - NanoClaw VPS: AGREED split with ETC — N8 direct-REST speak path (not Claude
   Code on pulses). Fleet mostly recovered.
 
@@ -34,7 +35,7 @@ loops within one wake.
 | Side | Owns |
 |------|------|
 | **NanoClaw** | **N8** — REST heartbeat → gate → claim → **one** OpenRouter call with **only** `directive.prompt` → REST dialogue. No MCP tool loop on scheduled pulses. Claude Code = admin only. |
-| **ETC** | E2 trim `build-directive.ts`, E1 slim MCP 0.3.1, E3 skill.md, E4 tests |
+| **ETC** | E2 trim `build-directive.ts`, E1 slim MCP act=true payload, E3 skill.md, E4 tests |
 
 **Success criteria:** `act=false` = 0 model tokens; N8 `act=true` <2k typical,
 <5k ceiling to resume fleet.
@@ -48,8 +49,9 @@ Reference runtime: `scripts/loop-agent.ts` (single user message, no system).
 - `lib/stage/build-directive.ts` — structured prompt, backstory hook ~120 chars,
   memory cap ~1200 chars in prompt, `linesSinceLastSpoke` max 12, shorter closing
   instruction.
-- `mcp` 0.3.1 — `etc_heartbeat` act=true returns only
-  `{ session, directive, haveFloor, latestEventId }` (no duplicate context).
+- `mcp` 0.3.2 — `etc_heartbeat` act=true returns only
+  `{ session, directive, haveFloor, latestEventId }` (no duplicate context);
+  `etc_speak` schema describes close-`]` before speech.
 - `/skill.md` — "Stateless agent contract" + send ONLY `directive.prompt`.
 - `scripts/monitor-production-agents.ts` — production poll (no auth).
 
@@ -110,7 +112,8 @@ fleet pause time. Fix per-container: task enabled, N8 script reaches heartbeat,
 | `lib/agents/participation-prompt.ts` | `/skill.md` source |
 | `scripts/loop-agent.ts` | Reference N8 pulse (stateless) |
 | `scripts/monitor-production-agents.ts` | Production activity poll |
-| `mcp/` | entertheclaw-mcp npm package (0.3.1) |
+| `mcp/` | entertheclaw-mcp npm package (0.3.2 — see `mcp/package.json`) |
+| `lib/agents/mcp-package-version.ts` | Invite/MCP config version pin (must match package.json) |
 | `docs/runbooks/agent-stage-continuity.md` | Stale stage / wake runbook |
 
 ---
@@ -118,7 +121,9 @@ fleet pause time. Fix per-container: task enabled, N8 script reaches heartbeat,
 ## Older context (turn protocol — still valid)
 
 See `docs/agents/turn-protocol.md`, `docs/PRD-implementation-gap-plan.md`.
-Phase 0 mostly done; Phase 1 (`loop-agent`, local MCP) ongoing.
+Phase 0–1 shipped (`loop-agent`, directive heartbeat, MCP on npm).
 
 Auth at **`/auth`**. DB hygiene: never insert agents/keys without explicit
 permission. Production agents EC1–EC20 use `https://entertheclaw.com/api/v1`.
+After bumping `mcp/package.json`, rebuild `mcp/dist`, publish on Mac, and
+confirm invite paste shows the new pin (no hardcoded version in invite copy).

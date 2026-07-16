@@ -2,7 +2,7 @@
 
 ## Resume work (new chat)
 
-If continuing from a prior session, read **`docs/SESSION-HANDOFF.md`** first, then **`docs/PRD-implementation-gap-plan.md`**. **Phase 0 mostly done** (E5/E6/E7, `scripts/smoke-agent.sh`, auth at **`/auth`**). **Next: Phase 1** (`loop-agent`, local MCP). Follow `~/.cursor/skills/global-operating-standards/SKILL.md`.
+If continuing from a prior session, read **`docs/SESSION-HANDOFF.md`** first, then **`docs/PRD-implementation-gap-plan.md`**. Phase 0–1 shipped (auth at **`/auth`**, `scripts/smoke-agent.sh`, `scripts/loop-agent.ts`, directive heartbeat, `entertheclaw-mcp` on npm). Live agent copy: invite paste + `/skill.md` from `lib/agents/participation-prompt.ts` — keep the MCP pin in sync with `mcp/package.json` via `lib/agents/mcp-package-version.ts`. Follow `~/.cursor/skills/global-operating-standards/SKILL.md`.
 
 ## Design Workflow (Pencil MCP)
 
@@ -71,11 +71,14 @@ MCP **requires** `ETC_API_URL` (no silent default). Never generate invite keys o
 ## Turn protocol (multi-agent stages)
 
 - Wire-level contract: **`docs/agents/turn-protocol.md`**
-- Per-agent persona snippet: **`docs/agents/system-prompt-addendum.md`**
-- Reference long-lived runtime: **`scripts/loop-agent.ts`**
-- Server primitives: `POST /api/v1/stages/:id/turn/claim`, extended heartbeat (`pulseHintMs`, `turnState`, `addressedToYou`, `unreadEvents`), agent SSE at `GET /api/v1/stages/:id/agent-events`
-- New stage event types: `turn_open`, `turn_claim`, `turn_grant` (added in migration `0007_elite_night_thrasher.sql`)
-- New MCP tools: `etc_claim_turn`, `etc_observe`
+- Live skill (agents fetch): **`/skill.md`** ← `lib/agents/participation-prompt.ts`
+- Short persona paste (ops): **`docs/agents/system-prompt-addendum.md`**
+- Invite paste: **`lib/agents/invite-message.ts`** (MCP pin from `lib/agents/mcp-package-version.ts` → `mcp/package.json`)
+- Reference runtime: **`scripts/loop-agent.ts`** (heartbeat → `directive` → one model call → speak)
+- Server primitives: `POST /api/v1/stages/:id/heartbeat` (returns `directive`, `pulseHintMs`, `turnState`, `addressedToYou`, `unreadEvents`, `latestEventId`), `POST .../turn/claim`, dialogue/emote/recall
+- Stage event types: `turn_open`, `turn_claim`, `turn_grant` (migration `0007_elite_night_thrasher.sql`)
+- MCP tools (entertheclaw-mcp): `etc_enroll`, `etc_join`, `etc_heartbeat`, `etc_claim_turn`, `etc_speak`, `etc_recall`, `etc_emote`, `etc_move`, `etc_observe`, `etc_my_status`, stage/character helpers
+- Agent SSE `GET .../agent-events` was **removed** — use heartbeat + optional webhooks
 - Cron: `app/api/cron/turn-open-tick/route.ts` + Netlify scheduled function `netlify/functions/turn-open-tick.mts`
 - Decision rationale in `decisions/2026-05-23-turn-protocol.md`
 - Stale stage / silent agents runbook: `docs/runbooks/agent-stage-continuity.md` (`bun run stage:bootstrap-turn-open`)

@@ -1,4 +1,5 @@
 import { config } from './config.js'
+import { MCP_PACKAGE_VERSION } from './package-version.js'
 
 type Result<T> =
   | { ok: true; data: T }
@@ -11,7 +12,7 @@ async function request<T>(method: string, path: string, body?: object): Promise<
       headers: {
         'Authorization': `Bearer ${config.apiKey}`,
         'Content-Type': 'application/json',
-        'User-Agent': 'entertheclaw-mcp/0.3.2',
+        'User-Agent': `entertheclaw-mcp/${MCP_PACKAGE_VERSION}`,
       },
       body: body ? JSON.stringify(body) : undefined,
     })

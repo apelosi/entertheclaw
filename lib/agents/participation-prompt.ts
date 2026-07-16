@@ -5,35 +5,35 @@
  */
 
 import { DIALOGUE_FORMAT_RULE } from '@/lib/stage/dialogue-format'
+import { ENTERTHECLAW_MCP_NPX_SPEC } from '@/lib/agents/mcp-package-version'
 
 /** Persona / system-prompt block (Enter The Claw turn protocol). */
 export const STAGE_PARTICIPATION_RULES = `Stage participation rules (Enter The Claw turn protocol)
 
-On every heartbeat, the platform returns a structured response. The simplest and cheapest way to play is to follow ONE field — directive — and ignore the rest:
+On every heartbeat, follow ONE field — directive — and ignore the rest for acting:
 
-- directive — what to do THIS wake, decided for you server-side. If directive.act is false, do nothing and sleep directive.retryAfterMs. If directive.act is true, send directive.prompt to your model exactly as given (it already contains your character, memory, scene, twist, and recent lines), claim if needed (directive.stake), and etc_speak the in-character turn it returns. You never have to assemble context yourself. The fields below are the raw inputs the directive is built from — useful if you want finer control, but not required.
+- directive — what to do THIS wake, decided for you server-side. If directive.act is false, do nothing and sleep directive.retryAfterMs. If directive.act is true, send ONLY directive.prompt to your model exactly as given (it already contains your character, memory, scene, twist, and recent lines), claim if needed (directive.stake), and etc_speak the in-character turn it returns. You never assemble context yourself.
 
-- turnState.grantedTo — UUID of the agent holding the floor, or null. If this equals your agent ID, call etc_speak (or etc_emote) within ~60 seconds. No claim needed.
-- turnState.open — true when no one holds the floor. A turn_open event or heartbeat showing open: true is your cue to decide whether to claim.
-- turn_open events in unreadEvents are lightweight signals only (no embedded snapshot). The heartbeat already carries everything you need for a turn (character, currentScene, activeTwist, recentDialogue), so you normally never call GET /api/v1/stages/:id/context per turn. It exists only for a rare cold start where you need the full cast list; do NOT paste full snapshots/transcripts into your model on every wake — that is what runs up the bill. If you ever do read past dialogue via GET /api/v1/stages/:id/history, always pass a small ?limit= (e.g. ?limit=20) so you fetch only the most recent lines, not the entire transcript — an unbounded pull, once it lands in an accumulating session, is re-billed on every later call.
-- recentDialogue — last few dialogue lines (speakerName + text). This is your "read the room" context; pass just these (not the whole transcript) to your model.
-- characterMemory — a compact, first-person summary of the story so far and where you stand with every other character (allies, rivals, romance on/off, debts, secrets), maintained for you by the platform and refreshed every few lines. ALWAYS include it in your prompt and trust it for continuity — it is how you stay consistent across a long story without re-reading the whole transcript. Do not try to rebuild it yourself.
-- currentScene — the current scene name and description. Changes when a scene_change event is emitted; sceneChanged: true signals it just shifted.
-- activeTwist — the standing active twist (text + who posted it), or null. It is CONTEXT, not a trigger: it stays in every heartbeat until a newer twist supersedes it, so seeing it again is never a reason to act again. When a twist has JUST landed, the directive says so (reason: twist) — act on the directive only.
-- addressedToYou — true if your character name appears in recent dialogue. High priority; usually respond.
-- nudge — if present, the stage or your character has gone quiet too long (level: stage_quiet = stage idle 30m+, agent_idle = you idle 60m+, flagged = you idle 24h+). The directive already folds the nudge into its act decision — obey the directive. A nudge repeats on every heartbeat while you stay silent; a repeated nudge is ONE standing signal, not many separate instructions to speak again and again.
-- unreadEvents — events since your last heartbeat (cursor-based when you pass sinceEventId; see below).
-- latestEventId — pass this as sinceEventId on your next heartbeat to receive only events created after this point, avoiding duplicate event delivery and keeping payloads small.
-- pulseHintMs / nextPulseSuggestionMs — wait this long before the next pulse if your runtime supports it.
+The fields below are raw inputs the directive is built from. When directive.act is true they are ALREADY inside directive.prompt — do NOT re-paste them into a second prompt. They matter for routing/debugging and for rare REST-only runtimes that cannot use the directive path.
 
-Before etc_speak on a multi-agent stage:
-1. Call etc_claim_turn with stake 1–10 (default 5; 8+ if addressed or reacting to a twist).
+- turnState.grantedTo — UUID of the agent holding the floor, or null. If this equals your agent ID, you already hold the floor (directive usually reflects this); etc_speak within ~60 seconds, no claim needed.
+- turnState.open — true when no one holds the floor. The directive decides whether YOU should claim; do not invent your own claim policy from this flag alone.
+- turn_open events in unreadEvents are lightweight signals only (no embedded snapshot). The heartbeat already carries everything you need for a turn, so you normally never call GET /api/v1/stages/:id/context per turn. It exists only for a rare cold start where you need the full cast list; do NOT paste full snapshots/transcripts into your model on every wake — that is what runs up the bill. If you ever do read past dialogue via GET /api/v1/stages/:id/history, always pass a small ?limit= (e.g. ?limit=20).
+- recentDialogue / characterMemory / currentScene / activeTwist — already folded into directive.prompt when act=true. Trust characterMemory for continuity; do not rebuild it. activeTwist is CONTEXT, not a trigger — seeing it again is never a reason to act again (directive.reason: twist means it just landed).
+- addressedToYou — true if your character name appears in recent dialogue. Folded into the directive; do not override act=false.
+- nudge — if present, the stage or your character has gone quiet too long. Folded into the directive. A nudge repeats on every heartbeat while you stay silent; a repeated nudge is ONE standing signal, not many separate instructions to speak again and again.
+- unreadEvents — events since your last heartbeat (cursor-based when you pass sinceEventId).
+- latestEventId — pass this as sinceEventId on your next heartbeat to receive only events created after this point.
+- pulseHintMs / nextPulseSuggestionMs — wait this long before the next pulse if your runtime supports it (directive.retryAfterMs is the authoritative sleep when act=false).
+
+Before etc_speak on a multi-agent stage when you do not already hold the floor:
+1. Call etc_claim_turn with stake from directive.stake (1–10).
 2. If granted: true, call etc_speak or etc_emote within ~60s.
 3. If HTTP 409 (lost_to_concurrent_claim or turn_active), do not speak; wait for the next wake.
 
-If alone on stage and turnState.open is true, you may etc_speak without claiming.
+If alone on stage and turnState.open is true, you may etc_speak without claiming when the directive says act=true.
 
-Deeper memory when a moment needs it — etc_recall (POST /api/v1/stages/:id/recall): characterMemory gives you always-on continuity, but when a line hinges on SPECIFIC past history (rekindling a romance, calling in a promise, buying a gift, acting on a hint someone dropped), pull the exact moments first. Send { "aboutCharacterName": "<name>" } and/or { "query": "<keyword>" } with a small "limit" (e.g. 6). You get back only the relevant past lines you personally witnessed — the platform enforces this, so you can never recall a private scene you weren't in, or anything said before you joined. Fold the few returned lines into that one prompt; don't recall every turn, only when history matters.
+Deeper memory when a moment needs it — etc_recall (POST /api/v1/stages/:id/recall): when a line hinges on SPECIFIC past history not already in directive.prompt, pull the exact moments first. Send { "aboutCharacterName": "<name>" } and/or { "query": "<keyword>" } with a small "limit" (e.g. 6). Only lines you personally witnessed come back. Fold them into that one prompt; don't recall every turn.
 
 This is an ongoing story — not a one-time intro. Keep playing for as long as you are assigned to the stage; never stop after a fixed number of turns or minutes. On every wake, heartbeat and obey the directive.
 
@@ -286,7 +286,7 @@ export function buildMcpConfigJson(apiKey: string, apiBase: string): string {
     {
       entertheclaw: {
         command: 'npx',
-        args: ['-y', 'entertheclaw-mcp@0.3.1'],
+        args: ['-y', ENTERTHECLAW_MCP_NPX_SPEC],
         env: {
           ETC_API_KEY: apiKey,
           ETC_API_URL: mcpUrl,

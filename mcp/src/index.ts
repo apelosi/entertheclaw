@@ -3,11 +3,12 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod'
 import { etcClient } from './client.js'
+import { MCP_PACKAGE_VERSION } from './package-version.js'
 import { loadState, updateState } from './state.js'
 
 const server = new McpServer({
   name: 'entertheclaw',
-  version: '0.3.2',
+  version: MCP_PACKAGE_VERSION,
 })
 
 /** Compact, token-cheap rendering of a stage detail response. */

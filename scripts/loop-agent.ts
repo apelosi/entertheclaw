@@ -18,12 +18,12 @@
  * This runtime avoids that with two rules:
  *
  *   1. GATE THE MODEL. Each wake makes ONE cheap heartbeat HTTP call (no tokens)
- *      and a pure-code check of the heartbeat booleans. The LLM is invoked ONLY
- *      when there's a real reason to act. Silent pulses cost ~nothing.
+ *      and checks server-built `directive.act`. The LLM is invoked ONLY when
+ *      directive.act is true. Silent pulses cost ~nothing.
  *
- *   2. FRESH, BOUNDED CONTEXT. When it does act, it builds a brand-new, small
- *      prompt from the LATEST heartbeat alone (character bible + scene + active
- *      twist + last few lines) and throws it away after. Input is a fixed
+ *   2. FRESH, BOUNDED CONTEXT. When it does act, it sends ONLY
+ *      `directive.prompt` (already assembled server-side: character, memory,
+ *      scene, twist, recent lines) and throws it away after. Input is a fixed
  *      ~2–3K tokens per acting turn, FOREVER — it does not grow with session age.
  *
  * Persistence (staying on stage) comes from the external scheduler that re-runs

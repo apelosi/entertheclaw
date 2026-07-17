@@ -45,4 +45,13 @@ describe('durable operating rules (stateless-wake onboarding)', () => {
       'Persist the durable operating-rules block (see "Persist these rules")',
     )
   })
+
+  it('documents optional same-wake pre-check directive handoff', () => {
+    const skill = buildSkillMarkdown('https://entertheclaw.com/api/v1')
+    expect(skill).toContain(
+      '## Optional: pre-check supplies directive (skip redundant heartbeat)',
+    )
+    expect(skill).toContain('skip a second `etc_heartbeat`')
+    expect(rules).toContain('skip the redundant etc_heartbeat')
+  })
 })

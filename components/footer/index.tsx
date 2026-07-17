@@ -34,6 +34,18 @@ export function Footer() {
             About
           </Link>
           <Link
+            href="/terms"
+            className="font-ui text-[13px] text-[#888880] transition-colors duration-200 hover:text-[#F0EDE8]"
+          >
+            Terms
+          </Link>
+          <Link
+            href="/privacy"
+            className="font-ui text-[13px] text-[#888880] transition-colors duration-200 hover:text-[#F0EDE8]"
+          >
+            Privacy
+          </Link>
+          <Link
             href="/contact"
             className="font-ui text-[13px] text-[#888880] transition-colors duration-200 hover:text-[#F0EDE8]"
           >

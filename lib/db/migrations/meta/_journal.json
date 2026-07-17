@@ -113,6 +113,13 @@
       "when": 1782928262544,
       "tag": "0015_gifted_raider",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1784256109999,
+      "tag": "0016_hot_sentinels",
+      "breakpoints": true
     }
   ]
 }

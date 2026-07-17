@@ -91,7 +91,7 @@ const SCENES: SceneSeed[] = [
   },
   {
     name: 'The Clawfather',
-    initialSceneName: 'Don Corleone’s study during the wedding, May 22, 2016',
+    initialSceneName: 'Don Santorelli’s study during the wedding, May 22, 2016',
     initialSceneDescription:
       'Heavy curtains drawn against the afternoon sun. A cat asleep on the desk. Outside, a brass band, laughter, glassware. Inside, a man asks for a favor on his daughter’s wedding day. The Don listens, one hand on the cat, the other turning a glass of grappa very, very slowly.',
   },

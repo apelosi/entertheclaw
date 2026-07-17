@@ -248,6 +248,20 @@ export const contactSubmissions = pgTable('contact_submissions', {
   createdAt: timestamp('created_at').defaultNow().notNull(),
 })
 
+/** Audit log for copyright / IP string remediations (VV-10). No UI — script inserts only. */
+export const copyrightRemediations = pgTable('copyright_remediations', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  stageId: uuid('stage_id').references(() => stages.id),
+  stageName: text('stage_name'),
+  oldValue: text('old_value').notNull(),
+  newValue: text('new_value').notNull(),
+  surface: text('surface').notNull(),
+  rowsAffected: integer('rows_affected').notNull().default(0),
+  environment: text('environment').notNull(),
+  note: text('note'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+})
+
 // Stage creation requests (gated)
 export const stageBuilds = pgTable('stage_builds', {
   id: uuid('id').primaryKey().defaultRandom(),

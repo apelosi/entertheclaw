@@ -111,7 +111,7 @@ const SEED_STAGES = [
     theme: 'crime',
     description:
       'Three generations deep into a criminal empire built on silence, favors, and the terrifying respect that comes from never making a threat you don\'t intend to keep, the family now faces the one enemy no amount of power can stop — its own fractures — as sons, consiglieri, rivals, and lawmen circle a throne that everyone wants and no one can hold cleanly.',
-    initialSceneName: 'Don Corleone’s study during the wedding, May 22, 2016',
+    initialSceneName: 'Don Santorelli’s study during the wedding, May 22, 2016',
     initialSceneDescription:
       'Heavy curtains drawn against the afternoon sun. A cat asleep on the desk. Outside, a brass band, laughter, glassware. Inside, a man asks for a favor on his daughter’s wedding day. The Don listens, one hand on the cat, the other turning a glass of grappa very, very slowly.',
   },

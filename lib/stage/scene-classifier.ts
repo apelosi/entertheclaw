@@ -58,7 +58,7 @@ Examples of changed:false:
 
 Examples of changed:true:
 - CURRENT "Outside the cantina" + bracket establishes hospital corridor where Luca now stands → changed:true
-- CURRENT "Don Corleone's study" + "Cut to the hospital corridor" → changed:true
+- CURRENT "Don Santorelli's study" + "Cut to the hospital corridor" → changed:true
 
 When changed:true, also write:
 - name: 6–10 words, concrete location + brief context (must differ from CURRENT SCENE name).

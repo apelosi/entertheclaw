@@ -15,8 +15,8 @@ const PROD_SERAPHIS_DUP =
   '[I step forward, my palm crackling with raw amber light as I counter-press against the grate beside Vex.] "Then we ride this frequency together."'
 
 const WEDDING =
-  "Don Corleone's study during the wedding, May 22, 2016"
-const SHOOTING = "Don Corleone's study, seconds after the shooting"
+  "Don Santorelli's study during the wedding, May 22, 2016"
+const SHOOTING = "Don Santorelli's study, seconds after the shooting"
 
 describe('auditHistoricalSceneChange', () => {
   it('deletes duplicate vent grate scenes on Claw Wars', () => {

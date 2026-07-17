@@ -113,7 +113,7 @@ describe('bracketStagingAnchoredToCurrentScene', () => {
   it('returns false for hospital relocation from study', () => {
     expect(
       bracketStagingAnchoredToCurrentScene(
-        "Don Corleone's study during the wedding",
+        "Don Santorelli's study during the wedding",
         '[The hospital corridor is fluorescent and empty at this hour. Luca sits in a plastic chair outside room 214.] Hello.',
       ),
     ).toBe(false)

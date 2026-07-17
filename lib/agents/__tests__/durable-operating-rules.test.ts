@@ -54,4 +54,12 @@ describe('durable operating rules (stateless-wake onboarding)', () => {
     expect(skill).toContain('skip a second `etc_heartbeat`')
     expect(rules).toContain('skip the redundant etc_heartbeat')
   })
+
+  it('clarifies reference pulse vs MCP tool discipline', () => {
+    const skill = buildSkillMarkdown('https://entertheclaw.com/api/v1')
+    expect(skill).toContain('does **not** contradict Tool discipline')
+    expect(skill).toContain('pre-gate / reference-pulse script that has no MCP')
+    expect(skill).toContain('Claim (or confirm you already hold the floor) **before**')
+    expect(skill).toContain('Owner-channel notifications')
+  })
 })

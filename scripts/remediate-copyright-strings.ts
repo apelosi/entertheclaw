@@ -1,0 +1,456 @@
+/**
+ * VV-10: replace evidenced Godfather IP strings in stages + stage_events
+ * (+ character text fields if present), and log each correction to
+ * copyright_remediations.
+ *
+ * Usage:
+ *   bun run --no-env-file db:remediate-copyright -- --database-url='postgresql://...'
+ *   bun run --no-env-file db:remediate-copyright -- --database-url='...' --apply
+ *
+ * Dry-run by default. Pass --apply to write.
+ */
+import { neon } from '@neondatabase/serverless'
+import { eq, sql } from 'drizzle-orm'
+import { drizzle } from 'drizzle-orm/neon-http'
+import { parseDbHost } from '../lib/db/database-url'
+import {
+  characters,
+  copyrightRemediations,
+  stageEvents,
+  stages,
+} from '../lib/db/schema'
+
+/** Longer / phrase replacements first so nested substrings resolve correctly. */
+const REPLACEMENTS: ReadonlyArray<{ oldValue: string; newValue: string }> = [
+  { oldValue: 'the Turk', newValue: 'the Calabrian' },
+  { oldValue: 'The Turk', newValue: 'The Calabrian' },
+  { oldValue: 'Sollozzo', newValue: 'Venturini' },
+  { oldValue: 'Bonasera', newValue: 'Morandi' },
+  { oldValue: 'Tattaglia', newValue: 'Ferrante' },
+  { oldValue: 'Barzini', newValue: 'Cattaneo' },
+  { oldValue: 'Corleone', newValue: 'Santorelli' },
+]
+
+const CONTENT_MATCH =
+  "(Corleone|Sollozzo|Bonasera|Tattaglia|Barzini|the Turk)"
+
+type AuditInsert = typeof copyrightRemediations.$inferInsert
+
+function readFlag(name: string): boolean {
+  return process.argv.includes(name)
+}
+
+function readDatabaseUrl(): string {
+  const prefix = '--database-url='
+  const arg = process.argv.find((a) => a.startsWith(prefix))
+  if (arg) {
+    const value = arg.slice(prefix.length).trim()
+    if (value) return value
+  }
+  throw new Error(
+    'Missing --database-url=...\n\n' +
+      'Example:\n' +
+      "  bun run --no-env-file db:remediate-copyright -- --database-url='$NEON_DATABASE_URL_DEV' --apply",
+  )
+}
+
+function environmentLabel(host: string): string {
+  if (host.includes('muddy-wave')) return 'production'
+  if (host.includes('polished-paper')) return 'dev'
+  return host
+}
+
+function replaceAllMapped(input: string): { text: string; changed: boolean } {
+  let text = input
+  for (const { oldValue, newValue } of REPLACEMENTS) {
+    if (text.includes(oldValue)) {
+      text = text.split(oldValue).join(newValue)
+    }
+  }
+  return { text, changed: text !== input }
+}
+
+function rewriteJsonStrings(
+  value: unknown,
+): { value: unknown; changed: boolean } {
+  if (typeof value === 'string') {
+    const { text, changed } = replaceAllMapped(value)
+    return { value: text, changed }
+  }
+  if (Array.isArray(value)) {
+    let changed = false
+    const next = value.map((item) => {
+      const result = rewriteJsonStrings(item)
+      if (result.changed) changed = true
+      return result.value
+    })
+    return { value: next, changed }
+  }
+  if (value && typeof value === 'object') {
+    let changed = false
+    const next: Record<string, unknown> = {}
+    for (const [key, child] of Object.entries(
+      value as Record<string, unknown>,
+    )) {
+      const result = rewriteJsonStrings(child)
+      if (result.changed) changed = true
+      next[key] = result.value
+    }
+    return { value: next, changed }
+  }
+  return { value, changed: false }
+}
+
+function containsAnyOld(text: string): boolean {
+  return REPLACEMENTS.some(({ oldValue }) => text.includes(oldValue))
+}
+
+function bumpPair(
+  map: Map<
+    string,
+    {
+      oldValue: string
+      newValue: string
+      count: number
+      stageId: string | null
+      stageName: string | null
+    }
+  >,
+  oldValue: string,
+  newValue: string,
+  stageId: string | null,
+  stageName: string | null,
+) {
+  const key = `${oldValue}→${newValue}`
+  const entry = map.get(key) ?? {
+    oldValue,
+    newValue,
+    count: 0,
+    stageId,
+    stageName,
+  }
+  entry.count += 1
+  if (stageId) entry.stageId = stageId
+  if (stageName) entry.stageName = stageName
+  map.set(key, entry)
+}
+
+async function main() {
+  const apply = readFlag('--apply')
+  const databaseUrl = readDatabaseUrl()
+  const host = parseDbHost(databaseUrl)
+  const environment = environmentLabel(host)
+
+  console.log(`Target: ${host} (${environment})`)
+  console.log(apply ? 'Mode: APPLY\n' : 'Mode: dry-run (pass --apply to write)\n')
+
+  const client = neon(databaseUrl)
+  const db = drizzle(client)
+  const audits: AuditInsert[] = []
+
+  const stageNameById = new Map(
+    (
+      await db.select({ id: stages.id, name: stages.name }).from(stages)
+    ).map((s) => [s.id, s.name]),
+  )
+
+  // ── stages.initial_scene_* ──────────────────────────────────────────
+  const allStages = await db
+    .select({
+      id: stages.id,
+      name: stages.name,
+      initialSceneName: stages.initialSceneName,
+      initialSceneDescription: stages.initialSceneDescription,
+    })
+    .from(stages)
+
+  const stageNameHits = new Map<
+    string,
+    {
+      oldValue: string
+      newValue: string
+      count: number
+      stageId: string | null
+      stageName: string | null
+    }
+  >()
+  const stageDescHits = new Map<
+    string,
+    {
+      oldValue: string
+      newValue: string
+      count: number
+      stageId: string | null
+      stageName: string | null
+    }
+  >()
+
+  let stagesUpdated = 0
+  for (const stage of allStages) {
+    for (const { oldValue, newValue } of REPLACEMENTS) {
+      if (stage.initialSceneName?.includes(oldValue)) {
+        bumpPair(stageNameHits, oldValue, newValue, stage.id, stage.name)
+      }
+      if (stage.initialSceneDescription?.includes(oldValue)) {
+        bumpPair(stageDescHits, oldValue, newValue, stage.id, stage.name)
+      }
+    }
+
+    const nameResult = stage.initialSceneName
+      ? replaceAllMapped(stage.initialSceneName)
+      : { text: stage.initialSceneName, changed: false }
+    const descResult = stage.initialSceneDescription
+      ? replaceAllMapped(stage.initialSceneDescription)
+      : { text: stage.initialSceneDescription, changed: false }
+
+    if (!nameResult.changed && !descResult.changed) continue
+
+    console.log(
+      `stages ${stage.name}: name=${nameResult.changed} desc=${descResult.changed}`,
+    )
+    stagesUpdated += 1
+    if (apply) {
+      await db
+        .update(stages)
+        .set({
+          initialSceneName: nameResult.changed
+            ? (nameResult.text as string)
+            : stage.initialSceneName,
+          initialSceneDescription: descResult.changed
+            ? (descResult.text as string)
+            : stage.initialSceneDescription,
+        })
+        .where(eq(stages.id, stage.id))
+    }
+  }
+
+  console.log(`stages updated: ${stagesUpdated}`)
+
+  for (const entry of stageNameHits.values()) {
+    audits.push({
+      stageId: entry.stageId ?? undefined,
+      stageName: entry.stageName,
+      oldValue: entry.oldValue,
+      newValue: entry.newValue,
+      surface: 'stages.initial_scene_name',
+      rowsAffected: entry.count,
+      environment,
+      note: 'VV-10',
+    })
+  }
+  for (const entry of stageDescHits.values()) {
+    audits.push({
+      stageId: entry.stageId ?? undefined,
+      stageName: entry.stageName,
+      oldValue: entry.oldValue,
+      newValue: entry.newValue,
+      surface: 'stages.initial_scene_description',
+      rowsAffected: entry.count,
+      environment,
+      note: 'VV-10',
+    })
+  }
+
+  // ── stage_events.content ────────────────────────────────────────────
+  const eventRows = await db
+    .select({
+      id: stageEvents.id,
+      stageId: stageEvents.stageId,
+      content: stageEvents.content,
+    })
+    .from(stageEvents)
+    .where(sql`${stageEvents.content}::text ~* ${CONTENT_MATCH}`)
+
+  const eventHits = new Map<
+    string,
+    {
+      oldValue: string
+      newValue: string
+      count: number
+      stageId: string | null
+      stageName: string | null
+    }
+  >()
+
+  let eventsUpdated = 0
+  for (const row of eventRows) {
+    const content = (row.content ?? {}) as Record<string, unknown>
+    const before = JSON.stringify(content)
+    const stageName = stageNameById.get(row.stageId) ?? null
+    for (const { oldValue, newValue } of REPLACEMENTS) {
+      if (before.includes(oldValue)) {
+        bumpPair(eventHits, oldValue, newValue, row.stageId, stageName)
+      }
+    }
+
+    const { value, changed } = rewriteJsonStrings(content)
+    if (!changed) continue
+    eventsUpdated += 1
+    if (apply) {
+      await db
+        .update(stageEvents)
+        .set({ content: value as typeof stageEvents.$inferInsert.content })
+        .where(eq(stageEvents.id, row.id))
+    }
+  }
+
+  console.log(
+    `stage_events matching: ${eventRows.length}, updated: ${eventsUpdated}`,
+  )
+
+  for (const entry of eventHits.values()) {
+    audits.push({
+      stageId: entry.stageId ?? undefined,
+      stageName: entry.stageName,
+      oldValue: entry.oldValue,
+      newValue: entry.newValue,
+      surface: 'stage_events.content',
+      rowsAffected: entry.count,
+      environment,
+      note: 'VV-10 agent dialogue / scene_change text',
+    })
+  }
+
+  // ── characters text fields ──────────────────────────────────────────
+  const charRows = await db
+    .select({
+      id: characters.id,
+      stageId: characters.stageId,
+      name: characters.name,
+      occupation: characters.occupation,
+      appearance: characters.appearance,
+      personality: characters.personality,
+      backstory: characters.backstory,
+      secrets: characters.secrets,
+      fears: characters.fears,
+      goals: characters.goals,
+      speechPatterns: characters.speechPatterns,
+      socialStatus: characters.socialStatus,
+      memory: characters.memory,
+      relationships: characters.relationships,
+    })
+    .from(characters)
+
+  const charHits = new Map<
+    string,
+    {
+      oldValue: string
+      newValue: string
+      count: number
+      stageId: string | null
+      stageName: string | null
+    }
+  >()
+
+  let charsUpdated = 0
+  for (const row of charRows) {
+    const textFields = {
+      name: row.name,
+      occupation: row.occupation,
+      appearance: row.appearance,
+      personality: row.personality,
+      backstory: row.backstory,
+      secrets: row.secrets,
+      fears: row.fears,
+      goals: row.goals,
+      speechPatterns: row.speechPatterns,
+      socialStatus: row.socialStatus,
+      memory: row.memory,
+    }
+    const blob =
+      Object.values(textFields)
+        .filter((v): v is string => typeof v === 'string')
+        .join('\n') +
+      '\n' +
+      JSON.stringify(row.relationships ?? {})
+
+    if (!containsAnyOld(blob)) continue
+
+    const stageName = stageNameById.get(row.stageId) ?? null
+    for (const { oldValue, newValue } of REPLACEMENTS) {
+      if (blob.includes(oldValue)) {
+        bumpPair(charHits, oldValue, newValue, row.stageId, stageName)
+      }
+    }
+
+    const updates: Record<string, unknown> = {}
+    let changed = false
+    for (const [key, raw] of Object.entries(textFields)) {
+      if (typeof raw !== 'string') continue
+      const result = replaceAllMapped(raw)
+      if (result.changed) {
+        updates[key] = result.text
+        changed = true
+      }
+    }
+    if (row.relationships) {
+      const relResult = rewriteJsonStrings(row.relationships)
+      if (relResult.changed) {
+        updates.relationships = relResult.value
+        changed = true
+      }
+    }
+    if (!changed) continue
+
+    charsUpdated += 1
+    if (apply) {
+      await db.update(characters).set(updates).where(eq(characters.id, row.id))
+    }
+  }
+
+  console.log(`characters updated: ${charsUpdated}`)
+  for (const entry of charHits.values()) {
+    audits.push({
+      stageId: entry.stageId ?? undefined,
+      stageName: entry.stageName,
+      oldValue: entry.oldValue,
+      newValue: entry.newValue,
+      surface: 'characters.*',
+      rowsAffected: entry.count,
+      environment,
+      note: 'VV-10 character bible / memory fields',
+    })
+  }
+
+  console.log('\nAudit rows:')
+  for (const a of audits) {
+    console.log(
+      `  [${a.surface}] ${a.oldValue} → ${a.newValue} (${a.rowsAffected} rows) @ ${a.stageName ?? '?'}`,
+    )
+  }
+
+  if (apply && audits.length > 0) {
+    await db.insert(copyrightRemediations).values(audits)
+    console.log(`\nInserted ${audits.length} copyright_remediations row(s).`)
+  } else if (!apply) {
+    console.log('\nDry-run complete — no writes.')
+  } else {
+    console.log('\nNothing to remediate.')
+  }
+
+  if (apply) {
+    const leftoverEvents = await db
+      .select({ id: stageEvents.id })
+      .from(stageEvents)
+      .where(sql`${stageEvents.content}::text ~* ${CONTENT_MATCH}`)
+    const refreshed = await db
+      .select({
+        initialSceneName: stages.initialSceneName,
+        initialSceneDescription: stages.initialSceneDescription,
+      })
+      .from(stages)
+    const leftoverStageCount = refreshed.filter(
+      (s) =>
+        containsAnyOld(s.initialSceneName ?? '') ||
+        containsAnyOld(s.initialSceneDescription ?? ''),
+    ).length
+    console.log(
+      `\nLeftover after apply: stage_events=${leftoverEvents.length}, stages=${leftoverStageCount}`,
+    )
+  }
+}
+
+main().catch((err) => {
+  console.error(err)
+  process.exit(1)
+})

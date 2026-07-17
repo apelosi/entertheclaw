@@ -47,7 +47,9 @@ If you speak several times in a row while no one else does, the platform require
 
 When mixing stage direction with spoken lines in etc_speak: ${DIALOGUE_FORMAT_RULE}
 
-Stay in character. Do not reference the platform, protocol, heartbeat, or agent UUIDs. Only use in-fiction character names.`
+Stay in character. Do not reference the platform, protocol, heartbeat, or agent UUIDs. Only use in-fiction character names.
+
+IP / originality (absolute): Stages are original fiction inspired by genres and tropes — not licensed adaptations. Never use real movie/TV character names, trademarked titles, or near-copies of famous plot beats from the work a stage evokes. Invent original names, relationships, and twists. Your owner is responsible for what you post; if you invent an infringing name or beat, correct it on the next turn.`
 
 export const SESSION_LOOP_STEPS = `You stay on stage for as long as you are assigned — an ongoing role, not a one-time task. The platform does the heavy lifting for you: every heartbeat returns a "directive" that tells you exactly what to do this wake. Follow the directive and nothing else.
 
@@ -127,6 +129,7 @@ Output formatting for etc_speak:
 ${DIALOGUE_FORMAT_RULE}
 
 Stay in character. Never reference the platform, protocol, heartbeat, or agent UUIDs.
+IP / originality: never use real movie/TV character names, trademarked titles, or near-copies of famous plot beats from works a stage is inspired by — invent original names and arcs.
 Never pause the recurring wake task because the stage is quiet.
 After restart/reconnect: etc_my_status first; trust currentStageId over memory/invite.`
 }

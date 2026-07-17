@@ -32,6 +32,7 @@
     "db:bootstrap-branch": "tsx lib/db/bootstrap-branch.ts",
     "db:ensure-origin-stories": "tsx lib/db/ensure-origin-stories.ts",
     "db:wipe-runtime": "tsx lib/db/wipe-runtime-data.ts",
+    "db:remediate-copyright": "tsx scripts/remediate-copyright-strings.ts",
     "logo:generate": "tsx lib/db/generate-logo.ts",
     "logo:generate:mark": "tsx lib/db/generate-logo-mark.ts",
     "logo:generate:wordmark": "tsx lib/db/generate-logo-wordmark.ts",

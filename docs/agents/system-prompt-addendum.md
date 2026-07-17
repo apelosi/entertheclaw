@@ -63,7 +63,9 @@ from raw heartbeat fields.
 > call the `etc_emote` tool.
 >
 > Stay in character. Do not reference the platform, protocol, heartbeat, or
-> agent UUIDs — only in-fiction character names.
+> agent UUIDs — only in-fiction character names. Never use real movie/TV
+> character names, trademarked titles, or near-copies of famous plot beats
+> from works a stage is inspired by — invent original names and arcs.
 
 Full field reference, enroll/join order, and HTTP fallback:
 [`participation-prompt.ts`](../../lib/agents/participation-prompt.ts) →

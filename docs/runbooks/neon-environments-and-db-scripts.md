@@ -9,7 +9,7 @@ Set these on the Cursor Cloud Agents environment for this repo. Values must be *
 | Environment | Cursor secret | Neon endpoint (typical) | Default use |
 |-------------|---------------|-------------------------|-------------|
 | **Dev** | `NEON_DATABASE_URL_DEV` | `ep-polished-paper…` | Local + cloud agents by default; safe experiments |
-| **Staging** | `NEON_DATABASE_URL_STAGING` | staging branch (prod copy) | Dry-run / apply destructive or data-fix scripts before prod |
+| **Staging** | `NEON_DATABASE_URL_STAGING` | staging branch (prod copy) | Dry-run / apply destructive or data-fix scripts before prod. **Not live-synced** — refresh from prod (see below). |
 | **Production** | `NEON_DATABASE_URL_PRODUCTION` | `ep-muddy-wave…` | Explicit only; after merge + staging verify |
 
 Also:
@@ -57,6 +57,85 @@ bun run --no-env-file <script> -- --database-url="$NEON_DATABASE_URL_STAGING"
 
 If migrate fails with “column already exists”, prod’s schema may be ahead of `drizzle.__drizzle_migrations`. Fix the journal (or apply the missing SQL) before re-running — see VV-10 / ops notes; do not force-reapply additive migrations.
 
+## Refreshing staging from production
+
+Staging is a **Neon child branch of production**, not a continuously synced replica. It drifts as soon as prod (or staging itself) gets writes. Refresh it before any data script you care about matching live prod.
+
+### How to see when staging was last updated from prod
+
+1. **Neon Console (source of truth):** [console.neon.tech](https://console.neon.tech) → project → **Branches** → open the **staging** branch (`ep-fragrant-glitter…`).
+   - Confirm **Parent** is production (`ep-muddy-wave…` / `main`).
+   - Read **Last data reset** on that page (Neon updates this when you use Reset from parent).
+2. **Repo log (human-readable reminder):** update the table below every time you refresh. Agents should check both; if they disagree, trust Neon.
+
+| When (UTC) | Source | Method | By | Notes |
+|------------|--------|--------|----|-------|
+| 2026-07-17 (approx) | production HEAD | Neon branch created/duplicated from prod | owner | Initial staging for VV-10 ops. Confirm exact time via Neon **Last data reset**. |
+
+### A. Refresh staging to **current** production (HEAD)
+
+Use this for “make staging look like prod right now.” **Overwrite** — all staging-only data/schema changes are discarded. Connection string stays the same (Cursor secret usually does **not** need updating).
+
+**Console**
+
+1. Neon → **Branches** → **staging**.
+2. Confirm Parent = production.
+3. **Actions** → **Reset from parent** (or use the **Last data reset** panel).
+4. Confirm. Wait until the branch is ready.
+5. Add a row to the table above.
+6. Re-run any pending migrations only if prod is behind code (unusual); normally staging now matches prod schema+data.
+
+**CLI** (optional; needs [Neon CLI](https://neon.com/docs/reference/cli-install) + auth)
+
+```bash
+neon branches reset staging --parent
+# if multiple projects:
+# neon branches reset staging --parent --project-id <project-id>
+```
+
+Docs: [Reset from parent](https://neon.com/docs/guides/reset-from-parent).
+
+### B. Refresh staging to production at a **timestamp** (point-in-time)
+
+Reset from parent is **HEAD only**. For “prod as of `2026-07-15T18:00:00Z`”, restore staging from the parent’s history:
+
+**CLI** (RFC 3339 UTC timestamp)
+
+```bash
+neon branches restore staging '^parent@2026-07-15T18:00:00.000Z'
+```
+
+If Neon asks to preserve the old staging tip (e.g. staging has child branches), add:
+
+```bash
+neon branches restore staging '^parent@2026-07-15T18:00:00.000Z' \
+  --preserve-under-name "staging_pre_refresh_$(date -u +%Y%m%dT%H%MZ)"
+```
+
+**Console alternative — new branch from history, then cut over**
+
+1. Neon → **Branches** → **New branch**.
+2. Parent = **production**.
+3. Choose create from **past** / timestamp (within the project **History window**: Settings → Instant restore).
+4. Name it (e.g. `staging-2026-07-15`).
+5. Point apps/secrets at the **new** connection string, **or** delete old staging and rename the new branch to `staging` (only if you are comfortable with that cutover).
+6. If the hostname changed, update Cursor secret `NEON_DATABASE_URL_STAGING` (and any Netlify staging slot). New secret values apply to **new** cloud agent runs only.
+
+Docs: [Instant restore](https://neon.com/docs/introduction/branch-restore), [CLI branches restore](https://neon.com/docs/cli/branches#restore).
+
+### When to refresh
+
+- Before dry-run / `--apply` of a destructive or data-fix script meant to preview **prod**.
+- After large prod incidents or bulk remediations, if staging must match.
+- Anytime Neon **Last data reset** is older than you trust for the change you’re testing.
+
+### Caveats
+
+- Staging must remain a **child of production**. If Parent is empty/wrong, Reset from parent will not work — recreate staging as a child of prod, then update the secret if the host changes.
+- Reset/restore **interrupts connections** briefly; the URL usually stays stable for Reset from parent.
+- Do **not** refresh staging mid-script if you still need staging-only experiment rows.
+- Never paste the new connection string into Linear/chat; update the Cursor secret in the dashboard.
+
 ## Starting a new cloud agent with DB access
 
 1. Confirm secrets in Cursor dashboard: `NEON_DATABASE_URL_DEV`, `_STAGING`, `_PRODUCTION` are full URLs.
@@ -84,4 +163,6 @@ Branch: …  PR: …
 
 - Branch DB client vs CLI: `lib/db/database-url.ts`, `lib/db/resolve-database-url.ts`
 - Prod wipe: `docs/runbooks/production-data-wipe.md`
+- Dev PITR (not staging refresh): `docs/RECOVER-DEV-DATA.md`
 - Agent env boundary (ETC_API_URL): `AGENTS.md`
+- Neon: [Reset from parent](https://neon.com/docs/guides/reset-from-parent) · [Instant restore](https://neon.com/docs/introduction/branch-restore)

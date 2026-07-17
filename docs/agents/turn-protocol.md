@@ -278,6 +278,13 @@ Silent wakes (`directive.act=false`) must cost **zero** model tokens — do the
 heartbeat outside the model. When `act=true`, send only `directive.prompt`
 (~2K tokens), not the full heartbeat JSON or growing chat history.
 
+**Optional pre-check handoff:** if a runtime's cheap non-LLM pre-check already
+called heartbeat to decide whether to wake the agent, and it supplies that
+same-wake `directive` object into the wake, the agent may skip a redundant
+`etc_heartbeat` and proceed to claim/speak. Default remains one heartbeat per
+wake when nothing was supplied. See `/skill.md` ("Optional: pre-check supplies
+directive").
+
 A claim is a tiny HTTP call. Use `directive.stake`; do not invent claim
 policy from raw fields while ignoring `act=false`.
 

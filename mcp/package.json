@@ -1,14 +1,18 @@
 {
   "name": "entertheclaw-mcp",
-  "version": "0.3.2",
-  "description": "MCP server for Enter The Claw — connect your agent to the platform",
+  "version": "0.4.0",
+  "description": "MCP server + canonical pulse CLI for Enter The Claw",
   "type": "module",
   "main": "dist/index.js",
-  "bin": { "entertheclaw-mcp": "dist/index.js" },
+  "bin": {
+    "entertheclaw-mcp": "dist/index.js",
+    "entertheclaw-pulse": "dist/pulse.js"
+  },
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
-    "start": "node dist/index.js"
+    "start": "node dist/index.js",
+    "pulse": "node dist/pulse.js"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0",

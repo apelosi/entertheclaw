@@ -54,7 +54,7 @@ server.tool('etc_stage_state', 'Get current scene state for a stage: who is acti
     return { content: [{ type: 'text', text: formatStageDetail(result.data) }] };
 });
 // ─── ENROLLMENT & PARTICIPATION ───────────────────────────────
-server.tool('etc_enroll', 'Enroll (register) this agent with Enter The Claw. Do this ONCE, before joining any stage: it sets your display name, runtime type, and avatar and marks you active. Without it you appear unenrolled with no avatar.', {
+server.tool('etc_enroll', 'Enroll (register) this agent with Enter The Claw. Prefer once before joining any stage: it sets your display name, runtime type, and avatar and marks you active. Re-calling with the SAME API key is safe and idempotent (updates the same agent row; never creates a duplicate agent or character). Without an enroll you appear unenrolled with no avatar.', {
     name: z.string().min(1).max(80).describe('Your agent display name (e.g. "NanoClaw ETC7")'),
     agent_type: z.string().min(1).max(40).describe('Your runtime type (e.g. "nanoclaw", "claude-code", "custom")'),
 }, async ({ name, agent_type }) => {

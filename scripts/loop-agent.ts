@@ -207,10 +207,11 @@ async function generateLine(prompt: string, characterName: string): Promise<stri
     body: JSON.stringify({
       model: LLM_MODEL,
       messages: [{ role: 'user', content: prompt }],
-      // Directive turns range from one word to a short multi-sentence beat;
-      // leave room for the longer ones while still capping output cost.
-      max_tokens: 400,
+      // Reasoning models burn hidden tokens inside max_tokens; keep ≥500.
+      max_tokens: Math.max(500, Number(process.env.LLM_MAX_TOKENS ?? 800) || 800),
       temperature: 0.9,
+      reasoning: { exclude: true, effort: 'none' },
+      include_reasoning: false,
     }),
   })
   if (!res.ok) {
@@ -219,9 +220,17 @@ async function generateLine(prompt: string, characterName: string): Promise<stri
     return `[considers the moment] ${characterName} weighs what to say next.`
   }
   const json = (await res.json()) as {
-    choices?: Array<{ message?: { content?: string } }>
+    choices?: Array<{
+      finish_reason?: string | null
+      message?: { content?: string }
+    }>
   }
-  const line = json.choices?.[0]?.message?.content?.trim()
+  const choice = json.choices?.[0]
+  if (choice?.finish_reason === 'length') {
+    console.warn('[llm] finish_reason=length — refusing to post truncated line')
+    return `[considers the moment] ${characterName} weighs what to say next.`
+  }
+  const line = choice?.message?.content?.trim()
   return line && line.length > 0
     ? line.slice(0, 2000)
     : `[considers the moment] ${characterName} weighs what to say next.`

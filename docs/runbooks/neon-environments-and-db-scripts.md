@@ -44,6 +44,7 @@ bun run --no-env-file <script> -- --database-url="$NEON_DATABASE_URL_STAGING"
 - **`--no-env-file`** — stop Bun from loading `.env.local` (dev) over your intended target.
 - **Dry-run by default** where implemented; pass `--apply` / `--yes` only after reviewing output.
 - Schema: `DATABASE_URL='…' bun run db:migrate` (drizzle-kit uses `DATABASE_URL`).
+- Copyright remediations (`db:remediate-copyright`): if leftovers are already 0 but `copyright_remediations` is empty, backfill with `--apply --record-verified`.
 
 ## Recommended sequence (data or schema changes)
 

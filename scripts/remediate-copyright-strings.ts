@@ -6,8 +6,11 @@
  * Usage:
  *   bun run --no-env-file db:remediate-copyright -- --database-url='postgresql://...'
  *   bun run --no-env-file db:remediate-copyright -- --database-url='...' --apply
+ *   bun run --no-env-file db:remediate-copyright -- --database-url='...' --apply --record-verified
  *
  * Dry-run by default. Pass --apply to write.
+ * If data is already remidiated (leftovers=0) but copyright_remediations is empty,
+ * pass --record-verified with --apply to insert verification audit rows.
  */
 import { neon } from '@neondatabase/serverless'
 import { eq, sql } from 'drizzle-orm'
@@ -57,6 +60,7 @@ function readDatabaseUrl(): string {
 function environmentLabel(host: string): string {
   if (host.includes('muddy-wave')) return 'production'
   if (host.includes('polished-paper')) return 'dev'
+  if (host.includes('fragrant-glitter')) return 'staging'
   return host
 }
 
@@ -135,14 +139,77 @@ function bumpPair(
   map.set(key, entry)
 }
 
+async function countNewValueHits(
+  db: ReturnType<typeof drizzle>,
+  newValue: string,
+): Promise<number> {
+  const stageHits = await db
+    .select({
+      initialSceneName: stages.initialSceneName,
+      initialSceneDescription: stages.initialSceneDescription,
+    })
+    .from(stages)
+  let count = 0
+  for (const s of stageHits) {
+    const blob = `${s.initialSceneName ?? ''}\n${s.initialSceneDescription ?? ''}`
+    if (blob.includes(newValue)) count += 1
+  }
+  const eventHits = await db
+    .select({ id: stageEvents.id })
+    .from(stageEvents)
+    .where(sql`${stageEvents.content}::text ILIKE ${'%' + newValue + '%'}`)
+  count += eventHits.length
+  return count
+}
+
+async function buildVerifiedAudits(
+  db: ReturnType<typeof drizzle>,
+  environment: string,
+): Promise<AuditInsert[]> {
+  const stageRows = await db
+    .select({ id: stages.id, name: stages.name })
+    .from(stages)
+  const claw = stageRows.find((s) =>
+    s.name.toLowerCase().includes('clawfather'),
+  )
+
+  // Deduplicate case variants (e.g. the Turk / The Turk)
+  const seen = new Set<string>()
+  const audits: AuditInsert[] = []
+  for (const { oldValue, newValue } of REPLACEMENTS) {
+    const key = oldValue.toLowerCase()
+    if (seen.has(key)) continue
+    seen.add(key)
+
+    const rowsAffected = await countNewValueHits(db, newValue)
+    if (rowsAffected === 0) continue
+
+    audits.push({
+      stageId: claw?.id,
+      stageName: claw?.name ?? null,
+      oldValue,
+      newValue,
+      surface: 'verification',
+      rowsAffected,
+      environment,
+      note: 'VV-10: leftovers=0; remediations already present; audit backfilled',
+    })
+  }
+  return audits
+}
+
 async function main() {
   const apply = readFlag('--apply')
+  const recordVerified = readFlag('--record-verified')
   const databaseUrl = readDatabaseUrl()
   const host = parseDbHost(databaseUrl)
   const environment = environmentLabel(host)
 
   console.log(`Target: ${host} (${environment})`)
   console.log(apply ? 'Mode: APPLY\n' : 'Mode: dry-run (pass --apply to write)\n')
+  if (recordVerified) {
+    console.log('Also: --record-verified (backfill audit if already clean)\n')
+  }
 
   const client = neon(databaseUrl)
   const db = drizzle(client)
@@ -419,7 +486,64 @@ async function main() {
     )
   }
 
-  if (apply && audits.length > 0) {
+  if (audits.length === 0 && recordVerified) {
+    const leftoverEvents = await db
+      .select({ id: stageEvents.id })
+      .from(stageEvents)
+      .where(sql`${stageEvents.content}::text ~* ${CONTENT_MATCH}`)
+    const allStagesCheck = await db
+      .select({
+        initialSceneName: stages.initialSceneName,
+        initialSceneDescription: stages.initialSceneDescription,
+      })
+      .from(stages)
+    const leftoverStageCount = allStagesCheck.filter(
+      (s) =>
+        containsAnyOld(s.initialSceneName ?? '') ||
+        containsAnyOld(s.initialSceneDescription ?? ''),
+    ).length
+
+    if (leftoverEvents.length > 0 || leftoverStageCount > 0) {
+      console.log(
+        `\n--record-verified refused: leftovers remain (stage_events=${leftoverEvents.length}, stages=${leftoverStageCount})`,
+      )
+      process.exit(1)
+    }
+
+    const existing = await db
+      .select({ id: copyrightRemediations.id })
+      .from(copyrightRemediations)
+      .where(eq(copyrightRemediations.environment, environment))
+      .limit(1)
+
+    if (existing.length > 0) {
+      console.log(
+        `\n--record-verified: audit rows already exist for environment=${environment}; skipping.`,
+      )
+    } else {
+      const verified = await buildVerifiedAudits(db, environment)
+      console.log('\nVerification audit rows:')
+      for (const a of verified) {
+        console.log(
+          `  [${a.surface}] ${a.oldValue} → ${a.newValue} (${a.rowsAffected} hits) @ ${a.stageName ?? '?'}`,
+        )
+      }
+      if (verified.length === 0) {
+        console.log(
+          'No replacement newValues found in DB — nothing to record.',
+        )
+      } else if (apply) {
+        await db.insert(copyrightRemediations).values(verified)
+        console.log(
+          `\nInserted ${verified.length} copyright_remediations verification row(s).`,
+        )
+      } else {
+        console.log(
+          '\nDry-run: would insert verification audit rows (pass --apply --record-verified).',
+        )
+      }
+    }
+  } else if (apply && audits.length > 0) {
     await db.insert(copyrightRemediations).values(audits)
     console.log(`\nInserted ${audits.length} copyright_remediations row(s).`)
   } else if (!apply) {
@@ -428,7 +552,7 @@ async function main() {
     console.log('\nNothing to remediate.')
   }
 
-  if (apply) {
+  if (apply && !recordVerified) {
     const leftoverEvents = await db
       .select({ id: stageEvents.id })
       .from(stageEvents)

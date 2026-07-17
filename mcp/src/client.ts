@@ -5,30 +5,63 @@ type Result<T> =
   | { ok: true; data: T }
   | { ok: false; error: string; status: number; body?: Record<string, unknown> }
 
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+/** Retry transient transport / gateway failures. Never retry dialogue POST
+ *  (ambiguous success could double-post a line). */
+function maxAttempts(method: string, path: string): number {
+  if (method === 'POST' && path.includes('/dialogue')) return 1
+  if (method === 'GET') return 3
+  if (path.includes('/heartbeat') || path === '/agents' || path === '/agents/me') return 3
+  return 2
+}
+
+function shouldRetry(status: number): boolean {
+  return status === 0 || status === 502 || status === 503 || status === 504 || status === 500
+}
+
 async function request<T>(method: string, path: string, body?: object): Promise<Result<T>> {
-  try {
-    const res = await fetch(`${config.baseUrl}${path}`, {
-      method,
-      headers: {
-        'Authorization': `Bearer ${config.apiKey}`,
-        'Content-Type': 'application/json',
-        'User-Agent': `entertheclaw-mcp/${MCP_PACKAGE_VERSION}`,
-      },
-      body: body ? JSON.stringify(body) : undefined,
-    })
-    if (!res.ok) {
-      const errBody = (await res.json().catch(() => ({ error: res.statusText }))) as Record<string, unknown>
-      return {
-        ok: false,
-        error: (errBody.error as string | undefined) ?? 'Unknown error',
-        status: res.status,
-        body: errBody,
+  const attempts = maxAttempts(method, path)
+  let last: Result<T> = { ok: false, error: 'Unknown error', status: 0 }
+
+  for (let i = 0; i < attempts; i++) {
+    try {
+      const res = await fetch(`${config.baseUrl}${path}`, {
+        method,
+        headers: {
+          'Authorization': `Bearer ${config.apiKey}`,
+          'Content-Type': 'application/json',
+          'User-Agent': `entertheclaw-mcp/${MCP_PACKAGE_VERSION}`,
+        },
+        body: body ? JSON.stringify(body) : undefined,
+      })
+      if (!res.ok) {
+        const errBody = (await res.json().catch(() => ({ error: res.statusText }))) as Record<string, unknown>
+        last = {
+          ok: false,
+          error: (errBody.error as string | undefined) ?? 'Unknown error',
+          status: res.status,
+          body: errBody,
+        }
+        if (i + 1 < attempts && shouldRetry(res.status)) {
+          await sleep(250 * (i + 1))
+          continue
+        }
+        return last
       }
+      return { ok: true, data: (await res.json()) as T }
+    } catch (e) {
+      last = { ok: false, error: String(e), status: 0 }
+      if (i + 1 < attempts) {
+        await sleep(250 * (i + 1))
+        continue
+      }
+      return last
     }
-    return { ok: true, data: await res.json() as T }
-  } catch (e) {
-    return { ok: false, error: String(e), status: 0 }
   }
+  return last
 }
 
 export const etcClient = {

@@ -1,30 +1,62 @@
 import { config } from './config.js';
 import { MCP_PACKAGE_VERSION } from './package-version.js';
+function sleep(ms) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+}
+/** Retry transient transport / gateway failures. Never retry dialogue POST
+ *  (ambiguous success could double-post a line). */
+function maxAttempts(method, path) {
+    if (method === 'POST' && path.includes('/dialogue'))
+        return 1;
+    if (method === 'GET')
+        return 3;
+    if (path.includes('/heartbeat') || path === '/agents' || path === '/agents/me')
+        return 3;
+    return 2;
+}
+function shouldRetry(status) {
+    return status === 0 || status === 502 || status === 503 || status === 504 || status === 500;
+}
 async function request(method, path, body) {
-    try {
-        const res = await fetch(`${config.baseUrl}${path}`, {
-            method,
-            headers: {
-                'Authorization': `Bearer ${config.apiKey}`,
-                'Content-Type': 'application/json',
-                'User-Agent': `entertheclaw-mcp/${MCP_PACKAGE_VERSION}`,
-            },
-            body: body ? JSON.stringify(body) : undefined,
-        });
-        if (!res.ok) {
-            const errBody = (await res.json().catch(() => ({ error: res.statusText })));
-            return {
-                ok: false,
-                error: errBody.error ?? 'Unknown error',
-                status: res.status,
-                body: errBody,
-            };
+    const attempts = maxAttempts(method, path);
+    let last = { ok: false, error: 'Unknown error', status: 0 };
+    for (let i = 0; i < attempts; i++) {
+        try {
+            const res = await fetch(`${config.baseUrl}${path}`, {
+                method,
+                headers: {
+                    'Authorization': `Bearer ${config.apiKey}`,
+                    'Content-Type': 'application/json',
+                    'User-Agent': `entertheclaw-mcp/${MCP_PACKAGE_VERSION}`,
+                },
+                body: body ? JSON.stringify(body) : undefined,
+            });
+            if (!res.ok) {
+                const errBody = (await res.json().catch(() => ({ error: res.statusText })));
+                last = {
+                    ok: false,
+                    error: errBody.error ?? 'Unknown error',
+                    status: res.status,
+                    body: errBody,
+                };
+                if (i + 1 < attempts && shouldRetry(res.status)) {
+                    await sleep(250 * (i + 1));
+                    continue;
+                }
+                return last;
+            }
+            return { ok: true, data: (await res.json()) };
         }
-        return { ok: true, data: await res.json() };
+        catch (e) {
+            last = { ok: false, error: String(e), status: 0 };
+            if (i + 1 < attempts) {
+                await sleep(250 * (i + 1));
+                continue;
+            }
+            return last;
+        }
     }
-    catch (e) {
-        return { ok: false, error: String(e), status: 0 };
-    }
+    return last;
 }
 export const etcClient = {
     // Stage discovery

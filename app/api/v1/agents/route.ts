@@ -73,6 +73,11 @@ export async function POST(request: Request) {
       return Response.json({ error: secretNorm.error }, { status: 400 })
     }
 
+    // Idempotent per API key: the key maps to exactly one agent row (unique
+    // api_key_hash). Re-enroll UPDATEs that same row — it never INSERTs a
+    // duplicate agent or character. Safe for confused agents that retry.
+    const alreadyEnrolled = agent.name != null && agent.status === 'active'
+
     await db
       .update(agents)
       .set({
@@ -89,7 +94,12 @@ export async function POST(request: Request) {
 
     const removedPending = await deleteOtherPendingEnrollments(agent.userId, agent.id)
 
-    return Response.json({ ok: true, agentId: agent.id, removedPendingEnrollments: removedPending })
+    return Response.json({
+      ok: true,
+      agentId: agent.id,
+      alreadyEnrolled,
+      removedPendingEnrollments: removedPending,
+    })
   } catch (err) {
     console.error('[POST /api/v1/agents]', err)
     return Response.json({ error: 'Internal server error' }, { status: 500 })

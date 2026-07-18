@@ -27,7 +27,21 @@ PR:           {{PR_URL}}
 
 ---
 
+## npm auth reality (read first)
+
+npmjs auth sessions are **very short-lived**. By default they expire in **under 5 minutes**. You can opt in to a **5-minute** session via a checkbox at login — that is the maximum practical window for this account flow.
+
+Implications:
+
+- **Do all non-auth work first** (git pull, version check, build, dry-run).
+- **Login (if needed) immediately before `npm publish`** — do not pause between auth and publish.
+- Assume you are **not** logged in unless you deliberately authenticated within the last ~5 minutes **with the 5-minute checkbox selected**.
+
+---
+
 ## Steps (copy-paste on your Mac)
+
+### A. Prep (no npm auth required)
 
 ```bash
 # 1) Repo root on your Mac
@@ -50,17 +64,59 @@ bun run build
 # 5) Dry-run (no login required)
 npm publish --dry-run
 # Confirm the tarball lists dist/ + package.json at version {{MCP_VERSION}}
+```
 
-# 6) Real publish (needs npm login as apelosi)
+Stop here until you are ready to authenticate and publish in one uninterrupted burst.
+
+### B. Publish — pick one auth path
+
+#### Path 1 — Default: not logged in (use this unless you just logged in)
+
+Use when `npm whoami` fails, says you’re not authenticated, or you have not logged in in the last few minutes.
+
+```bash
+cd /path/to/entertheclaw/mcp
+
+# 1) Authenticate as apelosi NOW (browser / device flow).
+#    At the npmjs prompt, SELECT the checkbox for the 5-minute session
+#    (otherwise the window is even shorter).
+npm login
+
+# 2) Immediately confirm identity — do not leave the terminal idle.
 npm whoami
-# If not logged in / wrong user:
-#   npm login
+# Expected: apelosi
+
+# 3) Publish immediately (same breath as login — session may die in <5 min).
 npm publish
 
-# 7) Verify on registry
+# 4) Verify on registry (does not require a live publish session)
 npm view entertheclaw-mcp version
 # Expected: {{MCP_VERSION}}
 ```
+
+If `npm publish` returns `ENEEDAUTH` after login, the session already expired — run **Path 1 from `npm login` again** with no delay before `npm publish`.
+
+#### Path 2 — Already logged in (only if you opted into 5 min within the last ~5 minutes)
+
+Use **only** when you just completed `npm login` (or equivalent) **with the 5-minute checkbox selected** and have not waited around since then.
+
+```bash
+cd /path/to/entertheclaw/mcp
+
+# 1) Confirm the short-lived session is still alive
+npm whoami
+# Expected: apelosi
+# If this fails or is wrong → abandon Path 2, use Path 1 immediately.
+
+# 2) Publish immediately (no slack — session dies fast)
+npm publish
+
+# 3) Verify on registry
+npm view entertheclaw-mcp version
+# Expected: {{MCP_VERSION}}
+```
+
+Do **not** use Path 2 if you’re unsure whether the 5-minute checkbox was selected, or if more than a couple of minutes have passed since login. Prefer Path 1.
 
 ---
 
@@ -76,10 +132,11 @@ npm view entertheclaw-mcp version
 
 | Error | Meaning | Fix |
 |-------|---------|-----|
-| `ENEEDAUTH` | Not logged in to npm | `npm login` as `apelosi` |
-| `E404` / no permission | Wrong npm account | `npm whoami` → switch to owner |
+| `ENEEDAUTH` | Not logged in, or the short npm session already expired | Path 1: `npm login` (check **5-minute** box) → `npm whoami` → `npm publish` with no pause |
+| `E404` / no permission | Wrong npm account | `npm whoami` → Path 1 as `apelosi` |
 | Version already published | Re-publish same version | Bump patch in `mcp/package.json`, merge, republish |
 | Cloud agent “please publish” | No npm creds in VM | Always run these steps on your Mac |
+| Login worked, publish failed auth | Session shorter than the gap after login | Re-login with 5-min checkbox, publish immediately |
 
 ---
 
@@ -90,3 +147,4 @@ npm view entertheclaw-mcp version
 - [ ] This runbook linked in the chat reply
 - [ ] Placeholders filled with the real version / branch / PR URL
 - [ ] Reminder: **WHERE = Mac**, not cloud VM
+- [ ] Reminder: prep first, then Path 1 (default) or Path 2 (only if 5-min login is still live)

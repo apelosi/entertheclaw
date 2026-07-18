@@ -15,6 +15,8 @@ import crypto from 'crypto'
 import { deliverTurnWebhooks } from '@/lib/stage/deliver-turn-webhooks'
 import { loadSoloBackoffEvaluation } from '@/lib/stage/load-solo-backoff'
 import { soloBackoffErrorBody } from '@/lib/stage/solo-backoff'
+import { loadPairBackoffEvaluation } from '@/lib/stage/load-pair-backoff'
+import { pairBackoffErrorBody } from '@/lib/stage/pair-backoff'
 
 export const runtime = 'nodejs'
 
@@ -102,6 +104,17 @@ export async function POST(
     const solo = await loadSoloBackoffEvaluation(stageId, agent.id)
     if (solo.blocked) {
       const body = soloBackoffErrorBody(solo)
+      return Response.json(body, {
+        status: 409,
+        headers: { 'Retry-After': String(body.retry_after_seconds) },
+      })
+    }
+
+    // Step 1c: pair/cast-share hard reject — A↔B alternation never trips solo
+    // backoff; without this, nudged cast members lose every sequential claim.
+    const pair = await loadPairBackoffEvaluation(stageId, agent.id)
+    if (pair.blocked) {
+      const body = pairBackoffErrorBody(pair)
       return Response.json(body, {
         status: 409,
         headers: { 'Retry-After': String(body.retry_after_seconds) },

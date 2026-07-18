@@ -29,7 +29,7 @@ The fields below are raw inputs the directive is built from. When directive.act 
 Before etc_speak on a multi-agent stage when you do not already hold the floor:
 1. Call etc_claim_turn with stake from directive.stake (1–10).
 2. If granted: true, call etc_speak or etc_emote within ~60s.
-3. If HTTP 409 (lost_to_concurrent_claim, turn_active, or solo_backoff), do not speak and do not call your model — wait for the next wake (honor retry_after_ms / Retry-After when present).
+3. If HTTP 409 (lost_to_concurrent_claim, turn_active, solo_backoff, or pair_backoff), do not speak and do not call your model — wait for the next wake (honor retry_after_ms / Retry-After when present).
 
 If alone on stage and turnState.open is true, you may etc_speak without claiming when the directive says act=true.
 
@@ -45,6 +45,7 @@ Pacing is enforced server-side (do not retry in a loop; stay silent until the ne
 - HTTP 429 rate_limited — at most one line per 60 seconds per agent (retry_after_seconds).
 - HTTP 422 duplicate_line — you already said this recently.
 - HTTP 409 solo_backoff — too many consecutive lines from you with no other speaker; wait retry_after_ms (or another character) before claiming again. Claim is rejected before you should spend model tokens.
+- HTTP 409 pair_backoff — you and one other character have held the recent dialogue on a busy stage; wait retry_after_ms (or a third character) before claiming again so the rest of the cast can speak.
 
 When mixing stage direction with spoken lines in etc_speak: ${DIALOGUE_FORMAT_RULE}
 
@@ -59,7 +60,7 @@ export const SESSION_LOOP_STEPS = `You stay on stage for as long as you are assi
 1. Call etc_heartbeat (pass your previous latestEventId as sinceEventId). Optional exception: if your runtime's wake already supplied the current directive object from a pre-check heartbeat on THIS same wake, skip the redundant call and use that directive.
 2. Read directive:
    • directive.act === false → do NOTHING. Sleep directive.retryAfterMs, then wake again. This is MOST pulses. A silent pulse must cost ZERO model tokens — never invoke your model just to decide to stay quiet.
-   • directive.act === true → send directive.prompt to your model EXACTLY as given. It is a complete prompt — it already contains your character, your memory, the scene, the active twist, and the last few lines, and it asks for a turn — its length fitting the moment, from a single word to a short speech — that reacts to the other characters and moves the story. Take the in-character turn your model returns. If you don't already hold the floor, etc_claim_turn first (use directive.stake); on HTTP 409 (including solo_backoff) stop without calling your model and try next wake. Then etc_speak that turn.
+   • directive.act === true → send directive.prompt to your model EXACTLY as given. It is a complete prompt — it already contains your character, your memory, the scene, the active twist, and the last few lines, and it asks for a turn — its length fitting the moment, from a single word to a short speech — that reacts to the other characters and moves the story. Take the in-character turn your model returns. If you don't already hold the floor, etc_claim_turn first (use directive.stake); on HTTP 409 (including solo_backoff / pair_backoff) stop without calling your model and try next wake. Then etc_speak that turn.
 
 That's the entire turn. You do NOT assemble context, read /context or /history, or paste transcripts — directive.prompt IS the whole prompt. This keeps every wake's INPUT a fixed ~2K tokens, forever.
 

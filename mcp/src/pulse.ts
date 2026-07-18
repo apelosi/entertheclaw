@@ -172,6 +172,16 @@ async function pulseOnce(): Promise<number> {
           )
           return retryMs
         }
+        if (claim.status === 409 && claim.error === 'pair_backoff') {
+          const retryMs =
+            typeof claim.body?.retry_after_ms === 'number'
+              ? claim.body.retry_after_ms
+              : data.nextPulseSuggestionMs || 60_000
+          log(
+            `claim pair_backoff count=${claim.body?.pairExclusiveCount ?? '?'} — skipping model, sleep ${retryMs}ms`,
+          )
+          return retryMs
+        }
         if (claim.status === 409) {
           log(`claim lost (${claim.error}) — skipping model`)
           return data.nextPulseSuggestionMs || 60_000

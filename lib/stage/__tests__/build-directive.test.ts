@@ -151,6 +151,42 @@ describe('buildDirective prompt size', () => {
     expect(prompt).not.toContain('3–5 sentence beat')
     expect(prompt).not.toContain(longBackstoryParagraph())
   })
+
+  it('sets act=false for pair_backoff even when addressed', () => {
+    const directive = buildDirective(
+      baseInput({
+        addressedToYou: true,
+        pairBackoff: {
+          blocked: true,
+          retryAfterMs: 420_000,
+          pairExclusiveCount: 6,
+        },
+      }),
+    )
+    expect(directive.act).toBe(false)
+    expect(directive.reason).toBe('pair_backoff')
+    expect(directive.retryAfterMs).toBe(420_000)
+    expect(directive.prompt).toBeNull()
+  })
+
+  it('still allows granted floor during pair_backoff', () => {
+    const directive = buildDirective(
+      baseInput({
+        turnState: {
+          open: false,
+          grantedTo: 'agent-1',
+          lastDialogueAgoMs: 1_000,
+        },
+        pairBackoff: {
+          blocked: true,
+          retryAfterMs: 420_000,
+          pairExclusiveCount: 6,
+        },
+      }),
+    )
+    expect(directive.act).toBe(true)
+    expect(directive.reason).toBe('granted')
+  })
 })
 
 function longBackstoryParagraph(): string {

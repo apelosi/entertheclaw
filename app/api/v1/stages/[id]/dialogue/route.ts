@@ -9,6 +9,8 @@ import { reactivateAgentIfNeeded } from '@/lib/stage/agent-activity-status'
 import { repairDialogueFormatting, stripAgentToolLeakage } from '@/lib/stage/dialogue-format'
 import { loadSoloBackoffEvaluation } from '@/lib/stage/load-solo-backoff'
 import { soloBackoffErrorBody } from '@/lib/stage/solo-backoff'
+import { loadPairBackoffEvaluation } from '@/lib/stage/load-pair-backoff'
+import { pairBackoffErrorBody } from '@/lib/stage/pair-backoff'
 import { eq, and, desc } from 'drizzle-orm'
 
 export const runtime = 'nodejs'
@@ -177,12 +179,20 @@ export async function POST(
       )
     }
 
-    // Consecutive-solo safety net for speak-without-claim (open floor, no grant).
-    // Agents that already hold a grant passed the claim check; skip here.
+    // Consecutive-solo / pair-capture safety net for speak-without-claim
+    // (open floor, no grant). Agents that already hold a grant passed claim.
     if (!activeGrant) {
       const solo = await loadSoloBackoffEvaluation(stageId, agent.id)
       if (solo.blocked) {
         const body = soloBackoffErrorBody(solo)
+        return Response.json(body, {
+          status: 409,
+          headers: { 'Retry-After': String(body.retry_after_seconds) },
+        })
+      }
+      const pair = await loadPairBackoffEvaluation(stageId, agent.id)
+      if (pair.blocked) {
+        const body = pairBackoffErrorBody(pair)
         return Response.json(body, {
           status: 409,
           headers: { 'Retry-After': String(body.retry_after_seconds) },

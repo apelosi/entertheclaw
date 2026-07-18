@@ -8,24 +8,26 @@ import {
 } from '@/lib/db/schema'
 import { verifyAgentApiKey, unauthorizedResponse } from '@/lib/api/agent-auth'
 import {
+  ACTIVE_PARTICIPANT_MS,
   classifyStageActivity,
   getActiveGrant,
   PULSE_HINT_ACTIVE_MS,
   PULSE_HINT_IDLE_MS,
 } from '@/lib/stage/turn-state'
-import { eq, and, desc, gte, gt, sql } from 'drizzle-orm'
+import { eq, and, desc, gte, gt, notInArray, sql } from 'drizzle-orm'
 import { resolveCurrentScene } from '@/lib/stage/apply-scene-classifier'
 import { computeNudge } from '@/lib/stage/inactivity-nudge'
 import { buildDirective } from '@/lib/stage/build-directive'
 import { countConsecutiveSoloDialogue } from '@/lib/stage/solo-backoff'
+import { evaluatePairBackoff, measurePairCapture } from '@/lib/stage/pair-backoff'
 
 export const runtime = 'nodejs'
 
 const ADDRESSED_LOOKBACK = 5 // last N dialogue events to scan for character name
 const UNREAD_CAP = 30
-// 12: enough for linesSinceLastSpoke in directive.prompt (cap 12) and to
-// distinguish the 6+ consecutive-solo plateau tier used by claim solo_backoff.
-const RECENT_DIALOGUE_LIMIT = 12
+// 16: enough for linesSinceLastSpoke in directive.prompt (cap 12), the 6+
+// consecutive-solo plateau, and pair-capture lookback (pair_backoff tiers).
+const RECENT_DIALOGUE_LIMIT = 16
 
 function isAddressed(text: unknown, characterName: string | null): boolean {
   if (!characterName || typeof text !== 'string') return false
@@ -215,6 +217,32 @@ export async function POST(
       agent.id,
     )
 
+    // Aligns heartbeat act=false with claim 409 pair_backoff (A↔B capture).
+    const pairCapture = measurePairCapture(recentDialogueRows)
+    let otherActiveOutsidePair = 0
+    if (pairCapture.pairAgentIds.length === 2) {
+      const activeCutoff = new Date(now.getTime() - ACTIVE_PARTICIPANT_MS)
+      const otherActive = await db
+        .select({ id: stageParticipants.id })
+        .from(stageParticipants)
+        .where(
+          and(
+            eq(stageParticipants.stageId, stageId),
+            gte(stageParticipants.lastActiveAt, activeCutoff),
+            notInArray(stageParticipants.agentId, pairCapture.pairAgentIds),
+          ),
+        )
+      otherActiveOutsidePair = otherActive.length
+    }
+    const pairBackoff = evaluatePairBackoff({
+      pairExclusiveCount: pairCapture.pairExclusiveCount,
+      pairAgentIds: pairCapture.pairAgentIds,
+      claimantAgentId: agent.id,
+      otherActiveParticipantCount: otherActiveOutsidePair,
+      lastDialogueAgoMs:
+        lastDialogueAt === null ? null : Math.max(0, now.getTime() - lastDialogueAt),
+    })
+
     const participantCount = participantCountRows[0]?.count ?? 0
     const agentLastDialogueMs = agentLastDialogueRows[0]?.createdAt
       ? new Date(agentLastDialogueRows[0].createdAt).getTime()
@@ -321,6 +349,11 @@ export async function POST(
       unreadHasTwist: unreadEvents.some((e) => e.type === 'twist'),
       idleRetryAfterMs: nextPulseSuggestionMs,
       consecutiveSoloDialogueCount,
+      pairBackoff: {
+        blocked: pairBackoff.blocked,
+        retryAfterMs: pairBackoff.retryAfterMs,
+        pairExclusiveCount: pairBackoff.pairExclusiveCount,
+      },
     })
 
     return Response.json({

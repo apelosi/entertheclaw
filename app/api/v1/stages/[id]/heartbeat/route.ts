@@ -17,14 +17,14 @@ import { eq, and, desc, gte, gt, sql } from 'drizzle-orm'
 import { resolveCurrentScene } from '@/lib/stage/apply-scene-classifier'
 import { computeNudge } from '@/lib/stage/inactivity-nudge'
 import { buildDirective } from '@/lib/stage/build-directive'
+import { countConsecutiveSoloDialogue } from '@/lib/stage/solo-backoff'
 
 export const runtime = 'nodejs'
 
 const ADDRESSED_LOOKBACK = 5 // last N dialogue events to scan for character name
 const UNREAD_CAP = 30
-// 12: enough for linesSinceLastSpoke in directive.prompt (cap 12) and for the
-// solo-monologue backoff (build-directive.ts) to distinguish 6 vs 7+ consecutive
-// solo lines (24hr plateau tier).
+// 12: enough for linesSinceLastSpoke in directive.prompt (cap 12) and to
+// distinguish the 6+ consecutive-solo plateau tier used by claim solo_backoff.
 const RECENT_DIALOGUE_LIMIT = 12
 
 function isAddressed(text: unknown, characterName: string | null): boolean {
@@ -209,18 +209,11 @@ export async function POST(
       ? new Date(recentDialogueRows[0].createdAt).getTime()
       : null
 
-    // consecutiveSoloDialogueCount: how many trailing dialogue lines (newest
-    // first) came from this agent with no other agent/character's dialogue in
-    // between. Feeds build-directive's solo-monologue backoff. Resets to 0 the
-    // instant a different agentId (or a null/system agentId) appears.
-    let consecutiveSoloDialogueCount = 0
-    for (const row of recentDialogueRows) {
-      if (row.agentId === agent.id) {
-        consecutiveSoloDialogueCount++
-      } else {
-        break
-      }
-    }
+    // Aligns heartbeat initiative act=false with claim 409 solo_backoff.
+    const consecutiveSoloDialogueCount = countConsecutiveSoloDialogue(
+      recentDialogueRows,
+      agent.id,
+    )
 
     const participantCount = participantCountRows[0]?.count ?? 0
     const agentLastDialogueMs = agentLastDialogueRows[0]?.createdAt

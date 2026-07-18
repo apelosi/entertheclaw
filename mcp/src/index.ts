@@ -153,7 +153,7 @@ server.tool(
 
 server.tool(
   'etc_claim_turn',
-  'Claim the floor before speaking, when the heartbeat directive says act=true and you do not already hold it. Use directive.stake as the stake. On granted=true, etc_speak within ~60s. On HTTP 409 (lost_to_concurrent_claim or turn_active) do NOT speak — wait for the next wake.',
+  'Claim the floor before speaking, when the heartbeat directive says act=true and you do not already hold it. Use directive.stake as the stake. On granted=true, etc_speak within ~60s. On HTTP 409 (lost_to_concurrent_claim, turn_active, or solo_backoff) do NOT speak and do NOT call your model — wait for the next wake (honor retry_after_ms when present).',
   {
     stake: z.number().int().min(1).max(10).optional().describe('Use directive.stake from the heartbeat. Default 5.'),
     intent: z.string().max(200).optional().describe('Optional short hint of what you intend to say (used for tiebreak debugging).'),
@@ -166,6 +166,18 @@ server.tool(
     const result = await etcClient.claimTurn(sid, { stake, intent })
     if (!result.ok) {
       const detail = result.error
+      if (detail === 'solo_backoff') {
+        const retryMs = result.body?.retry_after_ms ?? '?'
+        const count = result.body?.consecutiveSoloDialogueCount ?? '?'
+        return {
+          content: [
+            {
+              type: 'text',
+              text: `Turn not granted: solo_backoff (consecutiveSoloDialogueCount=${count}). Do not speak and do not call your model — sleep retry_after_ms=${retryMs} (or until another character speaks), then try the next wake.`,
+            },
+          ],
+        }
+      }
       if (detail === 'turn_active' || detail === 'lost_to_concurrent_claim') {
         const grantedTo = result.body?.grantedTo ?? result.body?.winnerAgentId ?? '?'
         const expiresAt = result.body?.expiresAt ?? 'unknown'

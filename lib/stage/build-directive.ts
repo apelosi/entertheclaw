@@ -26,6 +26,7 @@ import {
   QUIET_INITIATIVE_MS,
   requiredQuietMsForSoloCount,
 } from './solo-backoff'
+import type { PairBackoffEvaluation } from './pair-backoff'
 
 /** Re-export for callers/tests that imported the quiet constant from here. */
 export { QUIET_INITIATIVE_MS }
@@ -69,6 +70,15 @@ export interface DirectiveInputs {
   /** Trailing solo dialogue count for this agent. Used only to align initiative
    *  act=false with the claim hard-reject schedule (409 solo_backoff). */
   consecutiveSoloDialogueCount: number
+  /**
+   * Pair/cast-share evaluation for this agent. When blocked, act=false even for
+   * addressed/nudge/twist so the dominant pair does not claim-spam (409 pair_backoff).
+   * Null/omitted = not evaluated (treat as not blocked).
+   */
+  pairBackoff?: Pick<
+    PairBackoffEvaluation,
+    'blocked' | 'retryAfterMs' | 'pairExclusiveCount'
+  > | null
 }
 
 export interface Directive {
@@ -88,6 +98,8 @@ interface Gate {
   act: boolean
   reason: string
   stake: number
+  /** Override idleRetryAfterMs when act=false for a specific backoff reason. */
+  retryAfterMs?: number
 }
 
 /** First sentence of backstory, or a short hook — full backstory lives in enrollment. */
@@ -127,6 +139,18 @@ export function dialogueForPrompt(
 function decideAct(input: DirectiveInputs): Gate {
   if (input.turnState.grantedTo && input.turnState.grantedTo === input.myAgentId) {
     return { act: true, reason: 'granted', stake: 9 }
+  }
+  // Pair/cast-share: authoritative enforcement is claim (409 pair_backoff).
+  // Mirror here so the dominant pair stays act=false (including addressed)
+  // until quiet elapses or a third speaker breaks the capture.
+  const pair = input.pairBackoff
+  if (pair?.blocked) {
+    return {
+      act: false,
+      reason: 'pair_backoff',
+      stake: 0,
+      retryAfterMs: pair.retryAfterMs > 0 ? pair.retryAfterMs : input.idleRetryAfterMs,
+    }
   }
   if (input.nudge) {
     return { act: true, reason: `nudge:${input.nudge.level}`, stake: 8 }
@@ -241,7 +265,7 @@ export function buildDirective(input: DirectiveInputs): Directive {
     return {
       act: false,
       reason: gate.reason,
-      retryAfterMs: input.idleRetryAfterMs,
+      retryAfterMs: gate.retryAfterMs ?? input.idleRetryAfterMs,
       stake: 0,
       prompt: null,
     }

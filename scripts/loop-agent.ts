@@ -150,11 +150,12 @@ interface ClaimResponse {
   winnerAgentId?: string
   retry_after_ms?: number
   consecutiveSoloDialogueCount?: number
+  pairExclusiveCount?: number
 }
 
 interface ClaimOutcome {
   granted: boolean
-  /** When claim was refused with solo_backoff, sleep at least this long. */
+  /** When claim was refused with solo_backoff / pair_backoff, sleep at least this long. */
   retryAfterMs?: number
 }
 
@@ -279,6 +280,13 @@ async function claimTurn(stake: number, intent: string): Promise<ClaimOutcome> {
       const retryAfterMs = claim.data?.retry_after_ms
       console.log(
         `[claim] solo_backoff count=${claim.data?.consecutiveSoloDialogueCount ?? '?'} retry_after_ms=${retryAfterMs ?? '?'} — skipping model`,
+      )
+      return { granted: false, retryAfterMs }
+    }
+    if (claim.status === 409 && claim.error === 'pair_backoff') {
+      const retryAfterMs = claim.data?.retry_after_ms
+      console.log(
+        `[claim] pair_backoff count=${claim.data?.pairExclusiveCount ?? '?'} retry_after_ms=${retryAfterMs ?? '?'} — skipping model`,
       )
       return { granted: false, retryAfterMs }
     }

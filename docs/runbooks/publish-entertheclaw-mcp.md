@@ -27,9 +27,22 @@ PR:           {{PR_URL}}
 
 ---
 
+## npm auth reality (read first)
+
+Assume you are **not** logged in. npmjs uses **two** auth prompts:
+
+1. **`npm login`** — account login (no 5-minute checkbox).
+2. **`npm publish`** — a second auth challenge that **does** show the 5-minute session checkbox. Select it. That publish session is short-lived (about 5 minutes max).
+
+Do all prep (git, build, dry-run) **before** login/publish so you can finish the second prompt and publish without idle time.
+
+---
+
 ## Steps (copy-paste on your Mac)
 
 ```bash
+# ── Prep (no npm auth required) ─────────────────────────────────
+
 # 1) Repo root on your Mac
 cd /path/to/entertheclaw   # e.g. your local clone
 
@@ -51,16 +64,26 @@ bun run build
 npm publish --dry-run
 # Confirm the tarball lists dist/ + package.json at version {{MCP_VERSION}}
 
-# 6) Real publish (needs npm login as apelosi)
-npm whoami
-# If not logged in / wrong user:
-#   npm login
-npm publish
+# ── Auth + publish (assume not logged in; do this in one burst) ─
 
-# 7) Verify on registry
+# 6) Account login (prompt #1 — no 5-minute checkbox)
+npm login
+# Sign in as apelosi when prompted.
+
+# 7) Confirm identity
+npm whoami
+# Expected: apelosi
+
+# 8) Publish immediately (prompt #2 — SELECT the 5-minute checkbox)
+npm publish
+# Complete the publish auth challenge right away; do not leave the terminal idle.
+
+# 9) Verify on registry
 npm view entertheclaw-mcp version
 # Expected: {{MCP_VERSION}}
 ```
+
+If `npm publish` returns `ENEEDAUTH`, start again from step 6 (`npm login`) and proceed immediately through publish with the 5-minute checkbox selected on the publish prompt.
 
 ---
 
@@ -76,8 +99,8 @@ npm view entertheclaw-mcp version
 
 | Error | Meaning | Fix |
 |-------|---------|-----|
-| `ENEEDAUTH` | Not logged in to npm | `npm login` as `apelosi` |
-| `E404` / no permission | Wrong npm account | `npm whoami` → switch to owner |
+| `ENEEDAUTH` | Not logged in, or the short publish session expired | `npm login` → `npm whoami` → `npm publish` immediately; select the **5-minute** checkbox on the **publish** auth prompt |
+| `E404` / no permission | Wrong npm account | `npm whoami` → re-login as `apelosi` |
 | Version already published | Re-publish same version | Bump patch in `mcp/package.json`, merge, republish |
 | Cloud agent “please publish” | No npm creds in VM | Always run these steps on your Mac |
 
@@ -90,3 +113,4 @@ npm view entertheclaw-mcp version
 - [ ] This runbook linked in the chat reply
 - [ ] Placeholders filled with the real version / branch / PR URL
 - [ ] Reminder: **WHERE = Mac**, not cloud VM
+- [ ] Reminder: assume not logged in; two prompts — login (no 5-min box), then publish (check 5-min box)

@@ -88,8 +88,9 @@ Agents must link that file and fill `{{MCP_VERSION}}` / `{{GIT_BRANCH}}` / `{{PR
 
 - Package: `entertheclaw-mcp`, maintainer `apelosi`
 - **WHERE:** your Mac after `git pull` on the publish branch (cloud VMs have no npm auth)
-- `npm publish --dry-run` works without login; real publish needs `npm login`
-- ENEEDAUTH = not logged in; E404 on publish = wrong account / no permission
+- npmjs sessions are **&lt;5 min** by default; opt in to the **5-minute** checkbox at login. Prep/build/dry-run first, then Path 1 (`npm login` → publish immediately) or Path 2 (only if that 5-min session is still live)
+- `npm publish --dry-run` works without login; real publish needs a live short session
+- ENEEDAUTH = not logged in or session already expired; E404 on publish = wrong account / no permission
 
 ### Production monitoring
 

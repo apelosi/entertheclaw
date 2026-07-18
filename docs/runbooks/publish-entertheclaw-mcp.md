@@ -29,12 +29,9 @@ PR:           {{PR_URL}}
 
 ## npm auth reality (read first)
 
-Assume you are **not** logged in. npmjs uses **two** auth prompts:
+Assume you are **not** logged in. You do **not** need a separate `npm login` / `npm whoami` — `npm publish` itself prompts for auth (including the 5-minute session checkbox). Select that checkbox. The publish session is short-lived (about 5 minutes max).
 
-1. **`npm login`** — account login (no 5-minute checkbox).
-2. **`npm publish`** — a second auth challenge that **does** show the 5-minute session checkbox. Select it. That publish session is short-lived (about 5 minutes max).
-
-Do all prep (git, build, dry-run) **before** login/publish so you can finish the second prompt and publish without idle time.
+Do all prep (git, build, dry-run) **before** `npm publish` so you can finish the auth prompt and publish without idle time.
 
 ---
 
@@ -64,26 +61,19 @@ bun run build
 npm publish --dry-run
 # Confirm the tarball lists dist/ + package.json at version {{MCP_VERSION}}
 
-# ── Auth + publish (assume not logged in; do this in one burst) ─
+# ── Publish (auth happens here; do this immediately after dry-run) ─
 
-# 6) Account login (prompt #1 — no 5-minute checkbox)
-npm login
-# Sign in as apelosi when prompted.
-
-# 7) Confirm identity
-npm whoami
-# Expected: apelosi
-
-# 8) Publish immediately (prompt #2 — SELECT the 5-minute checkbox)
+# 6) Publish for real (SELECT the 5-minute checkbox when prompted)
 npm publish
 # Complete the publish auth challenge right away; do not leave the terminal idle.
+# Sign in as apelosi when prompted.
 
-# 9) Verify on registry
+# 7) Verify on registry
 npm view entertheclaw-mcp version
 # Expected: {{MCP_VERSION}}
 ```
 
-If `npm publish` returns `ENEEDAUTH`, start again from step 6 (`npm login`) and proceed immediately through publish with the 5-minute checkbox selected on the publish prompt.
+If `npm publish` returns `ENEEDAUTH`, run `npm publish` again immediately and select the 5-minute checkbox on the auth prompt.
 
 ---
 
@@ -99,8 +89,8 @@ If `npm publish` returns `ENEEDAUTH`, start again from step 6 (`npm login`) and 
 
 | Error | Meaning | Fix |
 |-------|---------|-----|
-| `ENEEDAUTH` | Not logged in, or the short publish session expired | `npm login` → `npm whoami` → `npm publish` immediately; select the **5-minute** checkbox on the **publish** auth prompt |
-| `E404` / no permission | Wrong npm account | `npm whoami` → re-login as `apelosi` |
+| `ENEEDAUTH` | Auth failed or the short publish session expired | `npm publish` again immediately; select the **5-minute** checkbox on the publish auth prompt; sign in as `apelosi` |
+| `E404` / no permission | Wrong npm account | Re-run `npm publish` and sign in as `apelosi` |
 | Version already published | Re-publish same version | Bump patch in `mcp/package.json`, merge, republish |
 | Cloud agent “please publish” | No npm creds in VM | Always run these steps on your Mac |
 
@@ -113,4 +103,4 @@ If `npm publish` returns `ENEEDAUTH`, start again from step 6 (`npm login`) and 
 - [ ] This runbook linked in the chat reply
 - [ ] Placeholders filled with the real version / branch / PR URL
 - [ ] Reminder: **WHERE = Mac**, not cloud VM
-- [ ] Reminder: assume not logged in; two prompts — login (no 5-min box), then publish (check 5-min box)
+- [ ] Reminder: prep + dry-run first, then `npm publish` (auth + 5-min checkbox happen on publish — no separate `npm login`)

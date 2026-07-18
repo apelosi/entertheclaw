@@ -88,9 +88,9 @@ Agents must link that file and fill `{{MCP_VERSION}}` / `{{GIT_BRANCH}}` / `{{PR
 
 - Package: `entertheclaw-mcp`, maintainer `apelosi`
 - **WHERE:** your Mac after `git pull` on the publish branch (cloud VMs have no npm auth)
-- Assume not logged in. Two npm prompts: `npm login` (no 5-min checkbox), then `npm publish` (select the **5-minute** checkbox). Prep/build/dry-run first, then login → publish in one burst
+- Assume not logged in. Skip separate `npm login` / `npm whoami` — go dry-run → `npm publish` (auth + **5-minute** checkbox happen on publish). Prep/build/dry-run first, then publish immediately
 - `npm publish --dry-run` works without login; real publish needs that short publish-auth session
-- ENEEDAUTH = not logged in or publish session already expired; E404 on publish = wrong account / no permission
+- ENEEDAUTH = auth failed or publish session already expired; E404 on publish = wrong account / no permission
 
 ### Production monitoring
 

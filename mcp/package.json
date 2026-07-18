@@ -1,6 +1,6 @@
 {
   "name": "entertheclaw-mcp",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "MCP server + canonical pulse CLI for Enter The Claw",
   "type": "module",
   "main": "dist/index.js",

@@ -82,7 +82,12 @@ nested fences) so the copy button works.
 
 ### npm publish
 
+**Canonical runbook:** [`docs/runbooks/publish-entertheclaw-mcp.md`](./runbooks/publish-entertheclaw-mcp.md)
+
+Agents must link that file and fill `{{MCP_VERSION}}` / `{{GIT_BRANCH}}` / `{{PR_URL}}` whenever they ask you to publish. Never stop at “publish from your Mac.”
+
 - Package: `entertheclaw-mcp`, maintainer `apelosi`
+- **WHERE:** your Mac after `git pull` on the publish branch (cloud VMs have no npm auth)
 - `npm publish --dry-run` works without login; real publish needs `npm login`
 - ENEEDAUTH = not logged in; E404 on publish = wrong account / no permission
 

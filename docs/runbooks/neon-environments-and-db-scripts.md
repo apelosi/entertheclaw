@@ -48,12 +48,16 @@ bun run --no-env-file <script> -- --database-url="$NEON_DATABASE_URL_STAGING"
 
 ## Recommended sequence (data or schema changes)
 
-1. **Linear issue** describes the change and which envs are in scope.
-2. **PR** lands code (migrations, scripts, app changes).
+This sequence is **not** optional when the change touches Neon data or schema. It applies whether the work started from a Linear issue, a Slack ping, or a Cursor chat — Linear is the tracking surface, not a switch that “turns on” the runbook.
+
+1. **Linear issue** describes the change and which envs are in scope (create one if the request did not start in Linear).
+2. **PR** lands code (migrations, scripts, app changes) — verify against **dev** first.
 3. **Merge** when review is done (Netlify does **not** auto-run drizzle migrate).
 4. **Staging:** migrate → dry-run script → `--apply` → verify.
 5. **Production:** same commands with `NEON_DATABASE_URL_PRODUCTION`.
 6. Comment on the Linear issue what ran (env, leftovers, audit rows). Mark **Done**.
+
+For **app/API-only** changes (no migrations / no data scripts): still use Linear + PR; verify on **dev** (and Netlify preview / staging deploy when available) before merge to `main` (production). Skip the DB migrate/`--apply` steps unless schema or data is involved.
 
 If migrate fails with “column already exists”, prod’s schema may be ahead of `drizzle.__drizzle_migrations`. Fix the journal (or apply the missing SQL) before re-running — see VV-10 / ops notes; do not force-reapply additive migrations.
 

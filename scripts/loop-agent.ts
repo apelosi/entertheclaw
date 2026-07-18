@@ -148,6 +148,14 @@ interface ClaimResponse {
   error?: string
   grantedTo?: string
   winnerAgentId?: string
+  retry_after_ms?: number
+  consecutiveSoloDialogueCount?: number
+}
+
+interface ClaimOutcome {
+  granted: boolean
+  /** When claim was refused with solo_backoff, sleep at least this long. */
+  retryAfterMs?: number
 }
 
 interface RecallLine {
@@ -261,24 +269,31 @@ async function recall(
   return r.ok && r.data?.lines ? r.data.lines : []
 }
 
-async function claimTurn(stake: number, intent: string): Promise<boolean> {
+async function claimTurn(stake: number, intent: string): Promise<ClaimOutcome> {
   const claim = await api<ClaimResponse>('POST', `/stages/${STAGE_ID}/turn/claim`, {
     stake,
     intent,
   })
   if (!claim.ok) {
+    if (claim.status === 409 && claim.error === 'solo_backoff') {
+      const retryAfterMs = claim.data?.retry_after_ms
+      console.log(
+        `[claim] solo_backoff count=${claim.data?.consecutiveSoloDialogueCount ?? '?'} retry_after_ms=${retryAfterMs ?? '?'} — skipping model`,
+      )
+      return { granted: false, retryAfterMs }
+    }
     if (claim.status === 409) {
       console.log(`[claim] lost to another agent (${claim.error}).`)
-      return false
+      return { granted: false }
     }
     console.warn(`[claim] error ${claim.status} ${claim.error}`)
-    return false
+    return { granted: false }
   }
   if (!claim.data?.granted) {
     console.log(`[claim] not granted: ${claim.data?.error ?? 'unknown'}`)
-    return false
+    return { granted: false }
   }
-  return true
+  return { granted: true }
 }
 
 // Cursor: ID of the most recent event seen. Passed as sinceEventId so the
@@ -315,8 +330,10 @@ async function pulseOnce(): Promise<number> {
   if (!haveFloor) {
     const alone = data.stage !== null && data.recentDialogue.length === 0
     if (!(alone && data.turnState.open)) {
-      const granted = await claimTurn(directive.stake, directive.reason)
-      if (!granted) return clampInterval(data.nextPulseSuggestionMs)
+      const claim = await claimTurn(directive.stake, directive.reason)
+      if (!claim.granted) {
+        return clampInterval(claim.retryAfterMs ?? data.nextPulseSuggestionMs)
+      }
     }
   }
 

@@ -7,6 +7,8 @@ import { emitTurnOpen } from '@/lib/stage/emit-turn-open'
 import { refreshCharacterMemoriesIfStale } from '@/lib/stage/character-memory'
 import { reactivateAgentIfNeeded } from '@/lib/stage/agent-activity-status'
 import { repairDialogueFormatting, stripAgentToolLeakage } from '@/lib/stage/dialogue-format'
+import { loadSoloBackoffEvaluation } from '@/lib/stage/load-solo-backoff'
+import { soloBackoffErrorBody } from '@/lib/stage/solo-backoff'
 import { eq, and, desc } from 'drizzle-orm'
 
 export const runtime = 'nodejs'
@@ -173,6 +175,19 @@ export async function POST(
         },
         { status: 423 },
       )
+    }
+
+    // Consecutive-solo safety net for speak-without-claim (open floor, no grant).
+    // Agents that already hold a grant passed the claim check; skip here.
+    if (!activeGrant) {
+      const solo = await loadSoloBackoffEvaluation(stageId, agent.id)
+      if (solo.blocked) {
+        const body = soloBackoffErrorBody(solo)
+        return Response.json(body, {
+          status: 409,
+          headers: { 'Retry-After': String(body.retry_after_seconds) },
+        })
+      }
     }
 
     // Get current character for speaker metadata

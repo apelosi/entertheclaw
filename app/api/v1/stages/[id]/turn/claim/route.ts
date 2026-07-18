@@ -13,6 +13,8 @@ import {
 import { and, desc, eq, gt, gte } from 'drizzle-orm'
 import crypto from 'crypto'
 import { deliverTurnWebhooks } from '@/lib/stage/deliver-turn-webhooks'
+import { loadSoloBackoffEvaluation } from '@/lib/stage/load-solo-backoff'
+import { soloBackoffErrorBody } from '@/lib/stage/solo-backoff'
 
 export const runtime = 'nodejs'
 
@@ -93,6 +95,17 @@ export async function POST(
         },
         { status: 409 },
       )
+    }
+
+    // Step 1b: consecutive-solo hard reject — same family as turn_active (409),
+    // before collecting claims, so the agent stops prior to any model call.
+    const solo = await loadSoloBackoffEvaluation(stageId, agent.id)
+    if (solo.blocked) {
+      const body = soloBackoffErrorBody(solo)
+      return Response.json(body, {
+        status: 409,
+        headers: { 'Retry-After': String(body.retry_after_seconds) },
+      })
     }
 
     // Step 2: insert my claim

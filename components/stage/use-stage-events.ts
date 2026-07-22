@@ -52,16 +52,21 @@ interface Handlers {
   onSceneChange?: (data: SceneChangeContent, raw: SSEEvent<SceneChangeContent>) => void
 }
 
-/** Subscribe to a stage's SSE stream. Handlers are read-via-ref so callers can swap closures freely. */
+/**
+ * Subscribe to a stage's SSE stream.
+ * Handlers are read-via-ref so callers can swap closures freely.
+ * While the document is hidden, the EventSource is closed so the server stops
+ * polling Postgres (Neon compute cost — VV-20).
+ */
 export function useStageEvents(stageId: string, handlers: Handlers) {
   const handlersRef = useRef(handlers)
   handlersRef.current = handlers
 
   useEffect(() => {
-    const es = new EventSource(`/api/v1/stages/${stageId}/events`)
+    let es: EventSource | null = null
 
-    function bind<T>(name: string, fn: (data: T, raw: SSEEvent<T>) => void) {
-      es.addEventListener(name, (e: MessageEvent) => {
+    function bind<T>(source: EventSource, name: string, fn: (data: T, raw: SSEEvent<T>) => void) {
+      source.addEventListener(name, (e: MessageEvent) => {
         try {
           const raw = JSON.parse(e.data) as SSEEvent<T>
           const content = (raw?.content ?? raw) as T
@@ -72,28 +77,49 @@ export function useStageEvents(stageId: string, handlers: Handlers) {
       })
     }
 
-    bind<DialogueContent>('dialogue', (data, raw) =>
-      handlersRef.current.onDialogue?.(data, raw)
-    )
-    bind<TwistContent>('twist', (data, raw) =>
-      handlersRef.current.onTwist?.(data, raw)
-    )
-    bind<JoinedContent>('joined', (data, raw) =>
-      handlersRef.current.onJoined?.(data, raw)
-    )
-    bind<CharacterReadyContent>('character_ready', (data, raw) =>
-      handlersRef.current.onCharacterReady?.(data, raw)
-    )
-    bind<SceneChangeContent>('scene_change', (data, raw) =>
-      handlersRef.current.onSceneChange?.(data, raw)
-    )
-
-    es.onerror = () => {
-      // EventSource auto-reconnects; nothing to do.
+    function connect() {
+      if (es) return
+      es = new EventSource(`/api/v1/stages/${stageId}/events`)
+      bind<DialogueContent>(es, 'dialogue', (data, raw) =>
+        handlersRef.current.onDialogue?.(data, raw),
+      )
+      bind<TwistContent>(es, 'twist', (data, raw) =>
+        handlersRef.current.onTwist?.(data, raw),
+      )
+      bind<JoinedContent>(es, 'joined', (data, raw) =>
+        handlersRef.current.onJoined?.(data, raw),
+      )
+      bind<CharacterReadyContent>(es, 'character_ready', (data, raw) =>
+        handlersRef.current.onCharacterReady?.(data, raw),
+      )
+      bind<SceneChangeContent>(es, 'scene_change', (data, raw) =>
+        handlersRef.current.onSceneChange?.(data, raw),
+      )
+      es.onerror = () => {
+        // EventSource auto-reconnects while open; nothing to do.
+      }
     }
 
-    return () => {
+    function disconnect() {
+      if (!es) return
       es.close()
+      es = null
+    }
+
+    function syncVisibility() {
+      if (typeof document !== 'undefined' && document.hidden) {
+        disconnect()
+      } else {
+        connect()
+      }
+    }
+
+    syncVisibility()
+    document.addEventListener('visibilitychange', syncVisibility)
+
+    return () => {
+      document.removeEventListener('visibilitychange', syncVisibility)
+      disconnect()
     }
   }, [stageId])
 }

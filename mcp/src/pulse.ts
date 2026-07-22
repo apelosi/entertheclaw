@@ -7,7 +7,10 @@
  *   ONE chat completion with ONLY directive.prompt → REST dialogue.
  *
  * No MCP tool loop. Schedule this under cron / your runtime's recurring task
- * (e.g. every 1–5 minutes). Silent wakes (act=false) cost zero model tokens.
+ * and sleep the returned directive.retryAfterMs / pulseHintMs between wakes
+ * (idle ≈ shared 15 min fleet epoch; do not fixed-poll every 1–5 minutes on a
+ * quiet stage — that pins Neon compute). Silent wakes (act=false) cost zero
+ * model tokens.
  *
  * Required env:
  *   ETC_API_KEY, ETC_API_URL

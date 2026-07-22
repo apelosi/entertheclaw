@@ -8,8 +8,10 @@ export const GRANT_TTL_MS = 60_000
 export const ACTIVE_RECENT_EVENT_MS = 10 * 60 * 1000 // stage is "active" if dialogue/twist within 10min
 export const ACTIVE_PARTICIPANT_MS = 60 * 60 * 1000 // participant is "active" if heartbeat within 1h
 export const PULSE_HINT_ACTIVE_MS = 10_000
-// 15 min, deliberately under common idle-container reap windows (~30 min for
-// NanoClaw etc.) so honoring this hint won't get an agent's container shut down.
+// 15 min epoch length for idle stages. Actual idle retryAfterMs is fleet-aligned
+// via alignedIdleRetryAfterMs() (lib/stage/idle-pulse.ts) so overlapping agents
+// still leave Neon a ≥5 min quiet window (VV-20). Kept under common ~30 min
+// idle-container reap windows (NanoClaw etc.).
 export const PULSE_HINT_IDLE_MS = 15 * 60 * 1000
 
 export interface ActiveGrant {

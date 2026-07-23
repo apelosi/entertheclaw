@@ -14,6 +14,7 @@ import {
   PULSE_HINT_ACTIVE_MS,
   PULSE_HINT_IDLE_MS,
 } from '@/lib/stage/turn-state'
+import { shouldUpdatePresence } from '@/lib/stage/idle-pulse'
 import { eq, and, desc, gte, gt, notInArray, sql } from 'drizzle-orm'
 import { resolveCurrentScene } from '@/lib/stage/apply-scene-classifier'
 import { computeNudge } from '@/lib/stage/inactivity-nudge'
@@ -43,6 +44,45 @@ function slimEvent(event: typeof stageEvents.$inferSelect) {
   if (!c) return event
   const { snapshot: _snapshot, ...rest } = c
   return { ...event, content: rest }
+}
+
+async function maybeTouchPresence(opts: {
+  agentId: string
+  participantId: string
+  agentLastHeartbeatAt: Date | null
+  participantLastActiveAt: Date | null
+  now: Date
+}): Promise<void> {
+  const tasks: Promise<unknown>[] = []
+  if (shouldUpdatePresence(opts.agentLastHeartbeatAt, opts.now)) {
+    tasks.push(
+      db
+        .update(agents)
+        .set({ lastHeartbeatAt: opts.now })
+        .where(eq(agents.id, opts.agentId)),
+    )
+  }
+  if (shouldUpdatePresence(opts.participantLastActiveAt, opts.now)) {
+    tasks.push(
+      db
+        .update(stageParticipants)
+        .set({ lastActiveAt: opts.now })
+        .where(eq(stageParticipants.id, opts.participantId)),
+    )
+  }
+  if (tasks.length > 0) await Promise.all(tasks)
+}
+
+function pulseHints(opts: {
+  stageActivity: 'active' | 'idle'
+  addressedToYou: boolean
+}): { pulseHintMs: number; nextPulseSuggestionMs: number } {
+  const pulseHintMs =
+    opts.stageActivity === 'active' ? PULSE_HINT_ACTIVE_MS : PULSE_HINT_IDLE_MS
+  const nextPulseSuggestionMs = opts.addressedToYou
+    ? Math.min(pulseHintMs, 60_000)
+    : pulseHintMs
+  return { pulseHintMs, nextPulseSuggestionMs }
 }
 
 export async function POST(
@@ -98,6 +138,145 @@ export async function POST(
       sinceCreatedAt = sinceEvent?.createdAt ?? null
     }
 
+    // --- Idle fast-path (VV-20) ---
+    // When the caller has a cursor, nothing new happened, the stage is idle, we
+    // do not hold a grant, and no inactivity nudge is due: skip the heavy
+    // Promise.all and return act=false with a plain idle-duration sleep hint.
+    if (sinceEventId) {
+      const [
+        [latestEvent],
+        stageActivity,
+        activeGrant,
+        [lastDialogueRow],
+        [agentLastDialogueRow],
+        participantCountRows,
+      ] = await Promise.all([
+        db
+          .select({ id: stageEvents.id })
+          .from(stageEvents)
+          .where(eq(stageEvents.stageId, stageId))
+          .orderBy(desc(stageEvents.createdAt))
+          .limit(1),
+        classifyStageActivity(stageId),
+        getActiveGrant(stageId),
+        db
+          .select({ createdAt: stageEvents.createdAt })
+          .from(stageEvents)
+          .where(
+            and(
+              eq(stageEvents.stageId, stageId),
+              eq(stageEvents.type, 'dialogue'),
+            ),
+          )
+          .orderBy(desc(stageEvents.createdAt))
+          .limit(1),
+        db
+          .select({ createdAt: stageEvents.createdAt })
+          .from(stageEvents)
+          .where(
+            and(
+              eq(stageEvents.stageId, stageId),
+              eq(stageEvents.agentId, agent.id),
+              eq(stageEvents.type, 'dialogue'),
+            ),
+          )
+          .orderBy(desc(stageEvents.createdAt))
+          .limit(1),
+        db
+          .select({ count: sql<number>`count(*)::int` })
+          .from(stageParticipants)
+          .where(eq(stageParticipants.stageId, stageId)),
+      ])
+
+      const unchanged = latestEvent?.id === sinceEventId
+      const holdFloor = activeGrant?.agentId === agent.id
+      const lastDialogueAt = lastDialogueRow?.createdAt
+        ? new Date(lastDialogueRow.createdAt).getTime()
+        : null
+      const lastDialogueAgoMs =
+        lastDialogueAt === null ? null : Math.max(0, now.getTime() - lastDialogueAt)
+      const agentLastDialogueMs = agentLastDialogueRow?.createdAt
+        ? new Date(agentLastDialogueRow.createdAt).getTime()
+        : null
+      const probeNudge = computeNudge({
+        now: now.getTime(),
+        stageLastDialogueMs: lastDialogueAt,
+        agentLastDialogueMs,
+        agentJoinedMs: participant.joinedAt
+          ? new Date(participant.joinedAt).getTime()
+          : null,
+        participantCount: participantCountRows[0]?.count ?? 0,
+      })
+
+      if (
+        unchanged &&
+        stageActivity === 'idle' &&
+        !holdFloor &&
+        !probeNudge
+      ) {
+        await maybeTouchPresence({
+          agentId: agent.id,
+          participantId: participant.id,
+          agentLastHeartbeatAt: agent.lastHeartbeatAt ?? null,
+          participantLastActiveAt: previousLastActiveAt,
+          now,
+        })
+
+        const { pulseHintMs, nextPulseSuggestionMs } = pulseHints({
+          stageActivity: 'idle',
+          addressedToYou: false,
+        })
+
+        const directive = buildDirective({
+          myAgentId: agent.id,
+          stageName: 'the stage',
+          character: null,
+          characterMemory: null,
+          currentScene: null,
+          activeTwist: null,
+          recentDialogue: [],
+          turnState: {
+            open: !activeGrant,
+            grantedTo: activeGrant?.agentId ?? null,
+            lastDialogueAgoMs,
+          },
+          addressedToYou: false,
+          nudge: null,
+          unreadHasTwist: false,
+          idleRetryAfterMs: nextPulseSuggestionMs,
+          consecutiveSoloDialogueCount: 0,
+        })
+
+        return Response.json({
+          ok: true,
+          timestamp: now.toISOString(),
+          stage: { id: stageId, name: null, theme: null, isActive: true },
+          character: null,
+          characterMemory: null,
+          recentDialogue: [],
+          stageActivity: 'idle',
+          pulseHintMs,
+          nextPulseSuggestionMs,
+          turnState: {
+            open: !activeGrant,
+            lastDialogueAgoMs,
+            grantedTo: activeGrant?.agentId ?? null,
+            grantExpiresAt: activeGrant?.expiresAt ?? null,
+          },
+          addressedToYou: false,
+          nudge: null,
+          unreadEvents: [],
+          currentScene: null,
+          activeTwist: null,
+          sceneChanged: false,
+          latestEventId: sinceEventId,
+          directive,
+          // Telemetry for cost diagnosis (safe for agents to ignore).
+          heartbeatPath: 'idle_fast',
+        })
+      }
+    }
+
     // Build unread query: cursor takes priority over lastActiveAt.
     const unreadQuery = sinceCreatedAt
       ? db
@@ -130,6 +309,16 @@ export async function POST(
             .orderBy(desc(stageEvents.createdAt))
             .limit(10)
 
+    const touchAgent = shouldUpdatePresence(agent.lastHeartbeatAt ?? null, now)
+      ? db.update(agents).set({ lastHeartbeatAt: now }).where(eq(agents.id, agent.id))
+      : Promise.resolve()
+    const touchParticipant = shouldUpdatePresence(previousLastActiveAt, now)
+      ? db
+          .update(stageParticipants)
+          .set({ lastActiveAt: now })
+          .where(eq(stageParticipants.id, participant.id))
+      : Promise.resolve()
+
     const [
       ,
       ,
@@ -144,11 +333,8 @@ export async function POST(
       agentLastDialogueRows,
       [latestTwistEvent],
     ] = await Promise.all([
-      db.update(agents).set({ lastHeartbeatAt: now }).where(eq(agents.id, agent.id)),
-      db
-        .update(stageParticipants)
-        .set({ lastActiveAt: now })
-        .where(eq(stageParticipants.id, participant.id)),
+      touchAgent,
+      touchParticipant,
       db.select().from(stages).where(eq(stages.id, stageId)).limit(1),
       db
         .select()
@@ -269,10 +455,10 @@ export async function POST(
         return isAddressed(c.text, charName)
       })
 
-    const pulseHintMs = stageActivity === 'active' ? PULSE_HINT_ACTIVE_MS : PULSE_HINT_IDLE_MS
-    const nextPulseSuggestionMs = addressedToYou
-      ? Math.min(pulseHintMs, 60_000)
-      : pulseHintMs
+    const { pulseHintMs, nextPulseSuggestionMs } = pulseHints({
+      stageActivity,
+      addressedToYou,
+    })
 
     const currentScene = resolvedScene?.scene ?? null
 
@@ -401,6 +587,7 @@ export async function POST(
       // If act=false, do nothing and sleep directive.retryAfterMs. This is all
       // you need — no standing rules, no context assembly.
       directive,
+      heartbeatPath: 'full',
     })
   } catch (err) {
     console.error('[POST /api/v1/stages/:id/heartbeat]', err)

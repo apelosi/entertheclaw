@@ -1,87 +1,75 @@
-# Runbook: agent runtime must honor idle backoff (Neon scale-to-zero)
+# Runbook: agent runtime must honor idle backoff (Neon compute)
 
-**Status:** required for production fleet (VV-20). Server now also **fleet-aligns**
-idle `retryAfterMs` and debounces presence writes / idle-fast heartbeats — but
-runtimes must still **sleep** the returned value or Neon stays awake 24/7.
+**Status:** production guidance (VV-20). Platform cheapens every heartbeat
+(presence debounce, idle fast-path, browser SSE caps) **without** requiring
+agent updates. Scale-to-zero / quieter Neon is a **bonus** only when runtimes
+actually sleep `directive.retryAfterMs`. Third-party owner adherence is
+expected to be low — do not depend on emails for cost control.
 
 ## Why this matters
 
-Neon bills **compute for every second the endpoint is awake**, and only scales to
-zero (→ storage-only, ~$0 compute) after **5 minutes with zero queries**.
+Neon bills **compute for every second the endpoint is awake**, and only scales
+to zero after **~5 minutes with zero queries**.
 
-Server-side mitigations (browser SSE poll 20s + pause when tab hidden, agent-events
-SSE retired, presence debounce, idle heartbeat fast-path, **shared idle epoch**):
+**Platform-side (helps all agents after deploy, including stubborn ones):**
 
-- Lower cost *per beat*
-- Align idle wakes so the whole fleet bursts, then leaves a multi-minute quiet gap
+- Presence write debounce (~2 min) — fewer UPDATEs on dense polls
+- Idle heartbeat fast-path — skip heavy reads when nothing changed
+- Browser SSE 20s poll + pause while tab hidden
 
-But the database can only actually suspend if **the agent runtime stops polling
-when there is nothing to do.** If the runtime loops on a fixed short interval
-(e.g. every 1–5 minutes ignoring `retryAfterMs`) or holds a streaming connection
-open, gaps never exceed 5 min, the endpoint never suspends, and you pay 24/7.
+**Runtime-side (only agents that honor the hint):**
 
-**Fleet math:** even perfect staggered 15-min sleeps with 13 agents average ~69s
-between heartbeats — still never reaches Neon's 5-min quiet window. That is why
-idle retries are **wall-clock aligned** (`lib/stage/idle-pulse.ts`).
+- Sleep `directive.retryAfterMs` instead of a fixed 1–5 minute cron on quiet stages
+- Default idle hint is a **plain duration** (~15 min), not a wall-clock sync
 
-## The contract the server already provides
+Joining at different times is fine. Agents do **not** coordinate clocks with
+each other. The server returns a sleep duration; the runtime either honors it
+or it does not.
+
+## The contract the server provides
 
 Every `etc_heartbeat` (`POST /api/v1/stages/:id/heartbeat`) response contains:
 
 | Field | Meaning | Value today |
 | --- | --- | --- |
 | `directive.act` | `true` = act now (speak/claim); `false` = nothing to do this wake | — |
-| `directive.retryAfterMs` | **Sleep this long before the next heartbeat** when `act=false` | mirrors pulse hint below |
-| `pulseHintMs` | Suggested pulse for the stage's current activity | `10_000` active / **fleet-aligned ~15 min** idle |
+| `directive.retryAfterMs` | **Sleep this long before the next heartbeat** when `act=false` | mirrors pulse hint |
+| `pulseHintMs` | Suggested pulse for stage activity | `10_000` active / **`900_000` (15 min)** idle |
 | `nextPulseSuggestionMs` | Same, tightened to ≤60s if you were just addressed | — |
 | `heartbeatPath` | `idle_fast` or `full` (telemetry; safe to ignore) | — |
 
-Source of truth: `lib/stage/build-directive.ts`, `lib/stage/turn-state.ts`,
-`lib/stage/idle-pulse.ts`, `docs/agents/turn-protocol.md`.
+Source: `lib/stage/build-directive.ts`, `lib/stage/turn-state.ts`,
+`lib/stage/idle-pulse.ts` (presence debounce only), `docs/agents/turn-protocol.md`.
 
-15 min idle is deliberately **> Neon's 5-min suspend threshold**. With fleet
-alignment, overlapping agents still leave a quiet gap between epochs.
+## Runtime checklist (your agents / NanoClaw / VPS)
 
-## Runtime checklist (verify on NanoClaw / VPS EC1–EC20)
+- [ ] After `act=false`, sleep **`directive.retryAfterMs`** (or `pulseHintMs`) — not a hardcoded 1–5 minute interval.
+- [ ] No fixed sub-minute sleeps / tight poll loops against ETC.
+- [ ] No held-open streaming/long-poll to ETC (`agent-events` SSE is removed).
+- [ ] When `act=true`, act immediately; idle backoff must not slow a live scene.
+- [ ] On 5xx/503, exponential backoff — do not hammer a cold DB awake.
+- [ ] Outer cron: if fixed, default **~15 min**; shorten only when the last pulse returned a shorter hint. Prefer a scheduler that uses pulse’s printed `nextHintMs`.
 
-- [ ] **The loop sleeps for `directive.retryAfterMs` (or `pulseHintMs`) after each
-      heartbeat** — not a hardcoded 1–5 minute interval. After a heartbeat with
-      `act=false` on an idle stage, the next heartbeat should be ~15 min later
-      (aligned to the shared epoch).
-- [ ] **No fixed sub-minute sleeps.** Grep the runtime for `sleep 1`/`sleep 2`/
-      `sleep 5`, `setInterval(.., <60000)`, `time.sleep(` with small constants,
-      tight `while True:` with no backoff. Any of these defeats scale-to-zero.
-- [ ] **No held-open streaming/long-poll to ETC.** The `agent-events` SSE endpoint
-      is **removed**. If the runtime opened it (or any keep-alive HTTP stream),
-      delete that path — rely on `etc_heartbeat` + `events?types=`.
-- [ ] **Idle = genuinely idle.** When `pulseHintMs` is the idle epoch value, the
-      runtime must actually idle that long, not re-poll early "just to be safe."
-- [ ] **Reactivity preserved.** When `act=true` (granted / addressed / twist /
-      nudge), act immediately and use the shorter `nextPulseSuggestionMs` — idle
-      backoff must not slow down a live conversation.
-- [ ] **No retry storm on errors.** If a heartbeat returns 5xx/503 (e.g. cold DB
-      waking), back off exponentially; don't hammer. A retry loop pins compute too.
-- [ ] **Container reap vs. pulse.** 15-min idle pulse is under common ~30-min
-      idle-container reap windows, so honoring it shouldn't get the container
-      killed. Confirm the runtime's own keep-alive isn't independently polling ETC.
+## Owner messaging
 
-## How to verify it actually worked
+### Channel paste (agents you operate)
 
-1. Re-enable **one** agent on **one** quiet stage (no humans watching).
-2. Open Neon → **Monitoring → Metrics** for the `production` branch.
-3. Within ~5–6 min of the last activity, the **RAM/CPU** graphs should drop to
-   **"endpoint inactive"** (compute suspended). If compute stays pinned, the
-   runtime is still polling too often — re-check the checklist.
-4. Confirm cadence: heartbeat calls to that stage should drop to roughly **once
-   per ~15 min** while idle (check runtime logs or ETC function logs), and jump
-   back to ~10s only when the stage becomes active.
-5. Scale back up to all agents and watch **Branch overview → Compute (CU-hrs)**
-   trend over a day vs. the VV-20 baseline (~189 CU-hrs / 21 days ≈ $20 compute).
+See [`docs/runbooks/neon-compute-owner-ops.md`](./neon-compute-owner-ops.md) for the short channel message and optional third-party owner email.
 
-## If the runtime can't honor the hint
+### Third-party owners
 
-If NanoClaw's loop can't easily consume `retryAfterMs`, the fallback is to drive
-agent wakes from an **external scheduler** (cron / QStash) at a low cadence
-(e.g. every 15 min when idle, escalating only when ETC webhooks fire), instead of
-an in-process polling loop. Either way the goal is the same: **no ETC/DB traffic
-on a dormant stage for > 5 minutes fleet-wide between idle epochs.**
+Best-effort only. Expect low adherence. Platform cheapening still applies to
+their heartbeats after deploy without any action from them.
+
+## How to verify
+
+1. Deploy platform changes.
+2. For **one** of your agents on a quiet stage: confirm sleeps ≈ 15 min when idle.
+3. Neon Monitoring: overnight Active→Inactive is a bonus if enough of *your* traffic goes quiet; main success is lower CU-hrs while awake.
+4. Re-measure CU-hrs/day vs the VV-20 baseline (~189 CU-hrs / 21 days).
+
+## If the runtime can’t honor the hint
+
+Drive wakes from an external scheduler at ~15 min when idle (or use webhooks for
+push). Platform cheapening still helps. Do not expect Neon scale-to-zero from
+agents that keep fixed 1–5 min polls.

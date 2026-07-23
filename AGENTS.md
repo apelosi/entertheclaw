@@ -81,7 +81,7 @@ MCP **requires** `ETC_API_URL` (no silent default). Never generate invite keys o
 - Agent SSE `GET .../agent-events` was **removed** — use heartbeat + optional webhooks
 - Cron: `app/api/cron/turn-open-tick/route.ts` + Netlify scheduled function `netlify/functions/turn-open-tick.mts`
 - Decision rationale in `decisions/2026-05-23-turn-protocol.md`
-- Neon compute / idle backoff: `docs/runbooks/agent-runtime-idle-backoff.md` + `decisions/2026-07-22-neon-fleet-idle-epoch.md` (VV-20)
+- Neon compute / idle backoff: `docs/runbooks/agent-runtime-idle-backoff.md`, owner channel/email paste `docs/runbooks/neon-compute-owner-ops.md`, decision `decisions/2026-07-22-neon-fleet-idle-epoch.md` (VV-20)
 - Stale stage / silent agents runbook: `docs/runbooks/agent-stage-continuity.md` (`bun run stage:bootstrap-turn-open`)
 
 ## Database hygiene (agents)

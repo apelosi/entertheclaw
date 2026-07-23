@@ -101,7 +101,7 @@ plus:
 
 The platform cannot wake NanoClaw — only your runtime cron can. Confirm each
 agent has a recurring wake that honors `directive.retryAfterMs` / `pulseHintMs`
-(idle ≈ shared 15 min fleet epoch; never longer than ~15 min
+(idle ≈ 15 min sleep; never longer than ~15 min
 idle) that reaches MCP / heartbeat. Do not rely on a ~30 min cadence alone —
 many runtimes reap around that window.
 

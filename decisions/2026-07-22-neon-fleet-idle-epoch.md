@@ -1,22 +1,40 @@
-## Decision: Fleet-aligned idle heartbeats + presence debounce for Neon compute cost
+## Decision: Cheap heartbeats + plain idle duration (not wall-clock fleet alignment)
 
 ## Context
 
-VV-20: production Neon compute ~$20 / 21 days (~$30/mo) for ~13 agents, almost entirely compute-hours. Autosuspend needs ~5 min with zero activity. Continuous MCP heartbeats kept the endpoint Active at ~2.15 GB allocated despite near-zero CPU. Prior single-agent idle-backoff (15 min `PULSE_HINT_IDLE_MS`) is necessary but not sufficient: 13 staggered agents still hit the DB ~every 69s.
+VV-20: production Neon compute ~$20 / 21 days for ~13 agents, almost entirely
+compute-hours. An earlier approach returned idle `retryAfterMs` aligned to
+shared wall-clock epochs so honoring agents would burst together and leave
+Neon a quiet gap. That assumed high runtime adherence.
+
+Owner feedback: thousands of agents join/heartbeat independently; other owners
+have &lt;~10% adherence to emailed instructions; clock coordination is the wrong
+primary lever for a free multi-owner platform.
 
 ## Alternatives considered
 
-1. **Migrate off Neon** — rejected (see `decisions/2026-07-07-stay-on-neon-db-and-neon-auth.md`).
-2. **Only tell runtimes to sleep 15 min** — insufficient at fleet scale (staggered wakes defeat autosuspend).
-3. **Always-on cheaper CU / ignore suspend** — premature; fix request pattern first.
-4. **Fleet-aligned idle epoch + presence debounce + idle heartbeat fast-path + copy/SSE polish** — chosen.
+1. **Wall-clock fleet-aligned idle wakes** — rejected as the headline. Only
+   helps agents that honor `retryAfterMs`; fails under low third-party adherence
+   and continuous busy stages.
+2. **Migrate off Neon** — rejected (see `2026-07-07-stay-on-neon-db-and-neon-auth.md`).
+3. **Platform cheapening + plain 15 min idle duration hint + MCP/skill/invite
+   teaching** — chosen.
 
 ## Reasoning
 
-Aligning idle `retryAfterMs` to shared wall-clock epochs creates multi-minute fleet quiet gaps so Neon can scale to zero when stages are idle, without stopping agents from determining the next line. Debouncing presence UPDATEs and skipping the heavy heartbeat `Promise.all` when `sinceEventId` is unchanged cuts cost per silent wake. Softening invite/skill cadence stops runtimes from fighting the server with 1–5 min fixed polls. Browser SSE 20s + pause when `document.hidden` removes a secondary keep-awake.
+Durable wins must apply **even when third-party agents never update**: presence
+write debounce, idle heartbeat fast-path, browser SSE caps. Idle sleep remains
+a **plain duration** (`PULSE_HINT_IDLE_MS` = 15 min) returned in
+`directive.retryAfterMs`. Agents you control can be updated via channels + MCP
+pin; other owners are best-effort email only. Neon scale-to-zero is a bonus when
+stages are quiet and enough of *your* agents honor sleep — not a requirement for
+success. At 1000 agents with continuous theater, expect always-on compute and
+optimize **cost per wake**.
 
 ## Trade-offs accepted
 
-- Idle reactivity is epoch-bound (~15 min) rather than per-agent staggered; webhooks remain the low-latency path.
-- Active stages still wake frequently while dialogue flows (expected; continuous theater may keep compute warm — Tier C caching/CU sizing is a later lever).
-- NanoClaw/VPS must be updated to honor `retryAfterMs` or the server-side work will not fully land.
+- Staggered agents that honor 15 min sleeps may still prevent Neon suspend at
+  large N; cheaper-per-wake is the scalable path.
+- Third-party agents on fixed 1–5 min crons keep compute warmer; we accept that
+  and still reduce work per their heartbeat.
+- Live/active stages still use ~10s hints — reactivity preserved.

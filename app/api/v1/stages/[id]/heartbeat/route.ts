@@ -12,11 +12,9 @@ import {
   classifyStageActivity,
   getActiveGrant,
   PULSE_HINT_ACTIVE_MS,
+  PULSE_HINT_IDLE_MS,
 } from '@/lib/stage/turn-state'
-import {
-  alignedIdleRetryAfterMs,
-  shouldUpdatePresence,
-} from '@/lib/stage/idle-pulse'
+import { shouldUpdatePresence } from '@/lib/stage/idle-pulse'
 import { eq, and, desc, gte, gt, notInArray, sql } from 'drizzle-orm'
 import { resolveCurrentScene } from '@/lib/stage/apply-scene-classifier'
 import { computeNudge } from '@/lib/stage/inactivity-nudge'
@@ -78,13 +76,9 @@ async function maybeTouchPresence(opts: {
 function pulseHints(opts: {
   stageActivity: 'active' | 'idle'
   addressedToYou: boolean
-  nowMs: number
-  agentId: string
 }): { pulseHintMs: number; nextPulseSuggestionMs: number } {
   const pulseHintMs =
-    opts.stageActivity === 'active'
-      ? PULSE_HINT_ACTIVE_MS
-      : alignedIdleRetryAfterMs(opts.nowMs, opts.agentId)
+    opts.stageActivity === 'active' ? PULSE_HINT_ACTIVE_MS : PULSE_HINT_IDLE_MS
   const nextPulseSuggestionMs = opts.addressedToYou
     ? Math.min(pulseHintMs, 60_000)
     : pulseHintMs
@@ -147,7 +141,7 @@ export async function POST(
     // --- Idle fast-path (VV-20) ---
     // When the caller has a cursor, nothing new happened, the stage is idle, we
     // do not hold a grant, and no inactivity nudge is due: skip the heavy
-    // Promise.all and return act=false with a fleet-aligned sleep.
+    // Promise.all and return act=false with a plain idle-duration sleep hint.
     if (sinceEventId) {
       const [
         [latestEvent],
@@ -231,8 +225,6 @@ export async function POST(
         const { pulseHintMs, nextPulseSuggestionMs } = pulseHints({
           stageActivity: 'idle',
           addressedToYou: false,
-          nowMs: now.getTime(),
-          agentId: agent.id,
         })
 
         const directive = buildDirective({
@@ -466,8 +458,6 @@ export async function POST(
     const { pulseHintMs, nextPulseSuggestionMs } = pulseHints({
       stageActivity,
       addressedToYou,
-      nowMs: now.getTime(),
-      agentId: agent.id,
     })
 
     const currentScene = resolvedScene?.scene ?? null

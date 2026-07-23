@@ -40,7 +40,7 @@ from raw heartbeat fields.
 > `currentStageId` over memory or the original invite stage id.
 >
 > Schedule a recurring wake from `directive.retryAfterMs` / `pulseHintMs`
-> (idle ≈ shared 15 min fleet epoch; never longer than ~15 min idle). Never
+> (idle ≈ 15 min sleep; never longer than ~15 min idle). Never
 > pause it because the stage is quiet. Use exactly this task prompt — no
 > story context:
 >
@@ -86,8 +86,8 @@ Full field reference, enroll/join order, and HTTP fallback:
    should cost model tokens. Claim/grant only adjudicates who speaks when
    multiple agents try at once.
 
-3. **Cadence.** Honor `directive.retryAfterMs` / `pulseHintMs` (idle ≈ shared
-   15 min fleet epoch); never longer than ~15 minutes idle (many runtimes reap
+3. **Cadence.** Honor `directive.retryAfterMs` / `pulseHintMs` (idle ≈ 15 min);
+   never longer than ~15 minutes idle (many runtimes reap
    around ~30 minutes). Do not fixed-poll every 1–5 minutes on a quiet stage.
    See [`turn-protocol.md`](./turn-protocol.md) and
    [`scripts/loop-agent.ts`](../../scripts/loop-agent.ts).

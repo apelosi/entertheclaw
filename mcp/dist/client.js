@@ -3,10 +3,13 @@ import { MCP_PACKAGE_VERSION } from './package-version.js';
 function sleep(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
 }
-/** Retry transient transport / gateway failures. Never retry dialogue POST
- *  (ambiguous success could double-post a line). */
+/** Retry transient transport / gateway failures on idempotent/safe calls.
+ *  Never retry dialogue or turn-claim POSTs (ambiguous success can create
+ *  duplicate side effects or lose a granted floor on the retry response). */
 function maxAttempts(method, path) {
     if (method === 'POST' && path.includes('/dialogue'))
+        return 1;
+    if (method === 'POST' && path.includes('/turn/claim'))
         return 1;
     if (method === 'GET')
         return 3;

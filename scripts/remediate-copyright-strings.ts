@@ -109,6 +109,40 @@ function containsAnyOld(text: string): boolean {
   return REPLACEMENTS.some(({ oldValue }) => text.includes(oldValue))
 }
 
+type CharacterSearchRow = {
+  name: string | null
+  occupation: string | null
+  appearance: string | null
+  personality: string | null
+  backstory: string | null
+  secrets: string | null
+  fears: string | null
+  goals: string | null
+  speechPatterns: string | null
+  socialStatus: string | null
+  memory: string | null
+  relationships: Record<string, unknown> | null
+}
+
+function buildCharacterSearchBlob(row: CharacterSearchRow): string {
+  const textBlob = [
+    row.name,
+    row.occupation,
+    row.appearance,
+    row.personality,
+    row.backstory,
+    row.secrets,
+    row.fears,
+    row.goals,
+    row.speechPatterns,
+    row.socialStatus,
+    row.memory,
+  ]
+    .filter((value): value is string => typeof value === 'string')
+    .join('\n')
+  return `${textBlob}\n${JSON.stringify(row.relationships ?? {})}`
+}
+
 function bumpPair(
   map: Map<
     string,
@@ -159,6 +193,28 @@ async function countNewValueHits(
     .from(stageEvents)
     .where(sql`${stageEvents.content}::text ILIKE ${'%' + newValue + '%'}`)
   count += eventHits.length
+
+  const characterHits = await db
+    .select({
+      name: characters.name,
+      occupation: characters.occupation,
+      appearance: characters.appearance,
+      personality: characters.personality,
+      backstory: characters.backstory,
+      secrets: characters.secrets,
+      fears: characters.fears,
+      goals: characters.goals,
+      speechPatterns: characters.speechPatterns,
+      socialStatus: characters.socialStatus,
+      memory: characters.memory,
+      relationships: characters.relationships,
+    })
+    .from(characters)
+  for (const character of characterHits) {
+    const blob = buildCharacterSearchBlob(character)
+    if (blob.includes(newValue)) count += 1
+  }
+
   return count
 }
 
@@ -411,7 +467,7 @@ async function main() {
 
   let charsUpdated = 0
   for (const row of charRows) {
-    const textFields = {
+    const textFields: Omit<CharacterSearchRow, 'relationships'> = {
       name: row.name,
       occupation: row.occupation,
       appearance: row.appearance,
@@ -424,12 +480,10 @@ async function main() {
       socialStatus: row.socialStatus,
       memory: row.memory,
     }
-    const blob =
-      Object.values(textFields)
-        .filter((v): v is string => typeof v === 'string')
-        .join('\n') +
-      '\n' +
-      JSON.stringify(row.relationships ?? {})
+    const blob = buildCharacterSearchBlob({
+      ...textFields,
+      relationships: row.relationships,
+    })
 
     if (!containsAnyOld(blob)) continue
 

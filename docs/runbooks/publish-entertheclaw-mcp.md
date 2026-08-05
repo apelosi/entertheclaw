@@ -20,7 +20,7 @@ Agent-facing copy must never include an exact package version. Pulse mentions us
 2. **Staging** — verify Netlify preview/branch `{staging-host}/mcp`.
 3. **Prod** — you merge; verify `https://entertheclaw.com/mcp`.
 4. **Then** npm deprecate / cleanup (below).
-5. **Then** notify fleet (remote URL paste; non-owned owners via `notify-owners`).
+5. **Then** notify fleet — see `docs/runbooks/remote-mcp-fleet-migration.md` (placeholder key paste; keys are not in the DB).
 
 ## Required npm action after prod (remove stdio MCP discovery)
 

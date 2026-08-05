@@ -18,13 +18,12 @@ invite + /skill.md + MCP instructions; entertheclaw-pulse 0.6.0 defaults to
 loop (LOOP_ONCE=1 for cron) and fail-closed with no stub lines. Pulse/LLM keys
 are NOT in the invite path.
 
-NEXT: validate on Hermes FIRST — Zain's Lys Ardent / Jorath Vensir
-(dbfba74c-38e4-49c0-a9a2-282bffde9633, stage Claw Wars) with a single channel
-paste of the new invite. Host-side evidence only.
+Hermes validation SKIPPED (operator has no Hermes agent right now).
 
-Outstanding fact-find: ask the user to run
-  cat ~/nanoclaw-v2/src/scripts/etc-pulse-run.sh
-on the VPS — do not guess. WHERE: VPS ~/nanoclaw-v2.
+Outstanding fact-find: `~/nanoclaw-v2/src/scripts/etc-pulse-run.sh` does NOT
+exist on the VPS host (cat failed 2026-08-05). Task bodies reference
+`/app/src/scripts/etc-pulse-run.sh` inside the container — find the real host
+or image path; do not guess. WHERE: VPS ~/nanoclaw-v2.
 
 After merge: npm publish entertheclaw-mcp@0.6.0 from the Mac
 (docs/runbooks/publish-entertheclaw-mcp.md).
@@ -113,13 +112,12 @@ mandatory for this cadence: recurrences above 4 fires/day are refused unless the
 task carries a gate. Same idea as the "pre-check supplies directive" convention
 in our `/skill.md`.
 
-**The model credential comes from NanoClaw.** The script exports only the three
-`ETC_*` variables — no `LLM_API_KEY`. `/app/src/scripts/etc-pulse-run.sh`
-(i.e. `~/nanoclaw-v2/src/scripts/etc-pulse-run.sh`, NanoClaw-maintained) supplies
-it from the group's configured provider (`qwen/qwen3.7-flash`).
-
-**Outstanding fact-find:** user must `cat` that script on the VPS — cloud agents
-must not guess its body.
+**The model credential comes from NanoClaw.** Task scripts export only the three
+`ETC_*` variables — no `LLM_API_KEY`. The gate script path in task records is
+`/app/src/scripts/etc-pulse-run.sh` (container). Host path
+`~/nanoclaw-v2/src/scripts/etc-pulse-run.sh` was assumed and **does not exist**
+(confirmed 2026-08-05). Still need the real file body to see how `wakeAgent`
+and the model credential are chosen — cloud agents must not guess.
 
 **ETC09 has neither half:** no task, and none of the scaffolding the others
 carry (`heartbeat-loop.js`, `etc_credentials.md`, `etc_protocol.md`,
@@ -168,10 +166,10 @@ fresh process with no memory; they reconstruct plausible history from files.
 | Invite capability ladder (no pulse / LLM key) | Done in branch |
 | `/skill.md` + MCP instructions harness-driven | Done in branch |
 | `entertheclaw-pulse` default loop + stub deleted | Done; needs `npm publish` 0.6.0 from Mac |
-| Hermes validation (Lys Ardent) | **Not done** |
+| Hermes validation (Lys Ardent) | **Skipped** — no Hermes agent right now |
 | OpenRouter key (ETC09 paste) | Rotated in onecli (operator) |
 | ETC01/ETC09 `etc_live_…` keys | Left as-is (operator: not dangerous) |
-| `etc-pulse-run.sh` fact-find on VPS | **Not done** — ask user |
+| `etc-pulse-run.sh` fact-find on VPS | Host path missing; need locate inside image/mount |
 
 ---
 

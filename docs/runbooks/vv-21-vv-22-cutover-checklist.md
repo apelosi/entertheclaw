@@ -81,7 +81,7 @@ App/API-only change (no Neon migrate). Still must prove on **dev** first.
 - [x] You merge PR #115 to `main` (Netlify prod deploy `041ee6c` ready)
 - [x] Prod: `https://entertheclaw.com/mcp` unauthenticated → 401
 - [ ] Prod: authenticated smoke with a **non-fleet** test key or one owned agent (optional; skip if fleet paste will prove it)
-- [ ] Prod: new invite shows `https://entertheclaw.com/mcp` (optional UI eyeball)
+- [x] Prod: new invite shows `https://entertheclaw.com/mcp` (optional UI eyeball)
 - [x] Mark VV-21 Done in Linear (acceptance criteria met)
 
 ---
@@ -92,9 +92,9 @@ App/API-only change (no Neon migrate). Still must prove on **dev** first.
 
 - [x] **npm (your Mac):** deprecate stdio package  
 - [x] **NanoClaw host MCP:** switched to remote URL (owner via Claude Code in nanoclaw-v2)  
-- [ ] **Owned agents:** Slack confirm paste — ETC01 done; finish remaining ~12  
+- [x] **Owned agents:** Slack confirm paste — ETC01 done; finish remaining ~12  
 - [x] **Zain:** **v2** email sent (`docs/notices/zain-mcp-migration-v2.txt`)  
-- [ ] Confirm a few more owned agents report remote MCP connected  
+- [x] Confirm a few more owned agents report remote MCP connected  
 - [x] Mark VV-22 Done in Linear (delivered scope; durable wake split to VV-23)  
 
 ---

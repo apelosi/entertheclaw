@@ -28,11 +28,11 @@ Related runbooks:
 | Check | Env | Result | Notes |
 |-------|-----|--------|-------|
 | `bun run test` (vitest) | Cloud VM / no DB | **PASS** — 194 tests | Unit/contract only; not a live MCP e2e |
-| `bun run build` (Next) | Cloud VM | **FAIL → fix in progress** | `scripts/verify-pair-backoff-api.ts` typed bad `characterId` on `stageParticipants` (pre-existing; blocks Netlify) |
-| Netlify PR deploy | Staging preview | **FAIL** | Same build error — **no staging `/mcp` URL yet** |
+| `bun run build` (Next) | Cloud VM | **PASS** (after script fix; needs `NEON_AUTH_COOKIE_SECRET` in env) | `/mcp` route present in build output |
+| Netlify PR deploy | Staging preview | **FAIL** (after type fix) | Likely missing preview secrets / broader Netlify break since #112 — see evidence log |
 | `POST /mcp` unauthenticated → 401 | Dev (earlier this PR) | Partial | Auth reject only; not full tool e2e |
 | Full e2e: enroll → join → heartbeat → claim → speak via `/mcp` | Dev | **NOT RUN** | Needs `bun run dev` + real/dev agent key (DB write — needs your OK for smoke bootstrap) |
-| Staging `/mcp` e2e | Staging | **NOT RUN** | Blocked on green Netlify preview |
+| Staging `/mcp` e2e | Staging | **NOT RUN** | Wait for green Netlify preview |
 | Prod `/mcp` | Production | **NOT RUN** | Do not merge until staging green |
 | npm deprecate stdio | npmjs | **NOT DONE** | After prod verify |
 | Fleet paste (13 owned) | Prod agents | **NOT DONE** | After prod verify |
@@ -109,15 +109,14 @@ Order matters. Do **not** paste fleet / email Zain before prod `/mcp` works.
 
 ## Current “you are here”
 
-**Phase A incomplete.** Code is on draft PR #115; unit tests pass; **Netlify/staging blocked by production build type error**; **full dev MCP e2e not executed/recorded**.
+**Phase A mid-flight.** Code on draft PR #115; unit tests + local production build pass after script fix; **full authenticated MCP e2e on running `bun run dev` still not recorded**; staging URL not verified yet.
 
 ### Immediate next steps
 
-1. **Agent:** fix `bun run build`, re-push, confirm Netlify starts green.  
-2. **Agent:** run and record **dev** `/mcp` smokes (ask before any `SMOKE_BOOTSTRAP` / DB agent inserts).  
-3. **You:** when staging URL is up, spot-check or let agent verify Phase B.  
-4. **You:** merge only after Phase B.  
-5. **You:** Phase D (npm deprecate → agent pastes → Zain email).
+1. **Agent (this chat):** push build fix; watch Netlify; run/record **dev** `/mcp` smokes (ask before any `SMOKE_BOOTSTRAP` / DB agent inserts).  
+2. **You:** no action until Phase B is green — then review PR.  
+3. **You:** merge only after Phase B.  
+4. **You:** Phase D (npm deprecate → agent pastes → Zain email).
 
 ---
 
@@ -129,3 +128,6 @@ Order matters. Do **not** paste fleet / email Zain before prod `/mcp` works.
 | 2026-08-05 ~07:26 | Cloud VM | `POST /mcp` no auth | 401 (partial) | agent |
 | 2026-08-05 ~07:44 | Cloud VM | `bun run build` | FAIL — verify-pair-backoff `characterId` | agent |
 | 2026-08-05 ~07:40 | Netlify PR | Deploy | FAIL | netlify |
+| 2026-08-05 ~07:46 | Cloud VM | `bun run build` (+ cookie secret) | PASS — `/mcp` in route table | agent |
+| 2026-08-05 ~07:47 | Netlify deploy-preview | Deploy after 0b26fa7 | FAIL (~50s); preview URL 404; build logs not readable via API token | [ci-watcher](bc-7ad4fc16-2710-5a28-b484-c73534a88c33) |
+| 2026-08-05 | Netlify production | Last `ready` deploy | 2026-07-18 `0bd1515` (PR #111). Prod merges #112/#113 also `error` — site still serving that older deploy (`/mcp` → 404 on prod) | agent |

@@ -23,11 +23,11 @@ describe('mcp origin helpers', () => {
     expect(originFromRequest(req)).toBe('https://staging--example.netlify.app')
   })
 
-  it('uses http for localhost host header', () => {
+  it('uses req.url origin when forwarded headers are absent', () => {
     const req = new Request('http://127.0.0.1:3000/mcp', {
       headers: { host: 'localhost:3000' },
     })
-    expect(originFromRequest(req)).toBe('http://localhost:3000')
+    expect(originFromRequest(req)).toBe('http://127.0.0.1:3000')
   })
 
   it('ignores untrusted forwarded host and keeps direct origin', () => {

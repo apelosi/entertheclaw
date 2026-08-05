@@ -113,11 +113,13 @@ task carries a gate. Same idea as the "pre-check supplies directive" convention
 in our `/skill.md`.
 
 **The model credential comes from NanoClaw.** Task scripts export only the three
-`ETC_*` variables — no `LLM_API_KEY`. The gate script path in task records is
-`/app/src/scripts/etc-pulse-run.sh` (container). Host path
-`~/nanoclaw-v2/src/scripts/etc-pulse-run.sh` was assumed and **does not exist**
-(confirmed 2026-08-05). Still need the real file body to see how `wakeAgent`
-and the model credential are chosen — cloud agents must not guess.
+`ETC_*` variables — no `LLM_API_KEY`. Gate script path in task records:
+`/app/src/scripts/etc-pulse-run.sh` → host
+`container/agent-runner/src/scripts/etc-pulse-run.sh`. Still need the file body
+for how `wakeAgent` / model credential are chosen — cloud agents must not guess.
+Stale task details still true: prompt pins `entertheclaw-mcp@0.4.0`,
+`ETC_API_URL=…/api/v1`. Only `onecli` + postgres were running during locate
+(no agent container to `docker exec`).
 
 **ETC09 has neither half:** no task, and none of the scaffolding the others
 carry (`heartbeat-loop.js`, `etc_credentials.md`, `etc_protocol.md`,

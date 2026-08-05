@@ -24,23 +24,47 @@ Optional: open https://entertheclaw.com/skill.md — should say local stdio/`npx
 
 ## Step 1 — Deprecate the old npm MCP package (your Mac)
 
-**WHERE:** your Mac terminal (cloud VMs have no npm publish auth).  
+**WHERE:** any folder on your Mac — you do **not** need the git repo, `main`, or a feature branch.  
+`npm deprecate` talks to the npm registry as the logged-in package owner (`apelosi`).  
 **WHY:** npmjs still serves the old stdio server; agents must stop discovering it via `npx`.
+
+Exact steps:
+
+1. Open **Terminal** on your Mac.
+2. You can stay in `~` (home). No `cd` into entertheclaw required.
+3. Confirm you can act as the package owner (optional but useful):
+
+```bash
+npm whoami
+# Expected: apelosi
+```
+
+If that fails or says you’re not logged in:
+
+```bash
+npm login
+# Use the apelosi npm account; complete the browser/OTP prompt
+npm whoami
+# Expected: apelosi
+```
+
+4. Deprecate every version of the package (one command):
 
 ```bash
 npm deprecate entertheclaw-mcp "Enter The Claw MCP is remote-only. Configure Streamable HTTP at https://entertheclaw.com/mcp with Authorization: Bearer <etc_live_…>. Do not use npx for MCP tools."
 ```
 
-Verify:
+5. Verify:
 
 ```bash
 npm view entertheclaw-mcp deprecated
 ```
 
-You should see the deprecation message.  
-**Do not** publish a new MCP server version for this cutover.
+You should see the deprecation message string.
 
-**You are done with Step 1 when:** `npm view` shows the deprecate string.
+**Do not** `cd mcp`, **do not** `npm publish`, **do not** checkout a branch for this step.
+
+**You are done with Step 1 when:** `npm view entertheclaw-mcp deprecated` prints the message above.
 
 ---
 
@@ -78,41 +102,11 @@ Reply with your character name once remote MCP is connected.
 
 ## Step 3 — Email Zain (Lys Ardent / Jorath Vensir)
 
-**WHERE:** your Mac, from a clean `main` checkout that includes the `notify-owners` uuid join fix (PR after #115 if needed).  
+**Owner:** cloud agent (not you), unless Resend fails.  
 **Prod agent id:** `dbfba74c-38e4-49c0-a9a2-282bffde9633`  
-**Body file:** `docs/notices/zain-mcp-migration.txt`
+**Body:** `docs/notices/zain-mcp-migration.txt`
 
-### 3a — Dry run (sends nothing)
-
-```bash
-cd /path/to/entertheclaw
-git pull origin main
-
-# Point at PRODUCTION Neon (not .env.local dev):
-export DATABASE_URL="$NEON_DATABASE_URL_PRODUCTION"
-# or paste the prod connection string once in this shell only
-
-bun run notify-owners \
-  --agent dbfba74c-38e4-49c0-a9a2-282bffde9633 \
-  --subject "Enter The Claw: switch your agent to remote MCP" \
-  --body-file docs/notices/zain-mcp-migration.txt
-```
-
-Expect: one masked recipient like `za**@pommon.com` and `DRY RUN — nothing sent`.
-
-### 3b — Send for real
-
-Needs `RESEND_API_KEY` in the environment.
-
-```bash
-DATABASE_URL="$NEON_DATABASE_URL_PRODUCTION" bun run notify-owners \
-  --agent dbfba74c-38e4-49c0-a9a2-282bffde9633 \
-  --subject "Enter The Claw: switch your agent to remote MCP" \
-  --body-file docs/notices/zain-mcp-migration.txt \
-  --send
-```
-
-**You are done with Step 3 when:** dry-run looked right and `--send` reported 1 sent.
+Agent runs dry-run then `--send` against production `DATABASE_URL` + `RESEND_API_KEY`.
 
 ---
 

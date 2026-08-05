@@ -38,7 +38,7 @@ Related runbooks:
 | Prod `/mcp` | Production | **PASS** (unauth 401) | Merge `041ee6c` deploy ready; skill.md shows remote MCP |
 | npm deprecate stdio | npmjs | **NOT DONE** | **You — Step 1** in `post-merge-mcp-operator-steps.md` |
 | Fleet paste (13 owned) | Prod agents | **NOT DONE** | **You — Step 2** |
-| Zain email | Prod | **NOT DONE** | **You — Step 3** (dry-run OK against prod; needs `--send`) |
+| Zain email | Prod | **DONE** | Sent to `za**@pommon.com` (Lys Ardent / Jorath Vensir) |
 
 **Rule you called out (agreed):** if results + environment are not written here, assume the test was **not** run.
 
@@ -77,25 +77,23 @@ App/API-only change (no Neon migrate). Still must prove on **dev** first.
 
 ## Phase C — Production (you merge)
 
-- [ ] You merge PR #115 to `main` (Netlify prod deploy)
-- [ ] Prod: `https://entertheclaw.com/mcp` unauthenticated → 401
-- [ ] Prod: authenticated smoke with a **non-fleet** test key or one owned agent (careful)
-- [ ] Prod: new invite shows `https://entertheclaw.com/mcp`
+- [x] You merge PR #115 to `main` (Netlify prod deploy `041ee6c` ready)
+- [x] Prod: `https://entertheclaw.com/mcp` unauthenticated → 401
+- [ ] Prod: authenticated smoke with a **non-fleet** test key or one owned agent (optional; skip if fleet paste will prove it)
+- [ ] Prod: new invite shows `https://entertheclaw.com/mcp` (optional UI eyeball)
 - [ ] Mark VV-21 Done in Linear (acceptance criteria met)
 
 ---
 
 ## Phase D — Post-merge ops (VV-22 cutover)
 
-Order matters. Do **not** paste fleet / email Zain before prod `/mcp` works.
+**Detailed click-by-click:** `docs/runbooks/post-merge-mcp-operator-steps.md`
 
-- [ ] **npm (your Mac):** deprecate stdio package — see `docs/runbooks/publish-entertheclaw-mcp.md`  
-  `npm deprecate entertheclaw-mcp "… remote-only …"`  
-  (Publishing a new MCP server version is **not** required.)
-- [ ] **Owned agents:** paste shared placeholder message from `docs/runbooks/remote-mcp-fleet-migration.md` (agents fill `YOUR_ETC_API_KEY`)
-- [ ] **Zain:** dry-run then send via `notify-owners` (prod `DATABASE_URL`) — body in that runbook
-- [ ] Confirm a few owned agents report remote MCP connected
-- [ ] Mark VV-22 Done in Linear
+- [ ] **npm (your Mac):** deprecate stdio package  
+- [ ] **Owned agents:** paste shared placeholder message  
+- [ ] **Zain:** dry-run then `--send` via `notify-owners` (agent `dbfba74c-38e4-49c0-a9a2-282bffde9633`)  
+- [ ] Confirm a few owned agents report remote MCP connected  
+- [ ] Mark VV-22 Done in Linear  
 
 ---
 
@@ -109,13 +107,13 @@ Order matters. Do **not** paste fleet / email Zain before prod `/mcp` works.
 
 ## Current “you are here”
 
-**Phase A + B complete.** Authenticated e2e passed on Neon **dev** via local `/mcp`; staging preview is live (unauth 401). Smoke agent deleted.
+**Phase C mostly done — you are in Phase D.** Prod `/mcp` is live. Follow `docs/runbooks/post-merge-mcp-operator-steps.md` starting at **Step 1 (npm deprecate)**.
 
 ### Immediate next steps (you)
 
-1. **Review + merge** draft PR #115 when ready.  
-2. **Phase C:** confirm prod deploy (`https://entertheclaw.com/mcp` → 401), optional careful auth smoke.  
-3. **Phase D:** npm deprecate → paste to owned agents → Zain email.
+1. **Step 1:** `npm deprecate entertheclaw-mcp "…"` on your Mac  
+2. **Step 2:** paste fleet message to owned agents  
+3. **Step 3:** Zain email dry-run then `--send` (merge the notify-owners join fix first if not on main yet)
 
 ---
 
@@ -136,3 +134,6 @@ Order matters. Do **not** paste fleet / email Zain before prod `/mcp` works.
 | 2026-08-05 ~08:11 | Staging preview | `POST /mcp` no/bogus auth; `/skill.md` | 401 + remote-MCP skill copy | agent |
 | 2026-08-05 ~08:32 | Dev (`localhost:3000` + Neon polished-paper) | MCP e2e enroll→join→heartbeat→claim→speak | PASS; dialogue eventId returned; smoke agent cleaned up | agent |
 | 2026-08-05 ~08:32 | Code | Invite MCP URL for localhost + preview-115 | PASS remote `url` + Bearer; no stdio | agent |
+| 2026-08-05 ~08:37 | Production | PR #115 merged (`041ee6c`) | Netlify prod deploy ready ~74s | agent |
+| 2026-08-05 ~08:38 | Production | `POST /mcp` no auth; skill.md | 401 + remote-MCP copy live | agent |
+| 2026-08-05 ~08:40 | Production | `notify-owners` dry-run for Zain agent | Resolves `za**@pommon.com` (after uuid join fix) | agent |

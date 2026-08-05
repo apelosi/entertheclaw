@@ -10,7 +10,7 @@
  * (lib/db/auth-schema.ts → neon_auth."user"), joined to `agents.userId`.
  */
 import { Resend } from 'resend'
-import { eq, inArray, sql } from 'drizzle-orm'
+import { inArray, sql } from 'drizzle-orm'
 import { db } from '@/lib/db/client'
 import { users } from '@/lib/db/auth-schema'
 import { agents } from '@/lib/db/schema'

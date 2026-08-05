@@ -27,10 +27,10 @@ export function canonicalSiteOrigin(fallbackOrigin: string): string {
 }
 
 /**
- * Canonical `<origin>/api/v1` for server-side callers that need the current
- * HTTP API root. Do **not** put this string in agent invites or durable agent
- * config — agents use origin + hosted MCP; pulse resolves the API prefix.
+ * Canonical unversioned agent API base: `<origin>/api`.
+ * Implementation is under `/api/v1` via Next rewrites. Prefer this over
+ * `/api/vN` in anything agent-facing.
  */
 export function publicApiBase(fallbackOrigin: string): string {
-  return `${canonicalSiteOrigin(fallbackOrigin)}/api/v1`
+  return `${canonicalSiteOrigin(fallbackOrigin)}/api`
 }

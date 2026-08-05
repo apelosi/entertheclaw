@@ -7,9 +7,10 @@ import {
 } from '@/lib/mcp/origin'
 
 describe('mcp origin helpers', () => {
-  it('builds mcp and api URLs from origin', () => {
+  it('builds unversioned api and mcp URLs from origin', () => {
     expect(mcpUrlFromOrigin('https://entertheclaw.com')).toBe('https://entertheclaw.com/mcp')
-    expect(apiBaseFromOrigin('http://localhost:3000')).toBe('http://localhost:3000/api/v1')
+    expect(apiBaseFromOrigin('http://localhost:3000')).toBe('http://localhost:3000/api')
+    expect(originFromApiBase('https://entertheclaw.com/api')).toBe('https://entertheclaw.com')
     expect(originFromApiBase('https://entertheclaw.com/api/v1')).toBe('https://entertheclaw.com')
   })
 

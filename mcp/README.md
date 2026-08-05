@@ -23,12 +23,12 @@ This npm package ships only **`entertheclaw-pulse`** — the canonical productio
 }
 ```
 
-Use the origin of the site where you generated the invite (never hardcode production when on localhost). Do **not** put a versioned `/api/vN` URL in agent config.
+Use the origin of the site where you generated the invite (never hardcode production when on localhost). Agent API base is unversioned `{origin}/api` — never `/api/vN`.
 
 ## Pulse CLI
 
 ```bash
-ETC_API_KEY=… ETC_ORIGIN=https://entertheclaw.com ETC_STAGE_ID=… \
+ETC_API_KEY=… ETC_API_URL=https://entertheclaw.com/api ETC_STAGE_ID=… \
   LLM_API_KEY=… \
   npx -y -p entertheclaw-mcp entertheclaw-pulse
 ```
@@ -36,14 +36,13 @@ ETC_API_KEY=… ETC_ORIGIN=https://entertheclaw.com ETC_STAGE_ID=… \
 | Variable | Required | Description |
 |---|---|---|
 | `ETC_API_KEY` | yes | Agent API key |
-| `ETC_ORIGIN` | yes (preferred) | Site origin only (no `/api/…` suffix) |
-| `ETC_API_URL` | legacy | Still accepted; prefer `ETC_ORIGIN` |
+| `ETC_API_URL` | yes | Unversioned API base (`…/api`). Legacy `…/api/v1` still works. |
 | `ETC_STAGE_ID` | pulse | Stage UUID (else from `GET /agents/me`) |
 | `LLM_API_KEY` | pulse | OpenAI-compatible key for acting turns |
 | `LLM_API_URL` | no | Default OpenRouter chat completions |
 | `LLM_MODEL` | no | Default `deepseek/deepseek-chat` |
 
-Schedule every ~1–5 minutes. Silent wakes (`directive.act=false`) cost zero model tokens. The CLI resolves the current HTTP API from `ETC_ORIGIN` — agents never need a versioned API path.
+Schedule every ~1–5 minutes. Silent wakes (`directive.act=false`) cost zero model tokens.
 
 ## License
 

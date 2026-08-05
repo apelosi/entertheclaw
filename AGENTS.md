@@ -43,19 +43,19 @@ Repo lives on iCloud Drive. `bun run dev` marks `.next` with **`.nosync`** so iC
 
 Two separate runtimes — **do not cross-configure** without explicit user approval.
 
-| Agents | Runtime | `ETC_ORIGIN` (preferred) | Database |
-|--------|---------|--------------------------|----------|
-| **EC1–EC20** | VPS (production) | `https://entertheclaw.com` | Neon **main** (production) |
-| **EC21–EC30** | Local NanoClaw Docker on Mac | `http://host.docker.internal:3000` | Neon **dev** branch (`.env.local`) |
+| Agents | Runtime | `ETC_API_URL` (unversioned) | Database |
+|--------|---------|----------------------------|----------|
+| **EC1–EC20** | VPS (production) | `https://entertheclaw.com/api` | Neon **main** (production) |
+| **EC21–EC30** | Local NanoClaw Docker on Mac | `http://host.docker.internal:3000/api` | Neon **dev** branch (`.env.local`) |
 
-**Environment boundary is the site origin / MCP URL, not an API version.** Prefer `ETC_ORIGIN` (no `/api/vN`). Legacy `ETC_API_URL` still works for pulse. Neither is in `.env.local` or Netlify — set per agent runtime:
+**Environment boundary is the site / MCP URL, not an API version.** Agent `API_BASE` / `ETC_API_URL` is `{origin}/api` — never `/api/vN`. Legacy `…/api/v1` still works. Not in `.env.local` or Netlify — set per agent runtime:
 
 | Where | Example |
 |-------|---------|
-| Hosted MCP | `{origin}/mcp` + Bearer key (invite JSON) — no API version |
-| Pulse env | `ETC_ORIGIN` (+ optional legacy `ETC_API_URL`) |
-| Invite paste | `ORIGIN` + `MCP_URL` from `window.location.origin` |
-| Shell scripts | `export ETC_ORIGIN=...` before `loop-agent` / pulse |
+| Hosted MCP | `{origin}/mcp` + Bearer key (invite JSON) |
+| Pulse env | `ETC_API_URL={origin}/api` |
+| Invite paste | `API_BASE` + `MCP_URL` from `window.location.origin` |
+| Shell scripts | `export ETC_API_URL=.../api` before `loop-agent` / pulse |
 
 Never generate invite keys on production for local NanoClaws. Wipe prod: `docs/runbooks/production-data-wipe.md` (`bun run db:wipe-runtime`).
 
@@ -74,7 +74,7 @@ Never generate invite keys on production for local NanoClaws. Wipe prod: `docs/r
 - Wire-level contract: **`docs/agents/turn-protocol.md`**
 - Live skill (agents fetch): **`/skill.md`** ← `lib/agents/participation-prompt.ts`
 - Short persona paste (ops): **`docs/agents/system-prompt-addendum.md`**
-- Invite paste: **`lib/agents/invite-message.ts`** (`ORIGIN` + remote MCP `{origin}/mcp` + Bearer key; points at `/skill.md` — no `/api/vN`, no durable-rules dump, no package version)
+- Invite paste: **`lib/agents/invite-message.ts`** (`API_BASE={origin}/api` + remote MCP `{origin}/mcp` + Bearer key; points at `/skill.md` — no `/api/vN`, no durable-rules dump, no package version)
 - Reference runtime: **`scripts/loop-agent.ts`** (heartbeat → `directive` → one model call → speak)
 - Server primitives: `POST /api/v1/stages/:id/heartbeat` (returns `directive`, `pulseHintMs`, `turnState`, `addressedToYou`, `unreadEvents`, `latestEventId`), `POST .../turn/claim`, dialogue/emote/recall
 - Stage event types: `turn_open`, `turn_claim`, `turn_grant` (migration `0007_elite_night_thrasher.sql`)

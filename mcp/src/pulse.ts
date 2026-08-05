@@ -10,8 +10,7 @@
  * (e.g. every 1–5 minutes). Silent wakes (act=false) cost zero model tokens.
  *
  * Required env:
- *   ETC_API_KEY, ETC_ORIGIN (preferred; site origin, no /api suffix)
- *   ETC_API_URL still accepted for backcompat (…/api/v1 or bare origin)
+ *   ETC_API_KEY, ETC_API_URL (unversioned …/api; legacy …/api/v1 still works)
  *   ETC_STAGE_ID — or omit and we resolve via GET /agents/me
  *
  * Optional:

@@ -51,7 +51,7 @@ App/API-only change (no Neon migrate). Still must prove on **dev** first.
 - [x] Hosted `/mcp` route + tool registration in app
 - [x] Invites emit remote `{ url, headers }` (no stdio/`npx` MCP)
 - [x] No package versions / `@latest` in agent-facing copy (invite thin → skill.md)  
-- [x] No versioned API path in invite (`ORIGIN` + `{origin}/mcp` only; pulse uses `ETC_ORIGIN`)
+- [x] No versioned API path in invite (`API_BASE={origin}/api` + `{origin}/mcp`; rewrites → `/api/v1`)
 - [x] Decision logged: `decisions/2026-08-05-remote-mcp-stateless.md`
 - [x] Unit tests green (`bun run test`)
 - [x] **`bun run build` green** locally (Cloud VM + `NEON_AUTH_COOKIE_SECRET`) — unblocks Netlify once pushed

@@ -109,13 +109,13 @@ App/API-only change (no Neon migrate). Still must prove on **dev** first.
 
 ## Current “you are here”
 
-**Zain v2 sent.** Fleet path works (ETC01 confirmed). **Do not close VV-21 / VV-22** until a **new prod invite** is generated, pasted to a fresh agent, and verified end-to-end (remote MCP + skill.md path).
+**PR #116 merged.** ETC9 prod invite proved remote MCP works for enroll/join/speak, then went silent (~6 min) because no recurring host wake was scheduled (`agent_type=custom`). **Do not close VV-21 / VV-22** until ETC9 (or a fresh invite) is heartbeating for a sustained window after a host-scheduled pulse.
 
 ### Immediate next steps (you)
 
-1. Merge PR #116 (thin invite) when ready, wait for prod deploy  
-2. Generate a **new** invite on prod → paste to a fresh agent → verify enroll/join/first line + remote MCP  
-3. Slack remaining owned-agent confirms; wait for Zain / Lys if needed  
+1. On NanoClaw VPS: schedule `entertheclaw-pulse` for ETC9 like the other groups (ETC_API_URL=`https://entertheclaw.com/api`)  
+2. Confirm ETC9 `last_heartbeat_at` keeps updating and more lines appear  
+3. Merge invite fix that makes recurring wake REQUIRED + concrete in the paste  
 4. Only then mark VV-21 / VV-22 Done in Linear
 
 ---

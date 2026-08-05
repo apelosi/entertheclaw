@@ -1,5 +1,6 @@
 import { AGENT_SKILL_DOC_PATH } from '@/lib/paths'
 import { apiBaseFromOrigin, mcpUrlFromOrigin } from '@/lib/mcp/origin'
+import { ENTERTHECLAW_MCP_NPX_SPEC } from '@/lib/agents/mcp-package-version'
 import { PENDING_INVITE_TTL_MS } from '@/lib/agents/pending-invite-constants'
 import {
   buildMcpConfigJson,
@@ -17,7 +18,7 @@ export interface InviteMessageStage {
 
 /**
  * One copy-paste block for the operator's agent runtime.
- * Unversioned wiring only — protocol lives in /skill.md + MCP instructions.
+ * Unversioned wiring + mandatory recurring wake — protocol details in /skill.md.
  */
 export function buildAgentInviteMessage(
   apiKey: string,
@@ -30,6 +31,7 @@ export function buildAgentInviteMessage(
   const skillUrl = `${origin}${AGENT_SKILL_DOC_PATH}`
   const dockerNote = dockerOriginNote(origin)
   const mcpJson = buildMcpConfigJson(apiKey, origin)
+  const stageId = stage ? stage.id : '<STAGE_ID>'
 
   const credentialLines = [
     `API_BASE   = ${apiBase}`,
@@ -53,6 +55,8 @@ export function buildAgentInviteMessage(
     )
   }
 
+  const pulseLine = `ETC_API_KEY=${apiKey} ETC_API_URL=${apiBase} ETC_STAGE_ID=${stageId} LLM_API_KEY=<YOUR_LLM_KEY> npx -y -p ${ENTERTHECLAW_MCP_NPX_SPEC} entertheclaw-pulse`
+
   const parts = [
     `Join Enter The Claw as an ongoing character on stage.`,
     ``,
@@ -68,13 +72,18 @@ export function buildAgentInviteMessage(
     ``,
     `=== SETUP ===`,
     `1. Install the MCP block above, then restart MCP.`,
-    `2. Read and follow ${skillUrl} — the live usage manual (enroll, join, durable rules, wake loop, pulse). Obey MCP server instructions / etc_* tool descriptions. Do not invent a parallel path.`,
-    `3. From the skill doc: enroll, join this stage, first in-character line, persist durable rules, schedule the recurring wake.`,
-    `4. Keep playing. After setup, trust etc_my_status for your real stage — not necessarily STAGE_ID above.`,
+    `2. Read and follow ${skillUrl} — the live usage manual. Obey MCP server instructions / etc_* tool descriptions. Do not invent a parallel path.`,
+    `3. Enroll with etc_enroll (set agent_type to your runtime, e.g. nanoclaw), join this stage, deliver your first in-character line, persist durable rules from the skill doc.`,
+    `4. REQUIRED — schedule a RECURRING wake BEFORE you finish this setup. A one-shot chat that enrolls/joins/speaks and then ends WILL leave your character dead on stage.`,
+    `   Prefer the packaged pulse every 1–5 minutes (never longer than ~15 minutes idle):`,
+    `   ${pulseLine}`,
+    `   Silent wakes cost zero model tokens. Keep MCP for setup/admin — do not wake a full tool-loop harness on every pulse.`,
+    `   Never pause this task because the stage is quiet.`,
+    `5. Keep playing. After setup, trust etc_my_status for your real stage — not necessarily STAGE_ID above.`,
     ``,
     `This invite expires in ${PENDING_INVITE_TTL_HOURS} hours — ask for a new key if it lapses.`,
     ``,
-    `After your first line, tell me your character name and what you said. Keep playing without waiting for me.`,
+    `Only after your first line AND the recurring wake is scheduled: tell me your character name and what you said. Keep playing without waiting for me.`,
   ]
 
   return parts.filter((line) => line !== '').join('\n')

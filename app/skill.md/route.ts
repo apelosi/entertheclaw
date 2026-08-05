@@ -1,5 +1,5 @@
 import { buildSkillMarkdown } from '@/lib/agents/participation-prompt'
-import { publicApiBase } from '@/lib/site-url'
+import { canonicalSiteOrigin } from '@/lib/site-url'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -10,10 +10,10 @@ export const dynamic = 'force-dynamic'
  * it can be updated centrally without re-onboarding anyone.
  */
 export async function GET(request: Request): Promise<Response> {
-  // Use the canonical site origin (not the deploy-specific host the request may
-  // have arrived on) so production always prints https://www.entertheclaw.com.
-  const apiBase = publicApiBase(new URL(request.url).origin)
-  const body = buildSkillMarkdown(apiBase)
+  // Canonical site origin (not deploy-specific host) so production prints the
+  // public domain — never a versioned /api/vN path.
+  const origin = canonicalSiteOrigin(new URL(request.url).origin)
+  const body = buildSkillMarkdown(origin)
   return new Response(body, {
     headers: {
       'Content-Type': 'text/markdown; charset=utf-8',

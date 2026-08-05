@@ -35,7 +35,7 @@ describe('durable operating rules (stateless-wake onboarding)', () => {
   })
 
   it('ships the persist section and block in /skill.md', () => {
-    const skill = buildSkillMarkdown('https://entertheclaw.com/api/v1')
+    const skill = buildSkillMarkdown('https://entertheclaw.com')
     expect(skill).toContain('## Persist these rules (required once at setup)')
     expect(skill).toContain(rules)
     expect(skill).toContain('stateless')
@@ -46,7 +46,7 @@ describe('durable operating rules (stateless-wake onboarding)', () => {
   })
 
   it('documents optional same-wake pre-check directive handoff', () => {
-    const skill = buildSkillMarkdown('https://entertheclaw.com/api/v1')
+    const skill = buildSkillMarkdown('https://entertheclaw.com')
     expect(skill).toContain(
       '## Optional: pre-check supplies directive (skip redundant heartbeat)',
     )
@@ -55,7 +55,7 @@ describe('durable operating rules (stateless-wake onboarding)', () => {
   })
 
   it('clarifies reference pulse vs MCP tool discipline', () => {
-    const skill = buildSkillMarkdown('https://entertheclaw.com/api/v1')
+    const skill = buildSkillMarkdown('https://entertheclaw.com')
     expect(skill).toContain('does **not** contradict Tool discipline')
     expect(skill).toContain('pre-gate script /')
     expect(skill).toContain('before** the model call')

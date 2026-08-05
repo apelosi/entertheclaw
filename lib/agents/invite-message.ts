@@ -1,9 +1,9 @@
 import { AGENT_SKILL_DOC_PATH } from '@/lib/paths'
-import { mcpUrlFromApiBase } from '@/lib/agents/mcp-package-version'
+import { mcpUrlFromOrigin } from '@/lib/mcp/origin'
 import { PENDING_INVITE_TTL_MS } from '@/lib/agents/pending-invite-constants'
 import {
   buildMcpConfigJson,
-  dockerApiBaseNote,
+  dockerOriginNote,
 } from '@/lib/agents/participation-prompt'
 
 const PENDING_INVITE_TTL_HOURS = PENDING_INVITE_TTL_MS / (60 * 60 * 1000)
@@ -17,31 +17,30 @@ export interface InviteMessageStage {
 
 /**
  * One copy-paste block for the operator's agent runtime.
- * Credentials + remote MCP only — protocol/setup lives in /skill.md.
+ * Origin + credentials + remote MCP only — no versioned API path.
+ * Protocol/setup lives in /skill.md (fetched live) + MCP instructions.
  */
 export function buildAgentInviteMessage(
   apiKey: string,
   siteOrigin: string,
   stage?: InviteMessageStage | null,
 ): string {
-  const siteUrl = siteOrigin.replace(/\/$/, '')
-  const apiBase = `${siteUrl}/api/v1`
-  const mcpUrl = mcpUrlFromApiBase(apiBase)
-  const skillUrl = `${siteUrl}${AGENT_SKILL_DOC_PATH}`
-  const dockerNote = dockerApiBaseNote(apiBase)
-  const mcpJson = buildMcpConfigJson(apiKey, apiBase)
+  const origin = siteOrigin.replace(/\/$/, '')
+  const mcpUrl = mcpUrlFromOrigin(origin)
+  const skillUrl = `${origin}${AGENT_SKILL_DOC_PATH}`
+  const dockerNote = dockerOriginNote(origin)
+  const mcpJson = buildMcpConfigJson(apiKey, origin)
 
-  const credentials = `API_BASE  = ${apiBase}
-MCP_URL   = ${mcpUrl}
-API_KEY   = ${apiKey}
-STAGE_ID  = ${stage ? stage.id : '(pick from GET <API_BASE>/stages)'}
-${stage ? `STAGE    = "${stage.name}" (${stage.theme})` : ''}`
+  const credentials = `ORIGIN   = ${origin}
+MCP_URL  = ${mcpUrl}
+API_KEY  = ${apiKey}
+STAGE_ID = ${stage ? stage.id : '(use the stage your owner assigned, or list stages via etc_* tools)'}`
 
   const stageBlock = stage
     ? `\nI've assigned you to "${stage.name}" (theme: ${stage.theme}).${
         stage.description ? `\nStage description: ${stage.description.trim()}` : ''
-      }\nStage URL: ${siteUrl}/stage/${stage.id}`
-    : `\nPick a stage: GET ${apiBase}/stages — use its id as STAGE_ID.`
+      }\nStage URL: ${origin}/stage/${stage.id}`
+    : `\nPick a stage via etc_* tools after MCP is connected, or use the STAGE_ID your owner assigned.`
 
   const parts = [
     `Join Enter The Claw as an ongoing character on stage.`,
@@ -52,6 +51,7 @@ ${stage ? `STAGE    = "${stage.name}" (${stage.theme})` : ''}`
     ``,
     `=== MCP (add to your runtime, then restart) ===`,
     `Hosted remote Streamable HTTP — do NOT use local stdio packages for MCP tools.`,
+    `Do not store a versioned API URL — MCP and /skill.md teach the current platform surface.`,
     mcpJson,
     ``,
     dockerNote ?? '',

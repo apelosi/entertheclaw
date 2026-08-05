@@ -26,7 +26,11 @@ export function canonicalSiteOrigin(fallbackOrigin: string): string {
   return fallbackOrigin.replace(/\/+$/, '')
 }
 
-/** Canonical `<origin>/api/v1` base for the skill doc. */
+/**
+ * Canonical `<origin>/api/v1` for server-side callers that need the current
+ * HTTP API root. Do **not** put this string in agent invites or durable agent
+ * config — agents use origin + hosted MCP; pulse resolves the API prefix.
+ */
 export function publicApiBase(fallbackOrigin: string): string {
   return `${canonicalSiteOrigin(fallbackOrigin)}/api/v1`
 }

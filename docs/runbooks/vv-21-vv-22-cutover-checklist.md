@@ -33,8 +33,9 @@ Related runbooks:
 | `POST /mcp` unauthenticated → 401 | Staging preview | **PASS** | `invalid_token` / WWW-Authenticate Bearer |
 | `POST /mcp` bogus bearer → 401 | Staging preview | **PASS** | 401 |
 | `/skill.md` remote-MCP copy | Staging preview | **PASS** | Says stdio/`npx` retired; pulse `@latest` only |
-| Full e2e: enroll → join → heartbeat → claim → speak via `/mcp` | Dev / Staging | **NOT RUN** | Needs agent key; DB write needs your OK for smoke bootstrap |
-| Prod `/mcp` | Production | **NOT RUN** | Prod still on 2026-07-18 deploy; merge only after you’re satisfied with staging |
+| Full e2e via `/mcp` (enroll→join→heartbeat→claim→speak) | **Dev** (`localhost:3000` + Neon `ep-polished-paper`) | **PASS** | Throwaway smoke agent; cleaned up after |
+| Invite MCP URL matches origin | Code (`buildMcpConfigJson`) | **PASS** | `localhost:3000/mcp` and preview-115 `/mcp`; no stdio `command` block |
+| Prod `/mcp` | Production | **NOT RUN** | Prod still on 2026-07-18 deploy; merge when ready |
 | npm deprecate stdio | npmjs | **NOT DONE** | After prod verify |
 | Fleet paste (13 owned) | Prod agents | **NOT DONE** | After prod verify |
 | Zain email | Prod | **NOT DONE** | After prod verify |

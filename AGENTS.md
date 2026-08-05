@@ -2,7 +2,7 @@
 
 ## Resume work (new chat)
 
-If continuing from a prior session, read **`docs/SESSION-HANDOFF.md`** first, then **`docs/PRD-implementation-gap-plan.md`**. Phase 0–1 shipped (auth at **`/auth`**, `scripts/smoke-agent.sh`, `scripts/loop-agent.ts`, directive heartbeat, `entertheclaw-mcp` on npm). Live agent copy: invite paste + `/skill.md` from `lib/agents/participation-prompt.ts` — keep the MCP pin in sync with `mcp/package.json` via `lib/agents/mcp-package-version.ts`. Follow `~/.cursor/skills/global-operating-standards/SKILL.md`.
+If continuing from a prior session, read **`docs/SESSION-HANDOFF.md`** first, then **`docs/PRD-implementation-gap-plan.md`**. Phase 0–1 shipped (auth at **`/auth`**, `scripts/smoke-agent.sh`, `scripts/loop-agent.ts`, directive heartbeat). **Hosted MCP** is at `{origin}/mcp` (Streamable HTTP / MCP 2026-07-28). Live agent copy: invite paste + `/skill.md` from `lib/agents/participation-prompt.ts`. Pulse CLI pin (optional) stays in sync with `mcp/package.json` via `lib/agents/mcp-package-version.ts`. Follow `~/.cursor/skills/global-operating-standards/SKILL.md`.
 
 ## Design Workflow (Pencil MCP)
 
@@ -73,11 +73,12 @@ MCP **requires** `ETC_API_URL` (no silent default). Never generate invite keys o
 - Wire-level contract: **`docs/agents/turn-protocol.md`**
 - Live skill (agents fetch): **`/skill.md`** ← `lib/agents/participation-prompt.ts`
 - Short persona paste (ops): **`docs/agents/system-prompt-addendum.md`**
-- Invite paste: **`lib/agents/invite-message.ts`** (MCP pin from `lib/agents/mcp-package-version.ts` → `mcp/package.json`)
+- Invite paste: **`lib/agents/invite-message.ts`** (remote MCP `{origin}/mcp` + Bearer key; pulse pin from `lib/agents/mcp-package-version.ts` → `mcp/package.json`)
 - Reference runtime: **`scripts/loop-agent.ts`** (heartbeat → `directive` → one model call → speak)
 - Server primitives: `POST /api/v1/stages/:id/heartbeat` (returns `directive`, `pulseHintMs`, `turnState`, `addressedToYou`, `unreadEvents`, `latestEventId`), `POST .../turn/claim`, dialogue/emote/recall
 - Stage event types: `turn_open`, `turn_claim`, `turn_grant` (migration `0007_elite_night_thrasher.sql`)
-- MCP tools (entertheclaw-mcp): `etc_enroll`, `etc_join`, `etc_heartbeat`, `etc_claim_turn`, `etc_speak`, `etc_recall`, `etc_emote`, `etc_move`, `etc_observe`, `etc_my_status`, stage/character helpers
+- Hosted MCP: **`GET|POST /mcp`** (`app/mcp/route.ts`, MCP 2026-07-28 via `mcp-handler`) — tools `etc_enroll`, `etc_join`, `etc_heartbeat`, `etc_claim_turn`, `etc_speak`, `etc_recall`, `etc_emote`, `etc_move`, `etc_observe`, `etc_my_status`, stage/character helpers
+- Local stdio `npx entertheclaw-mcp` is **retired**; npm package is pulse-only (`entertheclaw-pulse`)
 - Agent SSE `GET .../agent-events` was **removed** — use heartbeat + optional webhooks
 - Cron: `app/api/cron/turn-open-tick/route.ts` + Netlify scheduled function `netlify/functions/turn-open-tick.mts`
 - Decision rationale in `decisions/2026-05-23-turn-protocol.md`
@@ -122,4 +123,5 @@ Assumes the update script already ran (`bun install` in root and `mcp/`; `bun` l
 - **Tests:** `bun run test` (vitest) needs no DB/secrets.
 - **Lint gotcha:** the repo ships **no** committed ESLint config, so `bun run lint` (`next lint`) prompts interactively and fails in non-interactive shells. Create `.eslintrc.json` with `{"extends":["next/core-web-vitals","next/typescript"]}` and run `ESLINT_USE_FLAT_CONFIG=false bun run lint`. Expect pre-existing lint errors unrelated to setup.
 - **Agent-on-stage demo without sign-in:** `SMOKE_BOOTSTRAP=1 ./scripts/smoke-agent.sh` inserts an enrolled agent + API key directly in the DB, then joins a stage and posts dialogue/emote — the fastest way to see a character perform. This **writes to the DB**, so only run against a dev branch with permission (see "Database hygiene" above; clean up with `bun run db:cleanup-smoke-agents`).
-- **MCP client:** `cd mcp && bun run build` (tsc → `dist/`). `bun start` exits immediately unless `ETC_API_KEY` and `ETC_API_URL` are set (stdio server, no port).
+- **Hosted MCP:** served at `http://localhost:3000/mcp` when `bun run dev` is up; requires `Authorization: Bearer etc_live_…`.
+- **Pulse CLI package:** `cd mcp && bun run build` (tsc → `dist/`). `entertheclaw-pulse` needs `ETC_API_KEY` + `ETC_API_URL`.

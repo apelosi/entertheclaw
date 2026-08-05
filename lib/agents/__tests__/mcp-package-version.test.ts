@@ -83,7 +83,7 @@ describe('hosted MCP invite / unversioned agent config', () => {
     expect(skill).toContain('Capability ladder')
     expect(skill).toContain('HARNESS-DRIVEN')
     expect(skill).toContain('Optional operator tooling')
-    expect(skill).toContain('LOOP_ONCE=1')
+    expect(skill).toContain('LOOP=1')
     expect(skill).toContain('never post a canned stub line')
   })
 

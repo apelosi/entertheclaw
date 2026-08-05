@@ -1,63 +1,113 @@
-# Session handoff — 2026-07-11 (NanoClaw token cost + fleet wake)
+# Session handoff — 2026-08-05 (remote MCP shipped; durable wake is the open problem)
 
 ## Start new chat (paste this)
 
 ```
-Continue Enter The Claw. Read docs/SESSION-HANDOFF.md first.
+Continue Enter The Claw — now working VV-23 (durable agent wake).
 
-Recent work (merged + shipped):
-- PR #61: trim directive.prompt (E2), slim MCP act=true payload (E1), skill.md
-  stateless contract (E3), vitest size tests (E4). Merged to main.
-- entertheclaw-mcp@0.3.2 on npm (owner: apelosi) — pin invite/MCP config to
-  this via lib/agents/mcp-package-version.ts (reads mcp/package.json).
-- NanoClaw VPS: AGREED split with ETC — N8 direct-REST speak path (not Claude
-  Code on pulses). Fleet mostly recovered.
+Read docs/SESSION-HANDOFF.md, then Linear VV-23:
+https://linear.app/vibezventures/issue/VV-23/durable-agent-wake-one-invite-paste-agent-performs-forever-any-runtime
 
-Production status (~2026-07-11):
-- 13/14 agents heartbeating; all 3 stages active (~64 lines/hour fleet-wide).
-- Only gap: Lys Arden / Jorath Vensir on Claw Wars (DOWN ~9d). Owner Zain
-  emailed separately with wake instructions (another chat).
+Context: VV-21 (hosted remote MCP at {origin}/mcp) and VV-22 (thin invites, no
+package versions, unversioned API_BASE={origin}/api) are DONE and merged.
+PR #120 (docs only, decision records) may still be open.
 
-Monitor: bun scripts/monitor-production-agents.ts (polls entertheclaw.com).
+THE GOAL, which overrides everything: an owner pastes ONE invite into the
+channel they already use to talk to their agent (Slack/WhatsApp/Telegram) and
+that agent performs on stage FOREVER. No second message, no dashboard step, no
+VPS/host access, no per-runtime hand-holding. Must work for NanoClaw, Hermes,
+OpenClaw, etc. — not just the one we test with. Never propose host cron, VPS
+Claude Code prompts, or ETC posting into the owner's channel; all three were
+evaluated and rejected (see decisions/2026-08-05-channel-only-forever-onboarding.md).
 
-Follow ~/.cursor/skills/global-operating-standards/SKILL.md.
+Approved work for this session:
+1. Ship loop mode in the published pulse CLI. mcp/src/pulse.ts is one-shot —
+   it computes the next sleep interval then exits. The looping implementation
+   already exists unpublished in scripts/loop-agent.ts (while(true), adaptive
+   sleep on directive.retryAfterMs / nextPulseSuggestionMs, LOOP_ONCE=1 to opt
+   out). Port it so one detached process self-perpetuates.
+2. Rewrite the invite (lib/agents/invite-message.ts) + /skill.md
+   (lib/agents/participation-prompt.ts) + MCP server instructions
+   (lib/mcp/instructions.ts) around a capability ladder:
+   (a) runtime's own agent-settable recurring task, (b) else detached pulse
+   loop, (c) else report honestly that setup cannot complete.
+3. Solve how the pulse gets a model API key from a single paste.
+
+Known limits to respect: NanoClaw ETC9's group blocks every in-container
+scheduler and uses recycled stateless containers, so it likely will NOT be
+fixed by this. Validate on Hermes first (Zain's agent Lys Ardent /
+Jorath Vensir, agent dbfba74c-38e4-49c0-a9a2-282bffde9633, stage Claw Wars).
+
+Prod DB for read-only checks: DATABASE_URL="$NEON_DATABASE_URL_PRODUCTION".
+Never write to prod without explicit permission. Follow AGENTS.md and
+~/.cursor/skills/global-operating-standards/SKILL.md.
 ```
 
 ---
 
-## NanoClaw ↔ ETC agreement (2026-07-10)
+## The open problem (VV-23)
 
-**Root cause of ~35k tokens/wake:** NOT `directive.prompt` alone (~3k chars).
-Main cost was Claude Code system + tool schemas (~25–29k) plus multi-call tool
-loops within one wake.
+A fresh invite reliably produces **enroll → join → 1–2 lines → silence**. ETC is
+pull-based: nothing on our side can wake an agent, and
+`POST /stages/:id/heartbeat` is the agent calling us, not a timer we control. So
+the agent must create its own durable recurring wake — and most runtimes either
+forbid that or were never told to.
 
-**Fix split:**
-| Side | Owns |
-|------|------|
-| **NanoClaw** | **N8** — REST heartbeat → gate → claim → **one** OpenRouter call with **only** `directive.prompt` → REST dialogue. No MCP tool loop on scheduled pulses. Claude Code = admin only. |
-| **ETC** | E2 trim `build-directive.ts`, E1 slim MCP act=true payload, E3 skill.md, E4 tests |
+**Evidence (2026-08-05, production):**
 
-**Success criteria:** `act=false` = 0 model tokens; N8 `act=true` <2k typical,
-<5k ceiling to resume fleet.
+- **NanoClaw ETC9** — enrolled 12:24 UTC, last heartbeat 12:30 UTC. Two clean
+  claim → grant → dialogue cycles over hosted remote MCP, then nothing. The
+  stage kept going without it (81+ lines from others in the same window).
+- **Lys Ardent** (Zain's Hermes agent) — identical failure months earlier,
+  silent 12+ days. No amount of owner email could have fixed it.
+- **The 13 survivors** — all `agent_type=nanoclaw`, zero webhooks, heartbeats
+  under 3 minutes old. They live only because the operator created NanoClaw
+  **host platform recurring tasks** outside the agent chat during setup
+  (e.g. `task-1782560909602-3khcji`, every 3 min → `/workspace/agent/heartbeat-check.sh`
+  → `heartbeat-loop.js`). No agent created its own.
 
-Reference runtime: `scripts/loop-agent.ts` (single user message, no system).
+**ETC9 exhausted every in-container path:** `CronCreate` and `ScheduleWakeup` in
+`SDK_DISALLOWED_TOOLS`, `ncl tasks` CLI forbidden for the group, `RemoteTrigger`
+unimplemented, `inbound.db` read-only, no MCP servers addable without admin.
+
+**Our contributing bug:** the published `entertheclaw-pulse` (`mcp/src/pulse.ts`)
+is one-shot — it runs `pulseOnce()`, computes the next sleep, then exits. It
+structurally requires the scheduler agents cannot create. The looping version
+has existed the whole time, unpublished, in `scripts/loop-agent.ts`.
+
+### Rejected — do not revisit without new information
+
+| Approach | Why rejected |
+|---|---|
+| Stronger invite wording | Tried twice (PR #118, #119). Cannot create capability a runtime forbids. |
+| Owner installs host cron / runs Claude Code on the VPS | Violates the single-paste requirement; does not scale past our own fleet. |
+| ETC pushes wake messages into the owner's channel | Per-workspace OAuth/token setup, constant message noise, a new integration per harness. |
+| Agent claims `/loop` scheduled it | ETC9 did exactly this; nothing persisted. |
+
+Rationale: `decisions/2026-08-05-channel-only-forever-onboarding.md`.
 
 ---
 
-## ETC changes shipped (PR #61)
+## Shipped 2026-08-05 (VV-21 + VV-22)
 
-- `lib/stage/build-directive.ts` — structured prompt, backstory hook ~120 chars,
-  memory cap ~1200 chars in prompt, `linesSinceLastSpoke` max 12, shorter closing
-  instruction.
-- `mcp` 0.3.2 — `etc_heartbeat` act=true returns only
-  `{ session, directive, haveFloor, latestEventId }` (no duplicate context);
-  `etc_speak` schema describes close-`]` before speech.
-- `/skill.md` — "Stateless agent contract" + send ONLY `directive.prompt`.
-- `scripts/monitor-production-agents.ts` — production poll (no auth).
+- **Hosted remote MCP** at `{origin}/mcp` (`app/mcp/route.ts`, `lib/mcp/*`),
+  Streamable HTTP / MCP 2026-07-28, Bearer `etc_live_…`. Origin-relative, so
+  localhost / preview / prod each serve their own — never a hardcoded host.
+- **Local stdio retired.** `npx entertheclaw-mcp` as an MCP server is gone and
+  deprecated on npm; the package now ships the `entertheclaw-pulse` bin only.
+- **No versions in agent-facing copy** — no `entertheclaw-mcp@X.Y.Z`, no
+  `@latest`, no `/api/vN`. `mcp/package.json` version is publish metadata only.
+- **Unversioned API base.** Agents get `API_BASE = {origin}/api`; Next rewrites
+  in `next.config.ts` map `/api/{agents,stages,characters,twists,…}` to the
+  current `/api/v1` implementation. Never put `/api/vN` in an invite again.
+- **Thin invite** (~6.8KB → ~1.4KB): credentials + MCP block + pointer to
+  `/skill.md`. Protocol lives in `/skill.md` and MCP server instructions, both
+  updated by deploy — no re-inviting for routine changes.
+- **Fleet migrated** off stdio (ETC01 confirmed); Zain emailed for Hermes.
 
 ---
 
-## Ops lessons (read before handoff instructions)
+## Ops lessons (read before writing handoff instructions)
 
 ### Where to run commands
 
@@ -66,31 +116,29 @@ Reference runtime: `scripts/loop-agent.ts` (single user message, no system).
 | Agent coding, PRs, tests | Cursor cloud VM / agent | — |
 | **`npm publish` (entertheclaw-mcp)** | **Your Mac** after `git pull origin main` | Cloud VM (no npm auth) |
 | Netlify production deploy | Automatic on merge to `main` | Manual unless debugging |
-| NanoClaw N8 / fleet wake | VPS NanoClaw project | entertheclaw repo |
+| NanoClaw fleet wake / host config | VPS NanoClaw project | entertheclaw repo |
 
-**Always lead instructions with WHERE.** Before publish: `git checkout main &&
-git pull` on Mac, confirm `mcp/package.json` version, then `cd mcp && bun run
-build && npm publish`.
+**Always lead instructions with WHERE.**
 
-### PR / links for user
+### Talking to the user
 
-Plain `PR #61` may not be clickable in chat. Always give full URL:
-https://github.com/apelosi/entertheclaw/pull/61
-
-For copy-paste blocks to another agent, use a **single** fenced code block (no
-nested fences) so the copy button works.
+- Give full PR URLs — `PR #61` may not be clickable.
+- Copy-paste blocks for another agent go in a **single** fenced code block (no
+  nested fences) so the copy button works.
+- Never put a package version or `/api/vN` in anything an agent will read.
+- Owner emails (`bun run notify-owners`) require the user to review the full
+  body before `--send`. Dry-run is the default; `--send` without approval is a
+  standing violation.
 
 ### npm publish
 
-**Canonical runbook:** [`docs/runbooks/publish-entertheclaw-mcp.md`](./runbooks/publish-entertheclaw-mcp.md)
+Canonical runbook: [`docs/runbooks/publish-entertheclaw-mcp.md`](./runbooks/publish-entertheclaw-mcp.md)
 
-Agents must link that file and fill `{{MCP_VERSION}}` / `{{GIT_BRANCH}}` / `{{PR_URL}}` whenever they ask you to publish. Never stop at “publish from your Mac.”
-
-- Package: `entertheclaw-mcp`, maintainer `apelosi`
-- **WHERE:** your Mac after `git pull` on the publish branch (cloud VMs have no npm auth)
-- Assume not logged in. Skip separate `npm login` / `npm whoami` — go dry-run → `npm publish` (auth + **5-minute** checkbox happen on publish). Prep/build/dry-run first, then publish immediately
-- `npm publish --dry-run` works without login; real publish needs that short publish-auth session
-- ENEEDAUTH = auth failed or publish session already expired; E404 on publish = wrong account / no permission
+- Package `entertheclaw-mcp`, maintainer `apelosi`; now **pulse CLI only**
+- **WHERE:** your Mac after `git pull` (cloud VMs have no npm auth)
+- Skip `npm login` / `npm whoami` — go dry-run → `npm publish` (auth + the
+  5-minute checkbox happen on publish)
+- `ENEEDAUTH` = auth failed or publish session expired; `E404` = wrong account
 
 ### Production monitoring
 
@@ -98,15 +146,17 @@ Agents must link that file and fill `{{MCP_VERSION}}` / `{{GIT_BRANCH}}` / `{{PR
 bun scripts/monitor-production-agents.ts
 ```
 
-Public API: `https://entertheclaw.com/api/v1/stages` + per-stage feed.
-Stages with agents (Jul 2026): Claw of the Titans, Claw Wars, The Clawfather.
+Read-only DB check: `DATABASE_URL="$NEON_DATABASE_URL_PRODUCTION"` (host
+`ep-muddy-wave…`). Dev is `ep-polished-paper…`. Never write to prod without
+explicit permission.
+
+Stages with agents: Claw of the Titans, Claw Wars, The Clawfather.
 
 ### Fleet wake pitfall
 
-"Wake all agents" can mean only **some** containers/tasks actually run. Symptom:
-one stage live (Titans), others silent 2+ days with `since_heartbeat` matching
-fleet pause time. Fix per-container: task enabled, N8 script reaches heartbeat,
-`ETC_API_URL=https://entertheclaw.com/api/v1`.
+"Wake all agents" often means only *some* containers/tasks actually run.
+Symptom: one stage live, others silent for days with `since_heartbeat` matching
+the pause. Check per-container that the task is enabled and reaches heartbeat.
 
 ---
 
@@ -114,22 +164,22 @@ fleet pause time. Fix per-container: task enabled, N8 script reaches heartbeat,
 
 | Path | Purpose |
 |------|---------|
-| `lib/stage/build-directive.ts` | Server-side directive.prompt |
-| `lib/agents/participation-prompt.ts` | `/skill.md` source |
-| `scripts/loop-agent.ts` | Reference N8 pulse (stateless) |
+| `app/mcp/route.ts`, `lib/mcp/*` | Hosted remote MCP (tools, api-client, origin, instructions) |
+| `lib/agents/invite-message.ts` | Invite paste — credentials + MCP + skill pointer |
+| `lib/agents/participation-prompt.ts` | `/skill.md` source + durable operating rules |
+| `lib/mcp/instructions.ts` | MCP server discovery instructions |
+| `lib/mcp/origin.ts` | `{origin}/mcp` and unversioned `{origin}/api` helpers |
+| `lib/stage/build-directive.ts` | Server-side `directive.prompt` |
+| `mcp/src/pulse.ts` | Published pulse CLI — **one-shot; VV-23 makes it loop** |
+| `scripts/loop-agent.ts` | Unpublished looping reference pulse |
 | `scripts/monitor-production-agents.ts` | Production activity poll |
-| `mcp/` | entertheclaw-mcp npm package (0.3.2 — see `mcp/package.json`) |
-| `lib/agents/mcp-package-version.ts` | Invite/MCP config version pin (must match package.json) |
 | `docs/runbooks/agent-stage-continuity.md` | Stale stage / wake runbook |
+| `docs/runbooks/vv-21-vv-22-cutover-checklist.md` | Remote MCP cutover record |
 
 ---
 
-## Older context (turn protocol — still valid)
+## Older context (still valid)
 
-See `docs/agents/turn-protocol.md`, `docs/PRD-implementation-gap-plan.md`.
-Phase 0–1 shipped (`loop-agent`, directive heartbeat, MCP on npm).
-
-Auth at **`/auth`**. DB hygiene: never insert agents/keys without explicit
-permission. Production agents EC1–EC20 use `https://entertheclaw.com/api/v1`.
-After bumping `mcp/package.json`, rebuild `mcp/dist`, publish on Mac, and
-confirm invite paste shows the new pin (no hardcoded version in invite copy).
+`docs/agents/turn-protocol.md`, `docs/PRD-implementation-gap-plan.md`. Auth at
+**`/auth`**. DB hygiene: never insert agents, keys, or smoke rows without
+explicit permission.

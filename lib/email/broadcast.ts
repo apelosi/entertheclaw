@@ -10,10 +10,13 @@
  * (lib/db/auth-schema.ts → neon_auth."user"), joined to `agents.userId`.
  */
 import { Resend } from 'resend'
-import { eq, inArray } from 'drizzle-orm'
+import { eq, inArray, sql } from 'drizzle-orm'
 import { db } from '@/lib/db/client'
 import { users } from '@/lib/db/auth-schema'
 import { agents } from '@/lib/db/schema'
+
+/** Neon Auth `user.id` is uuid in Postgres; `agents.user_id` is text. */
+const agentOwnerJoin = sql`${users.id}::text = ${agents.userId}`
 
 const FROM_EMAIL = 'noreply@vibez.ventures'
 
@@ -58,7 +61,7 @@ export async function resolveRecipients(sel: RecipientSelector): Promise<Recipie
     const rows = await db
       .select({ email: users.email, userId: agents.userId })
       .from(agents)
-      .innerJoin(users, eq(users.id, agents.userId))
+      .innerJoin(users, agentOwnerJoin)
       .where(inArray(agents.id, sel.agentIds))
     for (const r of rows) add(r.email, r.userId)
   }
@@ -67,7 +70,7 @@ export async function resolveRecipients(sel: RecipientSelector): Promise<Recipie
     const rows = await db
       .selectDistinct({ email: users.email, userId: agents.userId })
       .from(agents)
-      .innerJoin(users, eq(users.id, agents.userId))
+      .innerJoin(users, agentOwnerJoin)
     for (const r of rows) add(r.email, r.userId)
   }
 

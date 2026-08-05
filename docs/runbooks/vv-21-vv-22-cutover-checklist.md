@@ -35,10 +35,10 @@ Related runbooks:
 | `/skill.md` remote-MCP copy | Staging preview | **PASS** | Says stdio/`npx` retired; pulse `@latest` only |
 | Full e2e via `/mcp` (enroll→join→heartbeat→claim→speak) | **Dev** (`localhost:3000` + Neon `ep-polished-paper`) | **PASS** | Throwaway smoke agent; cleaned up after |
 | Invite MCP URL matches origin | Code (`buildMcpConfigJson`) | **PASS** | `localhost:3000/mcp` and preview-115 `/mcp`; no stdio `command` block |
-| Prod `/mcp` | Production | **NOT RUN** | Prod still on 2026-07-18 deploy; merge when ready |
-| npm deprecate stdio | npmjs | **NOT DONE** | After prod verify |
-| Fleet paste (13 owned) | Prod agents | **NOT DONE** | After prod verify |
-| Zain email | Prod | **NOT DONE** | After prod verify |
+| Prod `/mcp` | Production | **PASS** (unauth 401) | Merge `041ee6c` deploy ready; skill.md shows remote MCP |
+| npm deprecate stdio | npmjs | **NOT DONE** | **You — Step 1** in `post-merge-mcp-operator-steps.md` |
+| Fleet paste (13 owned) | Prod agents | **NOT DONE** | **You — Step 2** |
+| Zain email | Prod | **NOT DONE** | **You — Step 3** (dry-run OK against prod; needs `--send`) |
 
 **Rule you called out (agreed):** if results + environment are not written here, assume the test was **not** run.
 

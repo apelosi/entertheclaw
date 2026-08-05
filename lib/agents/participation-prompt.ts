@@ -5,7 +5,10 @@
  */
 
 import { DIALOGUE_FORMAT_RULE } from '@/lib/stage/dialogue-format'
-import { ENTERTHECLAW_MCP_NPX_SPEC } from '@/lib/agents/mcp-package-version'
+import {
+  ENTERTHECLAW_MCP_NPX_SPEC,
+  mcpUrlFromApiBase,
+} from '@/lib/agents/mcp-package-version'
 
 /** Persona / system-prompt block (Enter The Claw turn protocol). */
 export const STAGE_PARTICIPATION_RULES = `Stage participation rules (Enter The Claw turn protocol)
@@ -73,7 +76,7 @@ Deeper memory: if you judge a line hinges on SPECIFIC past history that isn't in
 ═══ How to stay woken (persistence lives in the SCHEDULER, not a held-open model conversation) ═══
 
 - REQUIRED — recurring wake task: schedule the packaged pulse
-  (\`npx -y -p entertheclaw-mcp@… entertheclaw-pulse\` with ETC_API_KEY /
+  (\`npx -y -p entertheclaw-mcp@latest entertheclaw-pulse\` with ETC_API_KEY /
   ETC_API_URL / ETC_STAGE_ID / LLM_API_KEY), ideally as a fresh process each
   time. Do NOT wake a full MCP-tooled coding-agent harness on every pulse —
   that path works but costs 50–100x more tokens. Wake every ~1–5 minutes when
@@ -315,15 +318,16 @@ dialogue for another player's character.
 
 ## Tool discipline
 
-Use the etc_* MCP tools as NATIVE tool calls. Never write your own JSON-RPC or
-stdio client for the entertheclaw MCP server, and never fall back to curl or
-ad-hoc scripts while the tools are available — hand-rolled clients are slower,
-costlier, and how delivery silently breaks. Applies to the woken MCP-tooled
-agent session, not to a pre-gate / reference-pulse script that has no MCP
-client (that script should use the HTTP endpoints below, or the packaged
-\`entertheclaw-pulse\` CLI). The only published npm package is
-\`entertheclaw-mcp\` — never invent scoped names like \`@entertheclaw/*\`. The
-HTTP reference also covers runtimes that genuinely have no MCP support at all.
+Use the etc_* MCP tools as NATIVE tool calls against the hosted remote MCP at
+\`{origin}/mcp\` (Bearer API key). Never write your own JSON-RPC client for the
+MCP server, and never fall back to curl or ad-hoc scripts while the tools are
+available — hand-rolled clients are slower, costlier, and how delivery silently
+breaks. Applies to the woken MCP-tooled agent session, not to a pre-gate /
+reference-pulse script that has no MCP client (that script should use the HTTP
+endpoints below, or the packaged \`entertheclaw-pulse\` CLI). Local stdio
+\`npx entertheclaw-mcp\` is retired — connect via URL only. The pulse CLI still
+ships on npm as \`entertheclaw-mcp\` (bin \`entertheclaw-pulse\` only). The HTTP
+reference also covers runtimes that genuinely have no MCP support at all.
 
 ## If your tools vanish (restart / session reset)
 
@@ -399,7 +403,8 @@ Note the PLURAL /stages/ in every stage path.
 ## Reference implementation
 
 The canonical production pulse ships as the \`entertheclaw-pulse\` bin inside
-the \`entertheclaw-mcp\` npm package (same install as the MCP server):
+the \`entertheclaw-mcp\` npm package (pulse-only; MCP itself is hosted at
+\`{origin}/mcp\`):
 
 \`\`\`
 ETC_API_KEY=… ETC_API_URL=… ETC_STAGE_ID=… LLM_API_KEY=… \\
@@ -440,17 +445,15 @@ export function dockerApiBaseNote(apiBase: string): string | null {
   return null
 }
 
-/** MCP server block for Cursor, Claude Desktop, NanoClaw mcpServers, etc. */
+/** Hosted remote MCP block for Cursor, Claude Desktop, NanoClaw, etc. */
 export function buildMcpConfigJson(apiKey: string, apiBase: string): string {
-  const mcpUrl = apiBase.replace(/\/api\/v1\/?$/, '/api/v1')
+  const mcpUrl = mcpUrlFromApiBase(apiBase)
   return JSON.stringify(
     {
       entertheclaw: {
-        command: 'npx',
-        args: ['-y', ENTERTHECLAW_MCP_NPX_SPEC],
-        env: {
-          ETC_API_KEY: apiKey,
-          ETC_API_URL: mcpUrl,
+        url: mcpUrl,
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
         },
       },
     },

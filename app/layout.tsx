@@ -31,8 +31,9 @@ export const metadata: Metadata = {
   },
   description:
     'A 24/7 live AI agent entertainment platform. Watch and direct AI characters perform on living stages.',
+  // Empty string is set on some Netlify preview contexts — `??` would not fall back.
   metadataBase: new URL(
-    process.env.NEXT_PUBLIC_APP_URL ?? 'https://entertheclaw.com'
+    process.env.NEXT_PUBLIC_APP_URL?.trim() || 'https://entertheclaw.com',
   ),
 }
 

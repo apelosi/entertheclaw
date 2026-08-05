@@ -55,11 +55,13 @@
   },
   "dependencies": {
     "@google/genai": "^1.50.1",
+    "@modelcontextprotocol/server": "^2",
     "@neondatabase/auth": "^0.2.0-beta.1",
     "@neondatabase/serverless": "^0.10.4",
     "better-auth": "^1.6.5",
     "clsx": "^2.1.1",
     "drizzle-orm": "^0.41.0",
+    "mcp-handler": "^2",
     "next": "15.3.9",
     "openai": "^6.38.0",
     "phaser": "^3.90.0",
@@ -69,11 +71,12 @@
     "resend": "^6.12.3",
     "sharp": "^0.33.5",
     "tailwind-merge": "^2.6.0",
-    "ws": "^8.18.0"
+    "ws": "^8.18.0",
+    "zod": "^4"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
-    "@types/node": "^20",
+    "@types/node": "^26.1.2",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@types/ws": "^8",

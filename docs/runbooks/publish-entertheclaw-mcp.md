@@ -1,106 +1,63 @@
-# Publish `entertheclaw-mcp` to npm
+# npm package after remote MCP
 
 **WHERE:** your Mac (not a Cursor cloud VM — no npm auth there).  
-**WHEN:** after the PR that bumps `mcp/package.json` is **merged to `main`**, unless you intentionally publish from a release branch (rare).
+**WHEN:** only after hosted MCP is verified on **dev → staging → production** (you merge to prod).
 
-Agents that ask you to publish must **link this runbook** and fill in the placeholders below — never stop at “publish from your Mac.”
+## What ships where
 
----
+| Surface | How it updates | npm involved? |
+|---------|----------------|---------------|
+| MCP tools (`etc_*`) | App deploy — `{origin}/mcp` | **No** |
+| Invite / skill paste | App deploy — remote `url` + Bearer | **No** |
+| Old stdio on npmjs | Still on registry until you act | **Yes — deprecate/remove** |
+| Optional pulse CLI | Only if you still want `entertheclaw-pulse` on npm | Optional publish |
 
-## Fill these in (per publish)
+Agent-facing copy must never include an exact package version. Pulse mentions use `entertheclaw-mcp@latest` only (floating tag). `mcp/package.json` version is registry metadata for optional pulse publishes — not for invites.
 
-| Field | Value |
-|-------|--------|
-| **MCP version** | `{{MCP_VERSION}}` (must match `mcp/package.json` on the branch you publish from) |
-| **Git branch** | `{{GIT_BRANCH}}` (almost always `main` after merge; if publishing before merge, name the PR branch here) |
-| **PR** | `{{PR_URL}}` (optional but preferred) |
-| **npm package** | `entertheclaw-mcp` |
-| **npm owner account** | `apelosi` |
+## Env promotion (do this first)
 
-### Current request (agents: replace this block when asking the owner)
+**Running checklist (status + evidence):** `docs/runbooks/vv-21-vv-22-cutover-checklist.md`
 
-```
-MCP version:  {{MCP_VERSION}}
-Git branch:   {{GIT_BRANCH}}
-PR:           {{PR_URL}}
-```
+1. **Dev** — verify `{dev-host}/mcp` (e.g. `http://localhost:3000/mcp` or Cloud Agent URL).
+2. **Staging** — verify Netlify preview/branch `{staging-host}/mcp`.
+3. **Prod** — you merge; verify `https://entertheclaw.com/mcp`.
+4. **Then** npm deprecate / cleanup (below).
+5. **Then** notify fleet — see `docs/runbooks/remote-mcp-fleet-migration.md` (placeholder key paste; keys are not in the DB).
 
----
+## Required npm action after prod (remove stdio MCP discovery)
 
-## npm auth reality (read first)
-
-Assume you are **not** logged in. You do **not** need a separate `npm login` / `npm whoami` — `npm publish` itself prompts for auth (including the 5-minute session checkbox). Select that checkbox. The publish session is short-lived (about 5 minutes max).
-
-Do all prep (git, build, dry-run) **before** `npm publish` so you can finish the auth prompt and publish without idle time.
-
----
-
-## Steps (copy-paste on your Mac)
+Until you act, npmjs still serves the old **stdio MCP server** under prior versions. That is what agents find via `npx entertheclaw-mcp`. After production `/mcp` is live:
 
 ```bash
-# ── Prep (no npm auth required) ─────────────────────────────────
-
-# 1) Repo root on your Mac
-cd /path/to/entertheclaw   # e.g. your local clone
-
-# 2) Correct branch + latest commits
-git fetch origin
-git checkout {{GIT_BRANCH}}
-git pull origin {{GIT_BRANCH}}
-
-# 3) Confirm the version you are about to publish
-node -p "require('./mcp/package.json').version"
-# Expected: {{MCP_VERSION}}
-
-# 4) Build
-cd mcp
-bun run build
-# or: npm run build
-
-# 5) Dry-run (no login required)
-npm publish --dry-run
-# Confirm the tarball lists dist/ + package.json at version {{MCP_VERSION}}
-
-# ── Publish (auth happens here; do this immediately after dry-run) ─
-
-# 6) Publish for real (SELECT the 5-minute checkbox when prompted)
-npm publish
-# Complete the publish auth challenge right away; do not leave the terminal idle.
-# Sign in as apelosi when prompted.
-
-# 7) Verify on registry
-npm view entertheclaw-mcp version
-# Expected: {{MCP_VERSION}}
+npm deprecate entertheclaw-mcp "Enter The Claw MCP is remote-only. Configure Streamable HTTP at https://entertheclaw.com/mcp with Authorization: Bearer <etc_live_…>. Do not use npx for MCP tools."
 ```
 
-If `npm publish` returns `ENEEDAUTH`, run `npm publish` again immediately and select the 5-minute checkbox on the auth prompt.
+Optional later: unpublish specific old versions if npm policy allows, or leave them deprecated.
 
----
+You do **not** need to publish a new MCP server version for the remote cutover. App deploy is the delivery vehicle.
 
-## After publish
+## Optional: publish pulse-only package
 
-1. **Invite / skill pin:** app code reads `mcp/package.json` via `lib/agents/mcp-package-version.ts`. After merge + Netlify deploy, new invites show `@{{MCP_VERSION}}`. No separate pin edit.
-2. **Existing agent MCP configs** still pin the old version until owners update `npx -y entertheclaw-mcp@{{MCP_VERSION}}` (or refresh invite paste).
-3. **Optional owner notice:** `bun run notify-owners` (dry-run first) if the fleet must upgrade — see `AGENTS.md` “Owner email broadcasts”.
+`mcp/` still contains an optional **pulse** keepalive binary (`entertheclaw-pulse`). Publishing it is **optional** and separate from MCP tools. If you publish:
 
----
+1. Merge the pulse-only package change to `main` first.
+2. On your Mac:
 
-## Common errors
+```bash
+cd /path/to/entertheclaw
+git pull origin main
+cd mcp
+bun install && bun run build
+npm publish --dry-run   # expect pulse bin only; no stdio MCP server bin
+npm publish              # auth prompt; 5-minute checkbox; account apelosi
+npm view entertheclaw-mcp version
+```
 
-| Error | Meaning | Fix |
-|-------|---------|-----|
-| `ENEEDAUTH` | Auth failed or the short publish session expired | `npm publish` again immediately; select the **5-minute** checkbox on the publish auth prompt; sign in as `apelosi` |
-| `E404` / no permission | Wrong npm account | Re-run `npm publish` and sign in as `apelosi` |
-| Version already published | Re-publish same version | Bump patch in `mcp/package.json`, merge, republish |
-| Cloud agent “please publish” | No npm creds in VM | Always run these steps on your Mac |
+3. Invites/skill already say `@latest` — no invite rewrite after publish.
+4. Longer term: prefer a non-`mcp` package name for pulse so the registry name is not confused with the protocol server.
 
----
+## After npm cleanup
 
-## Agent checklist (when requesting a publish)
-
-- [ ] Version bumped in `mcp/package.json` and committed
-- [ ] PR merged to `main` (or explicitly document pre-merge publish from `{{GIT_BRANCH}}`)
-- [ ] This runbook linked in the chat reply
-- [ ] Placeholders filled with the real version / branch / PR URL
-- [ ] Reminder: **WHERE = Mac**, not cloud VM
-- [ ] Reminder: prep + dry-run first, then `npm publish` (auth + 5-min checkbox happen on publish — no separate `npm login`)
+1. Confirm `npx entertheclaw-mcp` is deprecated / no longer the supported MCP path.
+2. Notify fleet **after** production `/mcp` is live (owned agents: remote URL paste; non-owned: owner email via `bun run notify-owners`).
+3. Never put exact versions in invites, skill.md, or system-prompt addenda.

@@ -37,7 +37,7 @@ Related runbooks:
 | Invite MCP URL matches origin | Code (`buildMcpConfigJson`) | **PASS** | `localhost:3000/mcp` and preview-115 `/mcp`; no stdio `command` block |
 | Prod `/mcp` | Production | **PASS** (unauth 401) | Merge `041ee6c` deploy ready; skill.md shows remote MCP |
 | npm deprecate stdio | npmjs | **DONE** | Tony ran `npm deprecate` (2026-08-05) |
-| Fleet paste (13 owned) | Prod agents | **NOT DONE** | **You — Step 2 (next)** |
+| Fleet paste (13 owned) | Prod agents | **IN PROGRESS** | ETC01 Kaelen Voss confirmed remote MCP on Claw Wars |
 | Zain email | Prod | **DONE** | Sent to `za**@pommon.com` (Lys Ardent / Jorath Vensir) |
 
 **Rule you called out (agreed):** if results + environment are not written here, assume the test was **not** run.

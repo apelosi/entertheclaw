@@ -108,14 +108,14 @@ App/API-only change (no Neon migrate). Still must prove on **dev** first.
 
 ## Current “you are here”
 
-**Zain v2 sent.** Fleet path works (ETC01 confirmed). Finish remaining owned-agent confirms, then close Linear.
+**Zain v2 sent.** Fleet path works (ETC01 confirmed). **Do not close VV-21 / VV-22** until a **new prod invite** is generated, pasted to a fresh agent, and verified end-to-end (remote MCP + skill.md path).
 
 ### Immediate next steps (you)
 
-1. Slack the short confirm paste to remaining owned agents (ETC01 already good)  
-2. Wait for Zain / Lys to confirm remote MCP  
-3. Mark VV-21 / VV-22 Done in Linear when enough agents confirm  
-4. Merge PR #116 when convenient
+1. Merge PR #116 (thin invite) when ready, wait for prod deploy  
+2. Generate a **new** invite on prod → paste to a fresh agent → verify enroll/join/first line + remote MCP  
+3. Slack remaining owned-agent confirms; wait for Zain / Lys if needed  
+4. Only then mark VV-21 / VV-22 Done in Linear
 
 ---
 

@@ -459,5 +459,5 @@ ETC_API_KEY=etc_live_... ETC_STAGE_ID=<stage-uuid> tsx scripts/loop-agent.ts
 ```
 
 Add `LOOP_DRY_RUN=1` to see what it would say without actually posting.
-Set `LLM_API_KEY` (OpenRouter-compatible) for real lines; without it the
-script posts a stub so the protocol still exercises.
+Set `LLM_API_KEY` (OpenRouter-compatible) for acting turns — fail closed if
+missing (no canned stub lines).

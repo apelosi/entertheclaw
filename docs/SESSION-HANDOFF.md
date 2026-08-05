@@ -1,94 +1,86 @@
-# Session handoff — 2026-08-05 (remote MCP shipped; durable wake is the open problem)
+# Session handoff — 2026-08-05 (VV-23: harness-driven wake in progress)
 
 ## Start new chat (paste this)
 
 ```
-Continue Enter The Claw — now working VV-23 (durable agent wake).
+Continue Enter The Claw — VV-23 (durable agent wake).
 
 Read docs/SESSION-HANDOFF.md, then Linear VV-23:
 https://linear.app/vibezventures/issue/VV-23/durable-agent-wake-one-invite-paste-agent-performs-forever-any-runtime
 
-Context: VV-21 (hosted remote MCP at {origin}/mcp) and VV-22 (thin invites, no
-package versions, unversioned API_BASE={origin}/api) are DONE and merged.
+SECURITY FIRST (still open as of last cloud check): prod still has the leaked
+prefixes for NanoClaw ETC01 (etc_live_0964e1d••••) and NanoClaw ETC9
+(etc_live_259142f••••). Rotate those keys + the OpenRouter key ETC09 pasted,
+then confirm. Do not write to prod without explicit permission.
 
-THE GOAL, which overrides everything: an owner pastes ONE invite into the
-channel they already use to talk to their agent (Slack/WhatsApp/Telegram) and
-that agent performs on stage FOREVER. No second message, no dashboard step, no
-VPS/host access, no per-runtime hand-holding. Must work for NanoClaw, Hermes,
-OpenClaw, etc. Never propose host cron, per-agent VPS Claude Code prompts, ETC
-posting into the owner's channel, or a second API key — all were evaluated and
-rejected (decisions/2026-08-05-channel-only-forever-onboarding.md).
+Shipped on branch (pending merge/publish): harness-driven capability ladder in
+invite + /skill.md + MCP instructions; entertheclaw-pulse 0.6.0 defaults to
+loop (LOOP_ONCE=1 for cron) and fail-closed with no stub lines. Pulse/LLM keys
+are NOT in the invite path.
 
-FIRST, SECURITY: two live keys leaked into chat today and must be rotated —
-ETC01's etc_live_0964e1dd… and ETC09's etc_live_259142f… plus the OpenRouter
-key ETC09 pasted. Confirm with the user that rotation happened.
+NEXT: validate on Hermes FIRST — Zain's Lys Ardent / Jorath Vensir
+(dbfba74c-38e4-49c0-a9a2-282bffde9633, stage Claw Wars) with a single channel
+paste of the new invite. Host-side evidence only.
 
-Approved direction (agreed after decoding how the working fleet stays alive):
-1. Wakes are HARNESS-DRIVEN. The runtime's scheduler wakes the agent; the agent
-   heartbeats and obeys the directive using ITS OWN configured model. Do not put
-   entertheclaw-pulse or any LLM_API_KEY in the onboarding path — the runtime
-   already owns the model credential.
-2. Rewrite invite (lib/agents/invite-message.ts), /skill.md
-   (lib/agents/participation-prompt.ts), and MCP server instructions
-   (lib/mcp/instructions.ts) around a capability ladder:
-   (a) runtime's own agent-creatable recurring task,
-   (b) else a detached long-running process (Hermes/OpenClaw),
-   (c) else report honestly that setup cannot complete — never fake success.
-3. Optional, not in the onboarding path: ship loop mode in the published pulse
-   CLI for rung (b). mcp/src/pulse.ts is one-shot — it computes the next sleep
-   then exits; the loop already exists unpublished in scripts/loop-agent.ts.
-   Also DELETE its stub fallback: with no LLM key it posts a canned line
-   ("[considers the moment] X weighs what to say next.") instead of failing.
-4. NanoClaw is a documented exception: one host command per new agent
-   (./bin/ncl tasks create --group ag-etc-N …). See the NanoClaw section of
-   SESSION-HANDOFF for the exact anatomy of a working task.
-5. Validate on Hermes FIRST (Zain's agent Lys Ardent / Jorath Vensir,
-   dbfba74c-38e4-49c0-a9a2-282bffde9633, stage Claw Wars). Hermes has cron and a
-   persistent daemon, so it can meet the bar with no exception.
+Outstanding fact-find: ask the user to run
+  cat ~/nanoclaw-v2/src/scripts/etc-pulse-run.sh
+on the VPS — do not guess. WHERE: VPS ~/nanoclaw-v2.
 
-Outstanding fact-find: cat ~/nanoclaw-v2/src/scripts/etc-pulse-run.sh on the VPS
-— it shows how the gate decides wakeAgent and where the model credential comes
-from. Ask the user to run it; do not guess.
+After merge: npm publish entertheclaw-mcp@0.6.0 from the Mac
+(docs/runbooks/publish-entertheclaw-mcp.md).
 
-Never trust an agent's account of its own history. ETC01 invented a task ID and
-a dashboard-setup story that host evidence disproved. Only host-side output counts.
-
-Prod DB for read-only checks: DATABASE_URL="$NEON_DATABASE_URL_PRODUCTION".
-Never write to prod without explicit permission. Follow AGENTS.md and
-~/.cursor/skills/global-operating-standards/SKILL.md.
+Prod DB read-only: DATABASE_URL="$NEON_DATABASE_URL_PRODUCTION".
+Follow AGENTS.md and ~/.cursor/skills/global-operating-standards/SKILL.md.
 ```
+
+---
+
+## Security (do this before anything else)
+
+**2026-08-05 cloud check — NOT rotated yet.** Prod `api_key_prefix` still matches
+the leaked keys:
+
+| Agent | id | prefix | last heartbeat (at check) |
+|-------|-----|--------|---------------------------|
+| NanoClaw ETC01 | `aa97dbe4-16ca-445d-83b8-e53836b14b74` | `etc_live_0964e1d••••` | still heartbeating |
+| NanoClaw ETC9 | `a0309bc8-b7e1-45b9-9ede-26ffa4ba4982` | `etc_live_259142f••••` | silent since ~16:37 UTC |
+
+Also rotate the OpenRouter key ETC09 pasted into chat. Rotation writes prod —
+needs explicit operator action (dashboard re-invite / key rotate), not a cloud
+agent guess.
 
 ---
 
 ## The open problem (VV-23)
 
 A fresh invite reliably produces **enroll → join → 1–2 lines → silence**. ETC is
-pull-based: nothing on our side can wake an agent, and
-`POST /stages/:id/heartbeat` is the agent calling us, not a timer we control. So
-something in the agent's runtime must wake it on a schedule — and most agents
-cannot create that for themselves.
+pull-based: nothing on our side can wake an agent. Something in the agent's
+runtime must wake it on a schedule.
 
-**Evidence (2026-08-05, production):**
+**Approved direction (in code, pending validate-on-Hermes):**
 
-- **NanoClaw ETC9** — enrolled 12:24 UTC, last heartbeat 12:30 UTC. Two clean
-  claim → grant → dialogue cycles over hosted remote MCP, then nothing. The
-  stage kept going without it (81+ lines from others in the same window).
-- **Lys Ardent** (Zain's Hermes agent) — identical failure months earlier,
-  silent 12+ days. No owner email could have fixed it.
-- **The 13 survivors** — alive only because of host-side `ncl` tasks created
-  during the July fleet-wake work. No agent created its own.
+1. Wakes are **harness-driven** — runtime scheduler wakes the agent; agent uses
+   its own model. No pulse / second LLM key in the invite.
+2. Capability ladder in invite + skill + MCP instructions:
+   (a) agent-creatable recurring task → (b) detached long-running process →
+   (c) honest failure.
+3. Optional: `entertheclaw-pulse` loop mode (default loop, `LOOP_ONCE=1`) +
+   stub fallback deleted — not in onboarding path.
+4. NanoClaw = documented host `ncl tasks create` exception.
+5. Validate on Hermes first (Lys Ardent).
 
 ### Rejected — do not revisit without new information
 
 | Approach | Why rejected |
 |---|---|
-| Stronger invite wording | Tried twice (PR #118, #119). Cannot create capability a runtime forbids. |
-| Owner installs host cron / per-agent VPS Claude Code prompt | Violates the single-paste requirement; does not scale past our own fleet. |
-| ETC pushes wake messages into the owner's channel | Per-workspace OAuth/token setup, constant message noise, a new integration per harness. |
-| Separate `LLM_API_KEY` for the pulse / dashboard key field | Unnecessary — a harness-driven wake uses the runtime's own model. |
-| Agent claims `/loop` scheduled it | ETC9 did exactly this; nothing persisted. |
+| Stronger invite wording alone | Tried twice (PR #118, #119). |
+| Owner installs host cron / per-agent VPS Claude Code prompt | Violates single-paste; does not scale. |
+| ETC pushes wake messages into the owner's channel | Per-workspace OAuth, noise, per-harness integration. |
+| Separate `LLM_API_KEY` for pulse / dashboard key field | Unnecessary for harness-driven wake. |
+| Agent claims `/loop` scheduled it | ETC9 did this; nothing persisted. |
 
-Rationale: `decisions/2026-08-05-channel-only-forever-onboarding.md`.
+Rationale: `decisions/2026-08-05-channel-only-forever-onboarding.md`,
+`decisions/2026-08-05-harness-driven-durable-wake.md`.
 
 ---
 
@@ -133,6 +125,9 @@ in our `/skill.md`.
 (i.e. `~/nanoclaw-v2/src/scripts/etc-pulse-run.sh`, NanoClaw-maintained) supplies
 it from the group's configured provider (`qwen/qwen3.7-flash`).
 
+**Outstanding fact-find:** user must `cat` that script on the VPS — cloud agents
+must not guess its body.
+
 **ETC09 has neither half:** no task, and none of the scaffolding the others
 carry (`heartbeat-loop.js`, `etc_credentials.md`, `etc_protocol.md`,
 `instructions.prepend.md`, `.entertheclaw-state.json`). Those Jun-27 files are
@@ -173,6 +168,19 @@ fresh process with no memory; they reconstruct plausible history from files.
 
 ---
 
+## VV-23 code progress (this session)
+
+| Change | Status |
+|--------|--------|
+| Invite capability ladder (no pulse / LLM key) | Done in branch |
+| `/skill.md` + MCP instructions harness-driven | Done in branch |
+| `entertheclaw-pulse` default loop + stub deleted | Done; needs `npm publish` 0.6.0 from Mac |
+| Hermes validation (Lys Ardent) | **Not done** |
+| Key rotation ETC01/ETC09 + OpenRouter | **Not done** (prod still shows leaked prefixes) |
+| `etc-pulse-run.sh` fact-find on VPS | **Not done** — ask user |
+
+---
+
 ## Ops lessons
 
 ### Where to run commands
@@ -208,6 +216,7 @@ Canonical runbook: [`docs/runbooks/publish-entertheclaw-mcp.md`](./runbooks/publ
 - **WHERE:** your Mac after `git pull` (cloud VMs have no npm auth)
 - Skip `npm login` / `npm whoami` — go dry-run → `npm publish`
 - `ENEEDAUTH` = auth failed or session expired; `E404` = wrong account
+- After VV-23 merge: publish **0.6.0** (loop default + fail-closed LLM)
 
 ### Production monitoring
 
@@ -228,15 +237,16 @@ Stages with agents: Claw of the Titans, Claw Wars, The Clawfather.
 | Path | Purpose |
 |------|---------|
 | `app/mcp/route.ts`, `lib/mcp/*` | Hosted remote MCP (tools, api-client, origin, instructions) |
-| `lib/agents/invite-message.ts` | Invite paste — credentials + MCP + skill pointer |
+| `lib/agents/invite-message.ts` | Invite paste — credentials + MCP + harness ladder |
 | `lib/agents/participation-prompt.ts` | `/skill.md` source + durable operating rules |
 | `lib/mcp/instructions.ts` | MCP server discovery instructions |
 | `lib/mcp/origin.ts` | `{origin}/mcp` and unversioned `{origin}/api` helpers |
 | `lib/stage/build-directive.ts` | Server-side `directive.prompt` |
-| `mcp/src/pulse.ts` | Published pulse CLI — one-shot, and has a stub-line bug |
-| `scripts/loop-agent.ts` | Unpublished looping reference pulse |
+| `mcp/src/pulse.ts` | Optional pulse CLI — default loop; `LOOP_ONCE=1` for cron |
+| `scripts/loop-agent.ts` | In-repo looping reference pulse |
 | `scripts/monitor-production-agents.ts` | Production activity poll |
 | `docs/runbooks/vv-21-vv-22-cutover-checklist.md` | Remote MCP cutover record |
+| `decisions/2026-08-05-harness-driven-durable-wake.md` | VV-23 direction |
 
 ---
 

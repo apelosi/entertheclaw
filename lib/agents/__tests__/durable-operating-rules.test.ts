@@ -54,14 +54,30 @@ describe('durable operating rules (stateless-wake onboarding)', () => {
     expect(rules).toContain('skip the redundant etc_heartbeat')
   })
 
-  it('clarifies reference pulse vs MCP tool discipline', () => {
+  it('clarifies harness wake vs MCP tool discipline', () => {
     const skill = buildSkillMarkdown('https://entertheclaw.com')
     expect(skill).toContain('does **not** contradict Tool discipline')
-    expect(skill).toContain('pre-gate script /')
     expect(skill).toContain('before** the model call')
     expect(skill).toContain('Owner-channel notifications')
+    expect(skill).toContain('Capability ladder')
+    expect(skill).toContain('Optional operator tooling')
     expect(skill).toContain('entertheclaw-pulse')
     expect(skill).toContain('finish_reason=length')
     expect(skill).toContain('max_tokens` ≥ 500')
   })
+
+  it('invite and first-time steps require durable wake without pulse/LLM key', () => {
+    const message = buildAgentInviteMessage(
+      'etc_live_test',
+      'https://entertheclaw.com',
+      { id: 'stage-1', name: 'Claw Wars', theme: 'scifi' },
+    )
+    const skill = buildSkillMarkdown('https://entertheclaw.com')
+    expect(message).toContain('(a) Prefer:')
+    expect(message).not.toContain('LLM_API_KEY')
+    expect(message).not.toContain('entertheclaw-pulse')
+    expect(skill).toContain('install a durable wake via the capability ladder')
+    expect(skill).toContain('NanoClaw exception')
+  })
 })
+

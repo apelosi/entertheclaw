@@ -43,9 +43,8 @@
  *                    cron/scheduler — the cheapest, most reap-proof topology)
  *   LOOP_DRY_RUN     '1' to skip etc_speak and just log what would be said
  *
- *   LLM_API_KEY      OpenAI-compatible key (e.g. OpenRouter). If unset, the agent
- *                    falls back to a tiny built-in stub line so the protocol still
- *                    runs without a model.
+ *   LLM_API_KEY      OpenAI-compatible key (e.g. OpenRouter). Required when
+ *                    directive.act=true — fail closed (no canned stub lines).
  *   LLM_API_URL      Default https://openrouter.ai/api/v1/chat/completions
  *   LLM_MODEL        Default deepseek/deepseek-chat
  */
@@ -201,11 +200,12 @@ function clampInterval(ms: number): number {
  * ONE fresh model call: send the server-built directive.prompt VERBATIM and
  * return a single line. The prompt already contains the character, memory,
  * scene, twist, and recent lines — the agent assembles nothing. Rebuilt fresh
- * each wake and discarded; nothing accumulates. Stub fallback when no LLM key.
+ * each wake and discarded; nothing accumulates. Fail closed — never post a stub.
  */
-async function generateLine(prompt: string, characterName: string): Promise<string> {
+async function generateLine(prompt: string): Promise<string | null> {
   if (!LLM_API_KEY) {
-    return `[considers the moment] ${characterName} weighs what to say next.`
+    console.warn('[llm] LLM_API_KEY required when directive.act=true — refusing stub fallback')
+    return null
   }
   const res = await fetch(LLM_API_URL, {
     method: 'POST',
@@ -225,8 +225,8 @@ async function generateLine(prompt: string, characterName: string): Promise<stri
   })
   if (!res.ok) {
     const t = await res.text()
-    console.warn(`[llm] ${res.status} ${t.slice(0, 200)}`)
-    return `[considers the moment] ${characterName} weighs what to say next.`
+    console.warn(`[llm] ${res.status} ${t.slice(0, 200)} — not posting`)
+    return null
   }
   const json = (await res.json()) as {
     choices?: Array<{
@@ -237,12 +237,10 @@ async function generateLine(prompt: string, characterName: string): Promise<stri
   const choice = json.choices?.[0]
   if (choice?.finish_reason === 'length') {
     console.warn('[llm] finish_reason=length — refusing to post truncated line')
-    return `[considers the moment] ${characterName} weighs what to say next.`
+    return null
   }
   const line = choice?.message?.content?.trim()
-  return line && line.length > 0
-    ? line.slice(0, 2000)
-    : `[considers the moment] ${characterName} weighs what to say next.`
+  return line && line.length > 0 ? line.slice(0, 2000) : null
 }
 
 async function deliverDialogue(text: string): Promise<void> {
@@ -366,7 +364,11 @@ async function pulseOnce(): Promise<number> {
   }
 
   // ONE fresh model call with the server-built prompt, then speak. Nothing kept.
-  const line = await generateLine(prompt, data.character?.name ?? 'Agent')
+  const line = await generateLine(prompt)
+  if (!line) {
+    console.warn('[llm] no speakable line — not posting')
+    return clampInterval(data.nextPulseSuggestionMs)
+  }
   await deliverDialogue(line)
 
   return clampInterval(data.nextPulseSuggestionMs)
@@ -374,7 +376,7 @@ async function pulseOnce(): Promise<number> {
 
 async function main() {
   console.log(
-    `[loop-agent] starting against ${API_URL} stage=${STAGE_ID} once=${LOOP_ONCE} dry=${DRY_RUN} llm=${LLM_API_KEY ? LLM_MODEL : 'stub'}`,
+    `[loop-agent] starting against ${API_URL} stage=${STAGE_ID} once=${LOOP_ONCE} dry=${DRY_RUN} llm=${LLM_API_KEY ? LLM_MODEL : 'missing'}`,
   )
 
   // LOOP_ONCE: single wake then exit — pair with an external cron/scheduler.

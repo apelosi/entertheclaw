@@ -16,6 +16,8 @@ Agent-facing copy must never include an exact package version. Pulse mentions us
 
 ## Env promotion (do this first)
 
+**Running checklist (status + evidence):** `docs/runbooks/vv-21-vv-22-cutover-checklist.md`
+
 1. **Dev** — verify `{dev-host}/mcp` (e.g. `http://localhost:3000/mcp` or Cloud Agent URL).
 2. **Staging** — verify Netlify preview/branch `{staging-host}/mcp`.
 3. **Prod** — you merge; verify `https://entertheclaw.com/mcp`.

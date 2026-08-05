@@ -111,10 +111,10 @@ async function joinAgent(
       isComplete: true,
     })
     .returning({ id: characters.id })
+  // stage_participants has no characterId column — character links via characters.stageId/agentId
   await db.insert(stageParticipants).values({
     stageId,
     agentId: agent.id,
-    characterId: character.id,
     role: 'main',
     joinedAt: now,
     lastActiveAt: now,

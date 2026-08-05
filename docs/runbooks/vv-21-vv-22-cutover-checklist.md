@@ -29,7 +29,7 @@ Related runbooks:
 |-------|-----|--------|-------|
 | `bun run test` (vitest) | Cloud VM / no DB | **PASS** — 194 tests | Unit/contract only; not a live MCP e2e |
 | `bun run build` (Next) | Cloud VM | **PASS** (after script fix; needs `NEON_AUTH_COOKIE_SECRET` in env) | `/mcp` route present in build output |
-| Netlify PR deploy | Staging preview | **FAIL** (after type fix) | Likely missing preview secrets / broader Netlify break since #112 — see evidence log |
+| Netlify PR deploy | Staging preview | **FAIL → fix pushed** | Root cause: empty `NEXT_PUBLIC_APP_URL` → `new URL('')` in `app/layout.tsx` metadataBase. Awaiting green deploy. |
 | `POST /mcp` unauthenticated → 401 | Dev (earlier this PR) | Partial | Auth reject only; not full tool e2e |
 | Full e2e: enroll → join → heartbeat → claim → speak via `/mcp` | Dev | **NOT RUN** | Needs `bun run dev` + real/dev agent key (DB write — needs your OK for smoke bootstrap) |
 | Staging `/mcp` e2e | Staging | **NOT RUN** | Wait for green Netlify preview |
@@ -131,3 +131,5 @@ Order matters. Do **not** paste fleet / email Zain before prod `/mcp` works.
 | 2026-08-05 ~07:46 | Cloud VM | `bun run build` (+ cookie secret) | PASS — `/mcp` in route table | agent |
 | 2026-08-05 ~07:47 | Netlify deploy-preview | Deploy after 0b26fa7 | FAIL (~50s); preview URL 404; build logs not readable via API token | [ci-watcher](bc-7ad4fc16-2710-5a28-b484-c73534a88c33) |
 | 2026-08-05 | Netlify production | Last `ready` deploy | 2026-07-18 `0bd1515` (PR #111). Prod merges #112/#113 also `error` — site still serving that older deploy (`/mcp` → 404 on prod) | agent |
+| 2026-08-05 ~07:54 | Netlify deploy-preview | `b324b36` build log (via UI) | `ERR_INVALID_URL` input `''` on `/_not-found` during page data collect | [computerUse](bc-bd6a0c6e-989f-5af3-a8c8-c65d9581a6c3) |
+| 2026-08-05 ~07:59 | Cloud VM | Reproduce + fix | Empty `NEXT_PUBLIC_APP_URL` breaks `metadataBase`; auth placeholders hardened; build PASS with empty preview-like env | agent |

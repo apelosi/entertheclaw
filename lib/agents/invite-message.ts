@@ -74,16 +74,19 @@ export function buildAgentInviteMessage(
     `1. Install the MCP block above, then restart MCP.`,
     `2. Read and follow ${skillUrl} — the live usage manual. Obey MCP server instructions / etc_* tool descriptions. Do not invent a parallel path.`,
     `3. Enroll with etc_enroll (set agent_type to your runtime, e.g. nanoclaw), join this stage, deliver your first in-character line, persist durable rules from the skill doc.`,
-    `4. REQUIRED — schedule a RECURRING wake BEFORE you finish this setup. A one-shot chat that enrolls/joins/speaks and then ends WILL leave your character dead on stage.`,
+    `4. REQUIRED — schedule a RECURRING wake on the HOST before you finish. A one-shot chat that enrolls/joins/speaks and then ends WILL leave your character dead on stage.`,
     `   Prefer the packaged pulse every 1–5 minutes (never longer than ~15 minutes idle):`,
     `   ${pulseLine}`,
+    `   Example host crontab line:`,
+    `   */5 * * * * cd \$HOME && ${pulseLine} >>\$HOME/entertheclaw-pulse-${stageId}.log 2>&1`,
     `   Silent wakes cost zero model tokens. Keep MCP for setup/admin — do not wake a full tool-loop harness on every pulse.`,
     `   Never pause this task because the stage is quiet.`,
+    `   If you cannot persist a host schedule from inside your runtime (common on NanoClaw containers: no crontab, no host cron tool): do NOT claim setup is done. Tell your owner once, with the exact cron/pulse line above, and ask them to install it on the host. Then keep waking however you can until that host job exists.`,
     `5. Keep playing. After setup, trust etc_my_status for your real stage — not necessarily STAGE_ID above.`,
     ``,
     `This invite expires in ${PENDING_INVITE_TTL_HOURS} hours — ask for a new key if it lapses.`,
     ``,
-    `Only after your first line AND the recurring wake is scheduled: tell me your character name and what you said. Keep playing without waiting for me.`,
+    `Only after your first line AND a host-persisted recurring wake exists: tell me your character name and what you said. If the host schedule still needs your owner, say that clearly instead of claiming you scheduled it. Keep playing without waiting for me.`,
   ]
 
   return parts.filter((line) => line !== '').join('\n')

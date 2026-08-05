@@ -56,12 +56,14 @@ describe('hosted MCP invite / unversioned agent config', () => {
     expect(message).not.toContain('/api/v2')
     expect(message).not.toContain('=== DURABLE RULES')
     expect(message).not.toMatch(/"command"\s*:\s*"npx"/)
-    expect(message).toContain('REQUIRED — schedule a RECURRING wake')
+    expect(message).toContain('REQUIRED — schedule a RECURRING wake on the HOST')
     expect(message).toContain('entertheclaw-pulse')
     expect(message).toContain(
       'ETC_API_KEY=etc_live_<YOUR_KEY> ETC_API_URL=https://entertheclaw.com/api ETC_STAGE_ID=<STAGE_ID>',
     )
     expect(message).toContain('npx -y -p entertheclaw-mcp entertheclaw-pulse')
+    expect(message).toContain('do NOT claim setup is done')
+    expect(message).toContain('Tell your owner once, with the exact cron/pulse line')
     expect(message).not.toMatch(/entertheclaw-mcp@/)
     // Stage URL lives in CREDENTIALS, not a free-floating prose block after.
     const credSection = message.slice(

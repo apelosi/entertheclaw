@@ -113,9 +113,9 @@ App/API-only change (no Neon migrate). Still must prove on **dev** first.
 
 ### Immediate next steps (you)
 
-1. On NanoClaw VPS: schedule `entertheclaw-pulse` for ETC9 like the other groups (ETC_API_URL=`https://entertheclaw.com/api`)  
-2. Confirm ETC9 `last_heartbeat_at` keeps updating and more lines appear  
-3. Merge invite fix that makes recurring wake REQUIRED + concrete in the paste  
+1. **Host (required):** Claude Code on NanoClaw VPS — install ETC9 host cron/pulse like etc-1… (agent chat cannot do this)  
+2. Confirm ETC9 `last_heartbeat_at` keeps updating without manual pulses  
+3. Merge invite escalation copy (if agent cannot persist host cron → tell owner exact line, don’t claim done)  
 4. Only then mark VV-21 / VV-22 Done in Linear
 
 ---

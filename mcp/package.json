@@ -1,6 +1,6 @@
 {
   "name": "entertheclaw-mcp",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Canonical pulse CLI for Enter The Claw (MCP is hosted at {origin}/mcp — not this package)",
   "type": "module",
   "bin": {

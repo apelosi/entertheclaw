@@ -7,6 +7,7 @@ import {
 } from '@/lib/agents/mcp-package-version'
 import { buildMcpConfigJson, buildSkillMarkdown } from '@/lib/agents/participation-prompt'
 import { buildAgentInviteMessage } from '@/lib/agents/invite-message'
+import { MCP_SERVER_INSTRUCTIONS } from '@/lib/mcp/instructions'
 
 describe('hosted MCP invite / unversioned agent config', () => {
   it('keeps package.json version for publish metadata only', () => {
@@ -32,7 +33,7 @@ describe('hosted MCP invite / unversioned agent config', () => {
     expect(mcpUrlFromApiBase('http://localhost:3000/api/v1')).toBe('http://localhost:3000/mcp')
   })
 
-  it('invite uses unversioned API_BASE and puts stage fields in CREDENTIALS', () => {
+  it('invite uses harness-driven capability ladder (no pulse / LLM_API_KEY)', () => {
     const message = buildAgentInviteMessage(
       'etc_live_<YOUR_KEY>',
       'https://entertheclaw.com',
@@ -56,12 +57,13 @@ describe('hosted MCP invite / unversioned agent config', () => {
     expect(message).not.toContain('/api/v2')
     expect(message).not.toContain('=== DURABLE RULES')
     expect(message).not.toMatch(/"command"\s*:\s*"npx"/)
-    expect(message).toContain('REQUIRED — schedule a RECURRING wake')
-    expect(message).toContain('entertheclaw-pulse')
-    expect(message).toContain(
-      'ETC_API_KEY=etc_live_<YOUR_KEY> ETC_API_URL=https://entertheclaw.com/api ETC_STAGE_ID=<STAGE_ID>',
-    )
-    expect(message).toContain('npx -y -p entertheclaw-mcp entertheclaw-pulse')
+    expect(message).toContain('REQUIRED — durable wake')
+    expect(message).toContain('(a) Prefer:')
+    expect(message).toContain('(b) Else:')
+    expect(message).toContain('(c) Else:')
+    expect(message).toContain('YOUR already-configured model')
+    expect(message).not.toContain('LLM_API_KEY')
+    expect(message).not.toContain('entertheclaw-pulse')
     expect(message).not.toMatch(/entertheclaw-mcp@/)
     // Stage URL lives in CREDENTIALS, not a free-floating prose block after.
     const credSection = message.slice(
@@ -72,12 +74,24 @@ describe('hosted MCP invite / unversioned agent config', () => {
     expect(message.indexOf('STAGE_URL')).toBeLessThan(message.indexOf('=== MCP'))
   })
 
-  it('skill teaches unversioned ETC_API_URL=/api', () => {
+  it('skill teaches harness ladder; pulse is optional operator tooling', () => {
     const skill = buildSkillMarkdown('https://entertheclaw.com')
     expect(skill).toContain('ETC_API_URL=https://entertheclaw.com/api')
     expect(skill).toContain('API_BASE `https://entertheclaw.com/api`')
     expect(skill).not.toContain('ETC_API_URL=https://entertheclaw.com/api/v1')
     expect(skill).not.toMatch(/API base:\s*https:\/\/entertheclaw\.com\/api\/v1/)
+    expect(skill).toContain('Capability ladder')
+    expect(skill).toContain('HARNESS-DRIVEN')
+    expect(skill).toContain('Optional operator tooling')
+    expect(skill).toContain('LOOP_ONCE=1')
+    expect(skill).toContain('never post a canned stub line')
+  })
+
+  it('MCP instructions match harness-driven ladder', () => {
+    expect(MCP_SERVER_INSTRUCTIONS).toContain('harness-driven')
+    expect(MCP_SERVER_INSTRUCTIONS).toContain('Capability ladder')
+    expect(MCP_SERVER_INSTRUCTIONS).not.toContain('LLM_API_KEY')
+    expect(MCP_SERVER_INSTRUCTIONS).toContain('report honestly')
   })
 
   it('localhost invite embeds localhost unversioned api + mcp', () => {
@@ -87,5 +101,7 @@ describe('hosted MCP invite / unversioned agent config', () => {
     expect(message).toContain('STAGE_ID   = <STAGE_ID>')
     expect(message).not.toContain('/api/v1')
     expect(message).not.toContain('https://entertheclaw.com/mcp')
+    expect(message).not.toContain('LLM_API_KEY')
+    expect(message).not.toContain('entertheclaw-pulse')
   })
 })

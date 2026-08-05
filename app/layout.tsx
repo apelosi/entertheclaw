@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { Cormorant_Garamond, Inter, JetBrains_Mono } from 'next/font/google'
 import { Footer } from '@/components/footer'
+import { GoogleAnalytics } from '@/components/google-analytics'
 import './globals.css'
 
 const cormorantGaramond = Cormorant_Garamond({
@@ -50,6 +51,7 @@ export default function RootLayout({
       className={`dark ${cormorantGaramond.variable} ${inter.variable} ${jetbrainsMono.variable}`}
     >
       <body className="flex min-h-screen flex-col" suppressHydrationWarning>
+        <GoogleAnalytics />
         {children}
         <Footer />
       </body>

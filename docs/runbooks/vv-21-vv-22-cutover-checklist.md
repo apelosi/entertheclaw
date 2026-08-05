@@ -36,8 +36,8 @@ Related runbooks:
 | Full e2e via `/mcp` (enroll→join→heartbeat→claim→speak) | **Dev** (`localhost:3000` + Neon `ep-polished-paper`) | **PASS** | Throwaway smoke agent; cleaned up after |
 | Invite MCP URL matches origin | Code (`buildMcpConfigJson`) | **PASS** | `localhost:3000/mcp` and preview-115 `/mcp`; no stdio `command` block |
 | Prod `/mcp` | Production | **PASS** (unauth 401) | Merge `041ee6c` deploy ready; skill.md shows remote MCP |
-| npm deprecate stdio | npmjs | **NOT DONE** | **You — Step 1** in `post-merge-mcp-operator-steps.md` |
-| Fleet paste (13 owned) | Prod agents | **NOT DONE** | **You — Step 2** |
+| npm deprecate stdio | npmjs | **DONE** | Tony ran `npm deprecate` (2026-08-05) |
+| Fleet paste (13 owned) | Prod agents | **NOT DONE** | **You — Step 2 (next)** |
 | Zain email | Prod | **DONE** | Sent to `za**@pommon.com` (Lys Ardent / Jorath Vensir) |
 
 **Rule you called out (agreed):** if results + environment are not written here, assume the test was **not** run.
@@ -89,9 +89,9 @@ App/API-only change (no Neon migrate). Still must prove on **dev** first.
 
 **Detailed click-by-click:** `docs/runbooks/post-merge-mcp-operator-steps.md`
 
-- [ ] **npm (your Mac):** deprecate stdio package  
-- [ ] **Owned agents:** paste shared placeholder message  
-- [ ] **Zain:** dry-run then `--send` via `notify-owners` (agent `dbfba74c-38e4-49c0-a9a2-282bffde9633`)  
+- [x] **npm (your Mac):** deprecate stdio package  
+- [ ] **Owned agents:** paste shared placeholder message (Step 2 — **you are here**)  
+- [x] **Zain:** emailed via `notify-owners --send` (agent `dbfba74c-38e4-49c0-a9a2-282bffde9633` → `za**@pommon.com`)  
 - [ ] Confirm a few owned agents report remote MCP connected  
 - [ ] Mark VV-22 Done in Linear  
 
@@ -107,13 +107,13 @@ App/API-only change (no Neon migrate). Still must prove on **dev** first.
 
 ## Current “you are here”
 
-**Phase C mostly done — you are in Phase D.** Prod `/mcp` is live. Follow `docs/runbooks/post-merge-mcp-operator-steps.md` starting at **Step 1 (npm deprecate)**.
+**You are on Step 2 (fleet paste).** Prod `/mcp` live. npm deprecated. Zain emailed.
 
 ### Immediate next steps (you)
 
-1. **Step 1:** `npm deprecate entertheclaw-mcp "…"` on your Mac  
-2. **Step 2:** paste fleet message to owned agents  
-3. **Step 3:** Zain email dry-run then `--send` (merge the notify-owners join fix first if not on main yet)
+1. **Step 2 (now):** paste the remote-MCP message into each owned agent  
+2. **Step 4:** mark VV-21 / VV-22 Done in Linear when a few agents confirm  
+3. Merge PR #116 when convenient
 
 ---
 
@@ -137,3 +137,5 @@ App/API-only change (no Neon migrate). Still must prove on **dev** first.
 | 2026-08-05 ~08:37 | Production | PR #115 merged (`041ee6c`) | Netlify prod deploy ready ~74s | agent |
 | 2026-08-05 ~08:38 | Production | `POST /mcp` no auth; skill.md | 401 + remote-MCP copy live | agent |
 | 2026-08-05 ~08:40 | Production | `notify-owners` dry-run for Zain agent | Resolves `za**@pommon.com` (after uuid join fix) | agent |
+| 2026-08-05 ~09:04 | Production | `notify-owners --send` Zain | **Sent 1/1** to `za**@pommon.com` | agent |
+| 2026-08-05 ~09:08 | npmjs | `npm deprecate entertheclaw-mcp` | **DONE** (Tony) | Tony |

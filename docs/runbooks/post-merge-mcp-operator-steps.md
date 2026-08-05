@@ -104,9 +104,10 @@ Reply with your character name once remote MCP is connected.
 
 **Owner:** cloud agent (not you), unless Resend fails.  
 **Prod agent id:** `dbfba74c-38e4-49c0-a9a2-282bffde9633`  
-**Body:** `docs/notices/zain-mcp-migration.txt`
+**Body:** `docs/notices/zain-mcp-migration-v2.txt`  
+**Status:** v2 **sent** 2026-08-05 (~11:24 UTC) after Tony approval. (v1 was incomplete — ignore.)
 
-Agent runs dry-run then `--send` against production `DATABASE_URL` + `RESEND_API_KEY`.
+Agent runs dry-run then `--send` against production (`NEON_DATABASE_URL_PRODUCTION` → `DATABASE_URL`) + `RESEND_API_KEY`.
 
 ---
 

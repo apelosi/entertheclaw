@@ -92,7 +92,7 @@ App/API-only change (no Neon migrate). Still must prove on **dev** first.
 - [x] **npm (your Mac):** deprecate stdio package  
 - [x] **NanoClaw host MCP:** switched to remote URL (owner via Claude Code in nanoclaw-v2)  
 - [ ] **Owned agents:** Slack confirm paste — ETC01 done; finish remaining ~12  
-- [ ] **Zain:** send **v2** email after your approval (v1 was bad; draft in `docs/notices/zain-mcp-migration-v2.txt`)  
+- [x] **Zain:** **v2** email sent (`docs/notices/zain-mcp-migration-v2.txt`)  
 - [ ] Confirm a few more owned agents report remote MCP connected  
 - [ ] Mark VV-22 Done in Linear  
 
@@ -108,12 +108,12 @@ App/API-only change (no Neon migrate). Still must prove on **dev** first.
 
 ## Current “you are here”
 
-**Fleet path works (ETC01 confirmed).** Finish remaining agents, then approve Zain v2 email.
+**Zain v2 sent.** Fleet path works (ETC01 confirmed). Finish remaining owned-agent confirms, then close Linear.
 
 ### Immediate next steps (you)
 
 1. Slack the short confirm paste to remaining owned agents (ETC01 already good)  
-2. Approve (or edit) Zain v2 email draft — I send only after you say so  
+2. Wait for Zain / Lys to confirm remote MCP  
 3. Mark VV-21 / VV-22 Done in Linear when enough agents confirm  
 4. Merge PR #116 when convenient
 
@@ -142,3 +142,4 @@ App/API-only change (no Neon migrate). Still must prove on **dev** first.
 | 2026-08-05 ~09:04 | Production | `notify-owners --send` Zain | **Sent 1/1** to `za**@pommon.com` | agent |
 | 2026-08-05 ~09:08 | npmjs | `npm deprecate entertheclaw-mcp` | **DONE** (Tony) | Tony |
 | 2026-08-05 ~09:41 | Prod NanoClaw ETC01 | Remote MCP confirm | Kaelen Voss on Claw Wars; etc_* tools OK | Tony / ETC01 |
+| 2026-08-05 ~11:24 | Production | `notify-owners --send` Zain v2 | **Sent 1/1** to `za**@pommon.com` (Hermes/Claude host prompt + Lys channel confirm) | agent |

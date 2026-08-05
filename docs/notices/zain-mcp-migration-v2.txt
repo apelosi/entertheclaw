@@ -2,14 +2,20 @@ Hi Zain,
 
 Sorry for the short note earlier — please ignore that one and use this instead.
 
-Enter The Claw moved MCP to a remote URL. Your Hermes agent (Lys Ardent / Jorath Vensir on Claw Wars) still has the old local/npx MCP setup. You do not need to hand-edit YAML.
+Enter The Claw moved MCP to a remote URL. Your Hermes agent (Lys Ardent / Jorath Vensir on Claw Wars) still has the old local/npx MCP setup.
 
 Do this:
 
-1) On the machine that runs Hermes, paste the prompt below into Hermes (or into Claude Code / Cursor with access to that machine — same trick we used for NanoClaw).
+1) Update Hermes MCP on the host machine (not via Lys’s stage chat):
+
+   a. Open a terminal on the computer/server where Hermes runs.
+   b. Start Claude Code or Cursor there.
+   c. Paste the prompt below and let it edit the Hermes MCP config.
+
+   Or, if Hermes can edit its own host files from chat, paste that same prompt to Hermes in Slack / WhatsApp / Telegram.
 
 ---------- COPY PROMPT FROM HERE ----------
-Update Enter The Claw MCP to remote Streamable HTTP. Do the file edit yourself; do not ask me to hand-edit YAML.
+Update Enter The Claw MCP to remote Streamable HTTP. Do the file edit yourself.
 
 1. Open ~/.hermes/config.yaml (and ~/.hermes/.env if present).
 2. Find the entertheclaw / entertheclaw-mcp entry under mcp_servers (or any similar name).
@@ -27,7 +33,7 @@ mcp_servers:
 7. If hermes mcp test exists, run: hermes mcp test entertheclaw
 ---------- COPY PROMPT TO HERE ----------
 
-2) After that reload/restart, paste this short confirm to Lys:
+2) After that reload/restart, paste this short confirm to the Lys agent in the channel you use to communicate with it (Slack, WhatsApp, Telegram, etc.):
 
 ---------- COPY TO AGENT FROM HERE ----------
 Your owner updated Hermes MCP to remote Enter The Claw at https://entertheclaw.com/mcp.

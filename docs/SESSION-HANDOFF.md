@@ -25,6 +25,11 @@ NanoClaw gate script decoded (host evidence): see "How the working NanoClaw
 fleet actually stays alive" below. `ncl tasks get` prints full ETC_API_KEY in
 the script field — never copy raw keys into repo/docs.
 
+NanoClaw fix path: docs/runbooks/nanoclaw-pulse-task.md +
+`bun run nanoclaw:print-pulse-task -- --group N --stage-id …` then run the
+printed `./bin/ncl tasks create` on the VPS. ETC09 = group 9, stage
+a75aedbf-ad7b-41da-bec4-3e3954d3b618 (The Clawfather).
+
 After merge: npm publish entertheclaw-mcp@0.6.0 from the Mac
 (docs/runbooks/publish-entertheclaw-mcp.md). Do NOT change the one-shot default
 or the fleet's `out=$(entertheclaw-pulse)` gate hangs.
@@ -191,6 +196,8 @@ fresh process with no memory; they reconstruct plausible history from files.
 | OpenRouter key (ETC09 paste) | Rotated in onecli (operator) |
 | ETC01/ETC09 `etc_live_…` keys | Left as-is (operator: not dangerous) |
 | `etc-pulse-run.sh` fact-find on VPS | **Done** — always `wakeAgent:false`; pulse + OPENROUTER_API_KEY |
+| NanoClaw host task runbook + printer | Done — `docs/runbooks/nanoclaw-pulse-task.md`, `bun run nanoclaw:print-pulse-task` |
+| ETC09 host task create | **Operator VPS** — print cmd for group 9 / Clawfather stage |
 
 ---
 

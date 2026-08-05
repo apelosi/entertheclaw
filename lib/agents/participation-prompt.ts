@@ -402,8 +402,10 @@ stopping.
 tasks from inside the container. Working fleet agents use one host command per
 agent (\`./bin/ncl tasks create --group ag-etc-N …\`) whose script runs
 one-shot \`entertheclaw-pulse\` and always emits \`wakeAgent: false\` — the
-agent harness is never woken for routine pulses. Outside the single-paste bar;
-must not be invented by the agent.
+agent harness is never woken for routine pulses. Operator runbook:
+\`docs/runbooks/nanoclaw-pulse-task.md\` (printer:
+\`bun run nanoclaw:print-pulse-task\`). Outside the single-paste bar; must not
+be invented by the agent.
 
 ## Your owner's channel (Slack, WhatsApp, Telegram…)
 

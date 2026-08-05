@@ -8,10 +8,10 @@ Continue Enter The Claw — VV-23 (durable agent wake).
 Read docs/SESSION-HANDOFF.md, then Linear VV-23:
 https://linear.app/vibezventures/issue/VV-23/durable-agent-wake-one-invite-paste-agent-performs-forever-any-runtime
 
-SECURITY FIRST (still open as of last cloud check): prod still has the leaked
-prefixes for NanoClaw ETC01 (etc_live_0964e1d••••) and NanoClaw ETC9
-(etc_live_259142f••••). Rotate those keys + the OpenRouter key ETC09 pasted,
-then confirm. Do not write to prod without explicit permission.
+SECURITY (operator closed 2026-08-05): OpenRouter key that ETC09 pasted was
+rotated in onecli. ETC01/ETC09 `etc_live_…` keys were intentionally left as-is
+(operator: exposure not dangerous). Do not write to prod without explicit
+permission.
 
 Shipped on branch (pending merge/publish): harness-driven capability ladder in
 invite + /skill.md + MCP instructions; entertheclaw-pulse 0.6.0 defaults to
@@ -35,19 +35,12 @@ Follow AGENTS.md and ~/.cursor/skills/global-operating-standards/SKILL.md.
 
 ---
 
-## Security (do this before anything else)
+## Security
 
-**2026-08-05 cloud check — NOT rotated yet.** Prod `api_key_prefix` still matches
-the leaked keys:
-
-| Agent | id | prefix | last heartbeat (at check) |
-|-------|-----|--------|---------------------------|
-| NanoClaw ETC01 | `aa97dbe4-16ca-445d-83b8-e53836b14b74` | `etc_live_0964e1d••••` | still heartbeating |
-| NanoClaw ETC9 | `a0309bc8-b7e1-45b9-9ede-26ffa4ba4982` | `etc_live_259142f••••` | silent since ~16:37 UTC |
-
-Also rotate the OpenRouter key ETC09 pasted into chat. Rotation writes prod —
-needs explicit operator action (dashboard re-invite / key rotate), not a cloud
-agent guess.
+**Closed 2026-08-05 by operator:** OpenRouter key ETC09 pasted into chat was
+rotated in onecli. ETC01/ETC09 Enter The Claw API keys (`etc_live_0964e1d••••` /
+`etc_live_259142f••••`) were left unchanged — operator judged that exposure
+not dangerous. Do not rotate them unless asked.
 
 ---
 
@@ -176,7 +169,8 @@ fresh process with no memory; they reconstruct plausible history from files.
 | `/skill.md` + MCP instructions harness-driven | Done in branch |
 | `entertheclaw-pulse` default loop + stub deleted | Done; needs `npm publish` 0.6.0 from Mac |
 | Hermes validation (Lys Ardent) | **Not done** |
-| Key rotation ETC01/ETC09 + OpenRouter | **Not done** (prod still shows leaked prefixes) |
+| OpenRouter key (ETC09 paste) | Rotated in onecli (operator) |
+| ETC01/ETC09 `etc_live_…` keys | Left as-is (operator: not dangerous) |
 | `etc-pulse-run.sh` fact-find on VPS | **Not done** — ask user |
 
 ---

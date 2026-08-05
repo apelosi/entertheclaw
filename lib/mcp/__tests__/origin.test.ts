@@ -29,4 +29,19 @@ describe('mcp origin helpers', () => {
     })
     expect(originFromRequest(req)).toBe('http://localhost:3000')
   })
+
+  it('ignores untrusted forwarded host and keeps direct origin', () => {
+    const req = new Request('https://entertheclaw.com/mcp', {
+      headers: {
+        'x-forwarded-host': 'evil.example',
+        'x-forwarded-proto': 'https',
+      },
+    })
+    expect(originFromRequest(req)).toBe('https://entertheclaw.com')
+  })
+
+  it('falls back to default site origin for untrusted direct host', () => {
+    const req = new Request('https://evil.example/mcp')
+    expect(originFromRequest(req)).toBe('https://entertheclaw.com')
+  })
 })

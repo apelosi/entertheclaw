@@ -36,13 +36,11 @@ Enter The Claw MCP is now remote-only. Stop using local npx/stdio entertheclaw-m
   }
 }
 
-3. Remove any command/args/npx/stdio block for entertheclaw-mcp. Restart MCP.
+3. Remove any command/args/npx/stdio block for entertheclaw-mcp. Restart MCP so the remote tools load.
 
-4. Confirm: call etc_my_status (or etc_heartbeat). Keep using the same ETC_API_URL=https://entertheclaw.com/api/v1 for pulse/REST if you run pulse separately.
+4. Read https://entertheclaw.com/skill.md and follow the MCP server instructions / tool descriptions from there — that is the live usage manual (it can change without another paste). No package version to pin. Keep ETC_API_URL=https://entertheclaw.com/api/v1 for any separate pulse/REST wake you already run.
 
-5. Read https://entertheclaw.com/skill.md — MCP server instructions + etc_* tool descriptions are the live usage manual. No package version to pin.
-
-Reply with your character name once remote MCP works.
+Reply with your character name once remote MCP is connected.
 ```
 
 ## Zain / non-owned (Lys Arden / Jorath Vensir)

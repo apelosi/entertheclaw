@@ -29,11 +29,12 @@ Related runbooks:
 |-------|-----|--------|-------|
 | `bun run test` (vitest) | Cloud VM / no DB | **PASS** — 194 tests | Unit/contract only; not a live MCP e2e |
 | `bun run build` (Next) | Cloud VM | **PASS** (after script fix; needs `NEON_AUTH_COOKIE_SECRET` in env) | `/mcp` route present in build output |
-| Netlify PR deploy | Staging preview | **FAIL → fix pushed** | Root cause: empty `NEXT_PUBLIC_APP_URL` → `new URL('')` in `app/layout.tsx` metadataBase. Awaiting green deploy. |
-| `POST /mcp` unauthenticated → 401 | Dev (earlier this PR) | Partial | Auth reject only; not full tool e2e |
-| Full e2e: enroll → join → heartbeat → claim → speak via `/mcp` | Dev | **NOT RUN** | Needs `bun run dev` + real/dev agent key (DB write — needs your OK for smoke bootstrap) |
-| Staging `/mcp` e2e | Staging | **NOT RUN** | Wait for green Netlify preview |
-| Prod `/mcp` | Production | **NOT RUN** | Do not merge until staging green |
+| Netlify PR deploy | Staging preview | **PASS** (`5ef6a7f` → deploy `6a72ee4546fb1a00088d397b`) | https://deploy-preview-115--entertheclaw.netlify.app |
+| `POST /mcp` unauthenticated → 401 | Staging preview | **PASS** | `invalid_token` / WWW-Authenticate Bearer |
+| `POST /mcp` bogus bearer → 401 | Staging preview | **PASS** | 401 |
+| `/skill.md` remote-MCP copy | Staging preview | **PASS** | Says stdio/`npx` retired; pulse `@latest` only |
+| Full e2e: enroll → join → heartbeat → claim → speak via `/mcp` | Dev / Staging | **NOT RUN** | Needs agent key; DB write needs your OK for smoke bootstrap |
+| Prod `/mcp` | Production | **NOT RUN** | Prod still on 2026-07-18 deploy; merge only after you’re satisfied with staging |
 | npm deprecate stdio | npmjs | **NOT DONE** | After prod verify |
 | Fleet paste (13 owned) | Prod agents | **NOT DONE** | After prod verify |
 | Zain email | Prod | **NOT DONE** | After prod verify |
@@ -64,14 +65,14 @@ App/API-only change (no Neon migrate). Still must prove on **dev** first.
 
 ## Phase B — Staging (Netlify preview / branch)
 
-- [ ] Netlify PR deploy **green**
-- [ ] Note staging URL: `https://________________/mcp`
-- [ ] Staging: unauthenticated POST → 401
-- [ ] Staging: authenticated smoke (same as dev; staging Neon if app is wired to it)
-- [ ] Staging: invite from that origin embeds matching `{staging-host}/mcp`
-- [ ] Record results in the table above
+- [x] Netlify PR deploy **green**
+- [x] Staging URL: `https://deploy-preview-115--entertheclaw.netlify.app/mcp`
+- [x] Staging: unauthenticated POST → 401
+- [ ] Staging: authenticated smoke (tools/list + one tool; needs real `etc_live_…` against whatever DB the preview uses)
+- [ ] Staging: invite from that origin embeds matching `{staging-host}/mcp` (needs signed-in dashboard on preview)
+- [x] Record unauthenticated results in the table above
 
-**You review PR. Do not merge until Phase B is green.**
+**Remaining before merge:** authenticated MCP smoke (dev and/or staging). Unauthenticated staging path is green.
 
 ---
 
@@ -109,14 +110,13 @@ Order matters. Do **not** paste fleet / email Zain before prod `/mcp` works.
 
 ## Current “you are here”
 
-**Phase A mid-flight.** Code on draft PR #115; unit tests + local production build pass after script fix; **full authenticated MCP e2e on running `bun run dev` still not recorded**; staging URL not verified yet.
+**Phase B mostly green (unauthenticated).** Staging preview is live; `/mcp` returns 401 without a key. **Authenticated tool e2e still not run** (needs your OK / a key).
 
 ### Immediate next steps
 
-1. **Agent (this chat):** push build fix; watch Netlify; run/record **dev** `/mcp` smokes (ask before any `SMOKE_BOOTSTRAP` / DB agent inserts).  
-2. **You:** no action until Phase B is green — then review PR.  
-3. **You:** merge only after Phase B.  
-4. **You:** Phase D (npm deprecate → agent pastes → Zain email).
+1. **You or agent:** authenticated MCP smoke on staging (or dev) — say if `SMOKE_BOOTSTRAP=1` against **dev** Neon is allowed, or provide a non-prod test key.  
+2. **You:** review PR #115 when ready; merge only after you’re happy with staging (+ auth smoke if you want it).  
+3. **You after merge:** Phase C prod verify → Phase D (npm deprecate → agent pastes → Zain email).
 
 ---
 
@@ -133,3 +133,5 @@ Order matters. Do **not** paste fleet / email Zain before prod `/mcp` works.
 | 2026-08-05 | Netlify production | Last `ready` deploy | 2026-07-18 `0bd1515` (PR #111). Prod merges #112/#113 also `error` — site still serving that older deploy (`/mcp` → 404 on prod) | agent |
 | 2026-08-05 ~07:54 | Netlify deploy-preview | `b324b36` build log (via UI) | `ERR_INVALID_URL` input `''` on `/_not-found` during page data collect | [computerUse](bc-bd6a0c6e-989f-5af3-a8c8-c65d9581a6c3) |
 | 2026-08-05 ~07:59 | Cloud VM | Reproduce + fix | Empty `NEXT_PUBLIC_APP_URL` breaks `metadataBase`; auth placeholders hardened; build PASS with empty preview-like env | agent |
+| 2026-08-05 ~08:10 | Netlify deploy-preview | Deploy `5ef6a7f` | **ready**; `/` 200; `/mcp` 401 | [ci-watcher](bc-82835baa-9dfc-5150-b30b-2d69a025f01b) |
+| 2026-08-05 ~08:11 | Staging preview | `POST /mcp` no/bogus auth; `/skill.md` | 401 + remote-MCP skill copy | agent |

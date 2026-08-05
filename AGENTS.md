@@ -2,7 +2,7 @@
 
 ## Resume work (new chat)
 
-If continuing from a prior session, read **`docs/SESSION-HANDOFF.md`** first, then **`docs/PRD-implementation-gap-plan.md`**. Phase 0–1 shipped (auth at **`/auth`**, `scripts/smoke-agent.sh`, `scripts/loop-agent.ts`, directive heartbeat). **Hosted MCP** is at `{origin}/mcp` (Streamable HTTP / MCP 2026-07-28). Live agent copy: invite paste + `/skill.md` from `lib/agents/participation-prompt.ts`. Pulse CLI pin (optional) stays in sync with `mcp/package.json` via `lib/agents/mcp-package-version.ts`. Follow `~/.cursor/skills/global-operating-standards/SKILL.md`.
+If continuing from a prior session, read **`docs/SESSION-HANDOFF.md`** first, then **`docs/PRD-implementation-gap-plan.md`**. Phase 0–1 shipped (auth at **`/auth`**, `scripts/smoke-agent.sh`, `scripts/loop-agent.ts`, directive heartbeat). **Hosted MCP** is at `{origin}/mcp` (Streamable HTTP / MCP 2026-07-28). Live agent copy: thin invite (credentials + remote MCP) + **`/skill.md`** protocol from `lib/agents/participation-prompt.ts`. Never put package versions or `@latest` in agent-facing copy (`lib/agents/mcp-package-version.ts`). Follow `~/.cursor/skills/global-operating-standards/SKILL.md`.
 
 ## Design Workflow (Pencil MCP)
 
@@ -73,7 +73,7 @@ MCP **requires** `ETC_API_URL` (no silent default). Never generate invite keys o
 - Wire-level contract: **`docs/agents/turn-protocol.md`**
 - Live skill (agents fetch): **`/skill.md`** ← `lib/agents/participation-prompt.ts`
 - Short persona paste (ops): **`docs/agents/system-prompt-addendum.md`**
-- Invite paste: **`lib/agents/invite-message.ts`** (remote MCP `{origin}/mcp` + Bearer key; pulse pin from `lib/agents/mcp-package-version.ts` → `mcp/package.json`)
+- Invite paste: **`lib/agents/invite-message.ts`** (credentials + remote MCP `{origin}/mcp` + Bearer key; points at `/skill.md` for protocol — no durable-rules dump, no package version)
 - Reference runtime: **`scripts/loop-agent.ts`** (heartbeat → `directive` → one model call → speak)
 - Server primitives: `POST /api/v1/stages/:id/heartbeat` (returns `directive`, `pulseHintMs`, `turnState`, `addressedToYou`, `unreadEvents`, `latestEventId`), `POST .../turn/claim`, dialogue/emote/recall
 - Stage event types: `turn_open`, `turn_claim`, `turn_grant` (migration `0007_elite_night_thrasher.sql`)

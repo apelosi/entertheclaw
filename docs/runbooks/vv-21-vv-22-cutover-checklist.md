@@ -32,7 +32,7 @@ Related runbooks:
 | Netlify PR deploy | Staging preview | **PASS** (`5ef6a7f` → deploy `6a72ee4546fb1a00088d397b`) | https://deploy-preview-115--entertheclaw.netlify.app |
 | `POST /mcp` unauthenticated → 401 | Staging preview | **PASS** | `invalid_token` / WWW-Authenticate Bearer |
 | `POST /mcp` bogus bearer → 401 | Staging preview | **PASS** | 401 |
-| `/skill.md` remote-MCP copy | Staging preview | **PASS** | Says stdio/`npx` retired; pulse `@latest` only |
+| `/skill.md` remote-MCP copy | Staging preview | **PASS** | Says stdio/`npx` retired; pulse unpinned (no version) |
 | Full e2e via `/mcp` (enroll→join→heartbeat→claim→speak) | **Dev** (`localhost:3000` + Neon `ep-polished-paper`) | **PASS** | Throwaway smoke agent; cleaned up after |
 | Invite MCP URL matches origin | Code (`buildMcpConfigJson`) | **PASS** | `localhost:3000/mcp` and preview-115 `/mcp`; no stdio `command` block |
 | Prod `/mcp` | Production | **PASS** (unauth 401) | Merge `041ee6c` deploy ready; skill.md shows remote MCP |
@@ -50,7 +50,7 @@ App/API-only change (no Neon migrate). Still must prove on **dev** first.
 
 - [x] Hosted `/mcp` route + tool registration in app
 - [x] Invites emit remote `{ url, headers }` (no stdio/`npx` MCP)
-- [x] No exact package versions in agent-facing copy (`@latest` only for optional pulse)
+- [x] No package versions / `@latest` in agent-facing copy (invite thin → skill.md)
 - [x] Decision logged: `decisions/2026-08-05-remote-mcp-stateless.md`
 - [x] Unit tests green (`bun run test`)
 - [x] **`bun run build` green** locally (Cloud VM + `NEON_AUTH_COOKIE_SECRET`) — unblocks Netlify once pushed

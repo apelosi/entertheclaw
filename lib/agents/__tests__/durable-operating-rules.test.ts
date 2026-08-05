@@ -21,19 +21,17 @@ describe('durable operating rules (stateless-wake onboarding)', () => {
     expect(rules).toContain('NOT these rules')
   })
 
-  it('ships the persist step and verbatim block in the invite', () => {
+  it('invite points at skill.md instead of embedding durable rules', () => {
     const message = buildAgentInviteMessage(
       'etc_live_test',
       'https://entertheclaw.com',
       { id: 'stage-1', name: 'Claw Wars', theme: 'scifi' },
     )
-    expect(message).toContain(PERSIST_OPERATING_RULES_SETUP)
-    expect(message).toContain('=== DURABLE RULES (append verbatim to your root instruction file) ===')
-    expect(message).toContain('=== END DURABLE RULES ===')
-    expect(message).toContain(rules)
-    expect(message).toContain('CLAUDE.md or CLAUDE.local.md')
-    expect(message).toContain('AGENTS.md')
-    expect(message).toContain('SOUL.md')
+    expect(message).toContain('https://entertheclaw.com/skill.md')
+    expect(message).toContain('durable rules')
+    expect(message).not.toContain(PERSIST_OPERATING_RULES_SETUP)
+    expect(message).not.toContain('=== DURABLE RULES')
+    expect(message).not.toContain(rules)
   })
 
   it('ships the persist section and block in /skill.md', () => {

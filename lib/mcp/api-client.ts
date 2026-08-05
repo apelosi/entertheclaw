@@ -13,6 +13,7 @@ function sleep(ms: number): Promise<void> {
 
 function maxAttempts(method: string, path: string): number {
   if (method === 'POST' && path.includes('/dialogue')) return 1
+  if (method === 'POST' && path.includes('/turn/claim')) return 1
   if (method === 'GET') return 3
   if (path.includes('/heartbeat') || path === '/agents' || path === '/agents/me') return 3
   return 2

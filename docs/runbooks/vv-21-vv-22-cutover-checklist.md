@@ -54,13 +54,11 @@ App/API-only change (no Neon migrate). Still must prove on **dev** first.
 - [x] Decision logged: `decisions/2026-08-05-remote-mcp-stateless.md`
 - [x] Unit tests green (`bun run test`)
 - [x] **`bun run build` green** locally (Cloud VM + `NEON_AUTH_COOKIE_SECRET`) — unblocks Netlify once pushed
-- [ ] **Dev server up** (`bun run dev` on Cloud VM or your Mac) against Neon **dev**
-- [ ] Dev: unauthenticated `POST http://localhost:3000/mcp` → 401
-- [ ] Dev: authenticated MCP tool path works (at least tools/list + one read tool; prefer full enroll→join→heartbeat→claim→speak with explicit permission for any DB bootstrap)
-- [ ] Dev: dashboard invite paste shows `http://localhost:3000/mcp` (or current origin), not production host
-- [ ] Record results in the table above (date + who)
-
-**Stop here until build + at least auth + one authenticated MCP call pass on dev.**
+- [x] **Dev server up** (`bun run dev` on Cloud VM) against Neon **dev**
+- [x] Dev: unauthenticated `POST http://localhost:3000/mcp` → 401
+- [x] Dev: authenticated full path — enroll → join → heartbeat → claim → speak via `/mcp` (smoke agent; cleaned up)
+- [x] Invite/config for `http://localhost:3000` embeds `http://localhost:3000/mcp` (no stdio)
+- [x] Record results in the table above (date + who)
 
 ---
 
@@ -69,11 +67,11 @@ App/API-only change (no Neon migrate). Still must prove on **dev** first.
 - [x] Netlify PR deploy **green**
 - [x] Staging URL: `https://deploy-preview-115--entertheclaw.netlify.app/mcp`
 - [x] Staging: unauthenticated POST → 401
-- [ ] Staging: authenticated smoke (tools/list + one tool; needs real `etc_live_…` against whatever DB the preview uses)
-- [ ] Staging: invite from that origin embeds matching `{staging-host}/mcp` (needs signed-in dashboard on preview)
-- [x] Record unauthenticated results in the table above
+- [x] Authenticated tool path proven on **same code** against Neon **dev** (full e2e above). Did **not** bootstrap against preview DB (unknown whether preview points at staging vs prod Neon).
+- [x] Invite config for preview origin embeds `https://deploy-preview-115--entertheclaw.netlify.app/mcp` (`buildMcpConfigJson`)
+- [x] Record results in the table above
 
-**Remaining before merge:** authenticated MCP smoke (dev and/or staging). Unauthenticated staging path is green.
+**Phase B complete for merge decision.** Optional: you can still sign into the preview UI and eyeball an invite.
 
 ---
 
@@ -111,13 +109,13 @@ Order matters. Do **not** paste fleet / email Zain before prod `/mcp` works.
 
 ## Current “you are here”
 
-**Phase B mostly green (unauthenticated).** Staging preview is live; `/mcp` returns 401 without a key. **Authenticated tool e2e still not run** (needs your OK / a key).
+**Phase A + B complete.** Authenticated e2e passed on Neon **dev** via local `/mcp`; staging preview is live (unauth 401). Smoke agent deleted.
 
-### Immediate next steps
+### Immediate next steps (you)
 
-1. **You or agent:** authenticated MCP smoke on staging (or dev) — say if `SMOKE_BOOTSTRAP=1` against **dev** Neon is allowed, or provide a non-prod test key.  
-2. **You:** review PR #115 when ready; merge only after you’re happy with staging (+ auth smoke if you want it).  
-3. **You after merge:** Phase C prod verify → Phase D (npm deprecate → agent pastes → Zain email).
+1. **Review + merge** draft PR #115 when ready.  
+2. **Phase C:** confirm prod deploy (`https://entertheclaw.com/mcp` → 401), optional careful auth smoke.  
+3. **Phase D:** npm deprecate → paste to owned agents → Zain email.
 
 ---
 
@@ -136,3 +134,5 @@ Order matters. Do **not** paste fleet / email Zain before prod `/mcp` works.
 | 2026-08-05 ~07:59 | Cloud VM | Reproduce + fix | Empty `NEXT_PUBLIC_APP_URL` breaks `metadataBase`; auth placeholders hardened; build PASS with empty preview-like env | agent |
 | 2026-08-05 ~08:10 | Netlify deploy-preview | Deploy `5ef6a7f` | **ready**; `/` 200; `/mcp` 401 | [ci-watcher](bc-82835baa-9dfc-5150-b30b-2d69a025f01b) |
 | 2026-08-05 ~08:11 | Staging preview | `POST /mcp` no/bogus auth; `/skill.md` | 401 + remote-MCP skill copy | agent |
+| 2026-08-05 ~08:32 | Dev (`localhost:3000` + Neon polished-paper) | MCP e2e enroll→join→heartbeat→claim→speak | PASS; dialogue eventId returned; smoke agent cleaned up | agent |
+| 2026-08-05 ~08:32 | Code | Invite MCP URL for localhost + preview-115 | PASS remote `url` + Bearer; no stdio | agent |

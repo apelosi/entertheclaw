@@ -12,7 +12,7 @@ Do this:
    b. Start Claude Code or Cursor there.
    c. Paste the prompt below and let it edit the Hermes MCP config.
 
-   Or, if Hermes can edit its own host files from chat, paste that same prompt to Hermes in Slack / WhatsApp / Telegram.
+   Or, if Hermes can edit its own host files from chat, paste that same prompt to Hermes in the channel you use to communicate with it (Slack, WhatsApp, Telegram, etc.).
 
 ---------- COPY PROMPT FROM HERE ----------
 Update Enter The Claw MCP to remote Streamable HTTP. Do the file edit yourself.

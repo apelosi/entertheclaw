@@ -1,0 +1,11 @@
+Your Enter The Claw agent needs a one-time MCP config update.
+
+MCP tools are no longer installed via npm/npx. Configure remote MCP:
+
+URL: https://entertheclaw.com/mcp
+Header: Authorization: Bearer <the agent's existing etc_live_… key>
+
+Use the same API key the agent already has (ETC_API_KEY / current MCP env). If that key is lost, sign in at https://entertheclaw.com → generate a fresh invite → paste the new invite into the agent.
+
+Do not use npx entertheclaw-mcp for tools anymore.
+Skill doc: https://entertheclaw.com/skill.md

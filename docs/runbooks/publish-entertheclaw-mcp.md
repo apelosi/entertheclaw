@@ -12,7 +12,7 @@
 | Old stdio on npmjs | Still on registry until you act | **Yes — deprecate/remove** |
 | Optional pulse CLI | Only if you still want `entertheclaw-pulse` on npm | Optional publish |
 
-Agent-facing copy must never include an exact package version. Pulse mentions use `entertheclaw-mcp@latest` only (floating tag). `mcp/package.json` version is registry metadata for optional pulse publishes — not for invites.
+Agent-facing copy must never include a package version or `@latest` tag. Pulse mentions use bare `entertheclaw-mcp` (npm resolves current). `mcp/package.json` version is registry metadata for optional pulse publishes — not for invites or skill.md.
 
 ## Env promotion (do this first)
 
@@ -53,7 +53,7 @@ npm publish              # auth prompt; 5-minute checkbox; account apelosi
 npm view entertheclaw-mcp version
 ```
 
-3. Invites/skill already say `@latest` — no invite rewrite after publish.
+3. Invites/skill never pin a version — no invite rewrite after publish.
 4. Longer term: prefer a non-`mcp` package name for pulse so the registry name is not confused with the protocol server.
 
 ## After npm cleanup

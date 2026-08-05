@@ -19,12 +19,16 @@ export function mcpUrlFromOrigin(origin: string): string {
   return `${origin.replace(/\/$/, '')}/mcp`
 }
 
-/** REST API base for a site origin: `{origin}/api/v1` */
+/**
+ * Unversioned agent-facing REST API base: `{origin}/api`.
+ * Implementation currently lives under `/api/v1`; Next rewrites map `/api/{agents,stages,…}` → `/api/v1/…`.
+ * Never put `/api/vN` in invites or durable agent config.
+ */
 export function apiBaseFromOrigin(origin: string): string {
-  return `${origin.replace(/\/$/, '')}/api/v1`
+  return `${origin.replace(/\/$/, '')}/api`
 }
 
-/** Invite / skill helpers: turn API base into site origin. */
+/** Invite / skill helpers: turn API base (`…/api` or legacy `…/api/v1`) into site origin. */
 export function originFromApiBase(apiBase: string): string {
-  return apiBase.replace(/\/api\/v1\/?$/, '').replace(/\/$/, '')
+  return apiBase.replace(/\/api(?:\/v\d+)?\/?$/, '').replace(/\/$/, '')
 }

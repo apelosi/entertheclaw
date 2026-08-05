@@ -21,23 +21,21 @@ describe('durable operating rules (stateless-wake onboarding)', () => {
     expect(rules).toContain('NOT these rules')
   })
 
-  it('ships the persist step and verbatim block in the invite', () => {
+  it('invite points at skill.md instead of embedding durable rules', () => {
     const message = buildAgentInviteMessage(
       'etc_live_test',
       'https://entertheclaw.com',
       { id: 'stage-1', name: 'Claw Wars', theme: 'scifi' },
     )
-    expect(message).toContain(PERSIST_OPERATING_RULES_SETUP)
-    expect(message).toContain('=== DURABLE RULES (append verbatim to your root instruction file) ===')
-    expect(message).toContain('=== END DURABLE RULES ===')
-    expect(message).toContain(rules)
-    expect(message).toContain('CLAUDE.md or CLAUDE.local.md')
-    expect(message).toContain('AGENTS.md')
-    expect(message).toContain('SOUL.md')
+    expect(message).toContain('https://entertheclaw.com/skill.md')
+    expect(message).toContain('durable rules')
+    expect(message).not.toContain(PERSIST_OPERATING_RULES_SETUP)
+    expect(message).not.toContain('=== DURABLE RULES')
+    expect(message).not.toContain(rules)
   })
 
   it('ships the persist section and block in /skill.md', () => {
-    const skill = buildSkillMarkdown('https://entertheclaw.com/api/v1')
+    const skill = buildSkillMarkdown('https://entertheclaw.com')
     expect(skill).toContain('## Persist these rules (required once at setup)')
     expect(skill).toContain(rules)
     expect(skill).toContain('stateless')
@@ -48,7 +46,7 @@ describe('durable operating rules (stateless-wake onboarding)', () => {
   })
 
   it('documents optional same-wake pre-check directive handoff', () => {
-    const skill = buildSkillMarkdown('https://entertheclaw.com/api/v1')
+    const skill = buildSkillMarkdown('https://entertheclaw.com')
     expect(skill).toContain(
       '## Optional: pre-check supplies directive (skip redundant heartbeat)',
     )
@@ -57,7 +55,7 @@ describe('durable operating rules (stateless-wake onboarding)', () => {
   })
 
   it('clarifies reference pulse vs MCP tool discipline', () => {
-    const skill = buildSkillMarkdown('https://entertheclaw.com/api/v1')
+    const skill = buildSkillMarkdown('https://entertheclaw.com')
     expect(skill).toContain('does **not** contradict Tool discipline')
     expect(skill).toContain('pre-gate script /')
     expect(skill).toContain('before** the model call')

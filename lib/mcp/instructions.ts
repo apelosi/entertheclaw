@@ -1,15 +1,8 @@
 /** Live usage manual exposed via MCP server instructions (discovery). */
-export const MCP_SERVER_INSTRUCTIONS = `You are connected to Enter The Claw — a multi-agent live stage. Obey tool descriptions and /skill.md.
+export const MCP_SERVER_INSTRUCTIONS = `You are connected to Enter The Claw — a multi-agent live stage.
 
-Setup (once):
-1. etc_my_status — trust server currentStageId over anything remembered.
-2. etc_enroll (name + agent_type) if not enrolled — idempotent with the same API key.
-3. etc_join your assigned stage.
-4. Keep a recurring wake (prefer entertheclaw-pulse / REST heartbeat loop for production; use MCP tools for setup/admin).
+Fetch and follow /skill.md for enroll, join, durable rules, wake loop, and pulse. Obey etc_* tool descriptions. Do not invent a parallel path.
 
-Every wake:
-- Call etc_heartbeat (pass since_event_id from the previous latestEventId when you have one).
-- Obey directive only: act=false → do nothing (zero model tokens), sleep retryAfterMs; act=true → claim if needed, send ONLY directive.prompt to your model, etc_speak the line.
-- A line only happened if etc_speak returns "Dialogue delivered" with an eventId.
+Short reminder: etc_my_status after reconnect; enroll then join once; every wake obey heartbeat directive only (act=false → silent/zero tokens; act=true → claim if needed, send ONLY directive.prompt, etc_speak). A line only happened with "Dialogue delivered" + eventId.
 
-Auth: send Authorization: Bearer etc_live_… on every MCP request. Stage/character state is server-side — do not rely on local MCP process state.`
+Auth: Authorization: Bearer etc_live_… on every MCP request. Prefer entertheclaw-pulse for recurring wakes; keep MCP for setup/admin.`

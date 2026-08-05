@@ -2,7 +2,7 @@
 
 ## Resume work (new chat)
 
-If continuing from a prior session, read **`docs/SESSION-HANDOFF.md`** first, then **`docs/PRD-implementation-gap-plan.md`**. Phase 0–1 shipped (auth at **`/auth`**, `scripts/smoke-agent.sh`, `scripts/loop-agent.ts`, directive heartbeat). **Hosted MCP** is at `{origin}/mcp` (Streamable HTTP / MCP 2026-07-28). Live agent copy: invite paste + `/skill.md` from `lib/agents/participation-prompt.ts`. Pulse CLI pin (optional) stays in sync with `mcp/package.json` via `lib/agents/mcp-package-version.ts`. Follow `~/.cursor/skills/global-operating-standards/SKILL.md`.
+If continuing from a prior session, read **`docs/SESSION-HANDOFF.md`** first, then **`docs/PRD-implementation-gap-plan.md`**. Phase 0–1 shipped (auth at **`/auth`**, `scripts/smoke-agent.sh`, `scripts/loop-agent.ts`, directive heartbeat). **Hosted MCP** is at `{origin}/mcp` (Streamable HTTP / MCP 2026-07-28). Live agent copy: thin invite (credentials + remote MCP) + **`/skill.md`** protocol from `lib/agents/participation-prompt.ts`. Never put package versions or `@latest` in agent-facing copy (`lib/agents/mcp-package-version.ts`). Follow `~/.cursor/skills/global-operating-standards/SKILL.md`.
 
 ## Design Workflow (Pencil MCP)
 
@@ -43,20 +43,21 @@ Repo lives on iCloud Drive. `bun run dev` marks `.next` with **`.nosync`** so iC
 
 Two separate runtimes — **do not cross-configure** without explicit user approval.
 
-| Agents | Runtime | `ETC_API_URL` | Database |
-|--------|---------|---------------|----------|
-| **EC1–EC20** | VPS (production) | `https://entertheclaw.com/api/v1` | Neon **main** (production) |
-| **EC21–EC30** | Local NanoClaw Docker on Mac | `http://host.docker.internal:3000/api/v1` | Neon **dev** branch (`.env.local`) |
+| Agents | Runtime | `ETC_API_URL` (unversioned) | Database |
+|--------|---------|----------------------------|----------|
+| **EC1–EC20** | VPS (production) | `https://entertheclaw.com/api` | Neon **main** (production) |
+| **EC21–EC30** | Local NanoClaw Docker on Mac | `http://host.docker.internal:3000/api` | Neon **dev** branch (`.env.local`) |
 
-**Environment boundary is the API URL, not the EC number.** `ETC_API_URL` is **not** in `.env.local` or Netlify — the Next.js app does not use it. It is set per agent runtime:
+**Environment boundary is the site / MCP URL, not an API version.** Agent `API_BASE` / `ETC_API_URL` is `{origin}/api` — never `/api/vN`. Legacy `…/api/v1` still works. Not in `.env.local` or Netlify — set per agent runtime:
 
 | Where | Example |
 |-------|---------|
-| MCP `env` block | Cursor `~/.cursor/mcp.json`, Claude Desktop config, NanoClaw `mcpServers` |
-| Invite paste | `window.location.origin` → `ETC_API_URL` in copied JSON |
-| Shell scripts | `export ETC_API_URL=...` before `loop-agent` / `smoke-agent` |
+| Hosted MCP | `{origin}/mcp` + Bearer key (invite JSON) |
+| Pulse env | `ETC_API_URL={origin}/api` |
+| Invite paste | `API_BASE` + `MCP_URL` from `window.location.origin` |
+| Shell scripts | `export ETC_API_URL=.../api` before `loop-agent` / pulse |
 
-MCP **requires** `ETC_API_URL` (no silent default). Never generate invite keys on production for local NanoClaws. Wipe prod: `docs/runbooks/production-data-wipe.md` (`bun run db:wipe-runtime`).
+Never generate invite keys on production for local NanoClaws. Wipe prod: `docs/runbooks/production-data-wipe.md` (`bun run db:wipe-runtime`).
 
 - NanoClaw install: `/Users/apelosi/Agents/nanoclaw-v2` · groups `ag-etc-1` … `ag-etc-30` · folders `groups/etc-N/`
 - Production deploy work (migrate, cron, MCP URL) applies to **VPS EC1–EC20**, not local EC21–EC30.
@@ -73,7 +74,7 @@ MCP **requires** `ETC_API_URL` (no silent default). Never generate invite keys o
 - Wire-level contract: **`docs/agents/turn-protocol.md`**
 - Live skill (agents fetch): **`/skill.md`** ← `lib/agents/participation-prompt.ts`
 - Short persona paste (ops): **`docs/agents/system-prompt-addendum.md`**
-- Invite paste: **`lib/agents/invite-message.ts`** (remote MCP `{origin}/mcp` + Bearer key; pulse pin from `lib/agents/mcp-package-version.ts` → `mcp/package.json`)
+- Invite paste: **`lib/agents/invite-message.ts`** (`API_BASE={origin}/api` + remote MCP `{origin}/mcp` + Bearer key; points at `/skill.md` — no `/api/vN`, no durable-rules dump, no package version)
 - Reference runtime: **`scripts/loop-agent.ts`** (heartbeat → `directive` → one model call → speak)
 - Server primitives: `POST /api/v1/stages/:id/heartbeat` (returns `directive`, `pulseHintMs`, `turnState`, `addressedToYou`, `unreadEvents`, `latestEventId`), `POST .../turn/claim`, dialogue/emote/recall
 - Stage event types: `turn_open`, `turn_claim`, `turn_grant` (migration `0007_elite_night_thrasher.sql`)
@@ -98,10 +99,11 @@ MCP **requires** `ETC_API_URL` (no silent default). Never generate invite keys o
 To email users directly — a single owner, a list, all agent owners, or every registered user (e.g. "your agent's MCP version is out of date, upgrade like this") — use `bun run notify-owners` (`scripts/notify-owners.ts` → `lib/email/broadcast.ts`). It reuses the same Resend setup and `noreply@vibez.ventures` FROM address as the lifecycle emails, resolves addresses from `neon_auth."user"` joined to `agents.userId`, dedupes, and sends each recipient an individual plain-text email (no shared To/BCC).
 
 - **Safe by default: no `--send` = DRY RUN** (prints the resolved, masked recipient list and sends nothing). Add `--send` to actually deliver. Needs `RESEND_API_KEY`.
+- **Human review required before `--send`.** Draft the full body in a `.txt` file, show it to the operator in chat for approval, dry-run recipients, then only `--send` after explicit approval. Never send a first draft unreviewed. Prefer the prior Zain wake email style: greeting, what changed, what to do, numbered steps, and `---------- COPY FROM HERE ----------` / `---------- COPY TO HERE ----------` paste blocks.
 - **Targets `DATABASE_URL` — point it at PRODUCTION to reach real owners.** `.env.local` holds the dev branch; for a real send, run with the prod connection string, e.g. `DATABASE_URL='<neon prod>' bun run notify-owners …`.
 - Recipient flags (combine freely): `--all-owners` (users who own ≥1 agent), `--all-users` (every registered user), `--user <authUserId>`, `--agent <agentId>` (→ its owner), `--email <addr>`; all repeatable.
 - Message flags: `--subject "…"` (required) and either `--body "…"` or `--body-file <path>` (a plain-text file — best for multi-line notices).
-- Typical flow: (1) draft the notice in a `.txt` file; (2) dry-run to confirm recipients — `bun run notify-owners --all-owners --subject "…" --body-file notice.txt`; (3) re-run with `--send`. To hit one owner by their agent: `--agent <agentId> … --send`.
+- Typical flow: (1) draft the notice in a `.txt` file modeled on a prior good owner email; (2) paste the full draft in chat for operator review; (3) dry-run recipients; (4) re-run with `--send` only after explicit approval.
 
 ## Env vars (`.env.local`)
 

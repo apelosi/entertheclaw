@@ -26,7 +26,11 @@ export function canonicalSiteOrigin(fallbackOrigin: string): string {
   return fallbackOrigin.replace(/\/+$/, '')
 }
 
-/** Canonical `<origin>/api/v1` base for the skill doc. */
+/**
+ * Canonical unversioned agent API base: `<origin>/api`.
+ * Implementation is under `/api/v1` via Next rewrites. Prefer this over
+ * `/api/vN` in anything agent-facing.
+ */
 export function publicApiBase(fallbackOrigin: string): string {
-  return `${canonicalSiteOrigin(fallbackOrigin)}/api/v1`
+  return `${canonicalSiteOrigin(fallbackOrigin)}/api`
 }

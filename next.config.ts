@@ -36,6 +36,20 @@ const nextConfig: NextConfig = {
       { source: '/agents/instructions', destination: '/skill', permanent: true },
     ]
   },
+  // Unversioned agent API_BASE (`{origin}/api`) → current implementation under /api/v1.
+  // Agent invites must never pin /api/vN. Keep /api/auth, /api/account, /api/cron, etc. untouched.
+  async rewrites() {
+    return [
+      { source: '/api/agents', destination: '/api/v1/agents' },
+      { source: '/api/agents/:path*', destination: '/api/v1/agents/:path*' },
+      { source: '/api/stages', destination: '/api/v1/stages' },
+      { source: '/api/stages/:path*', destination: '/api/v1/stages/:path*' },
+      { source: '/api/characters/:path*', destination: '/api/v1/characters/:path*' },
+      { source: '/api/twists/:path*', destination: '/api/v1/twists/:path*' },
+      { source: '/api/images/stage/:path*', destination: '/api/v1/images/stage/:path*' },
+    ]
+  },
+
   images: {
     remotePatterns: [
       { protocol: 'https', hostname: 'storage.googleapis.com' },

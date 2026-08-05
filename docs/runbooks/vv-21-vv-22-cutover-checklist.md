@@ -82,7 +82,7 @@ App/API-only change (no Neon migrate). Still must prove on **dev** first.
 - [x] Prod: `https://entertheclaw.com/mcp` unauthenticated → 401
 - [ ] Prod: authenticated smoke with a **non-fleet** test key or one owned agent (optional; skip if fleet paste will prove it)
 - [ ] Prod: new invite shows `https://entertheclaw.com/mcp` (optional UI eyeball)
-- [ ] Mark VV-21 Done in Linear (acceptance criteria met)
+- [x] Mark VV-21 Done in Linear (acceptance criteria met)
 
 ---
 
@@ -95,7 +95,7 @@ App/API-only change (no Neon migrate). Still must prove on **dev** first.
 - [ ] **Owned agents:** Slack confirm paste — ETC01 done; finish remaining ~12  
 - [x] **Zain:** **v2** email sent (`docs/notices/zain-mcp-migration-v2.txt`)  
 - [ ] Confirm a few more owned agents report remote MCP connected  
-- [ ] Mark VV-22 Done in Linear  
+- [x] Mark VV-22 Done in Linear (delivered scope; durable wake split to VV-23)  
 
 ---
 
@@ -109,14 +109,15 @@ App/API-only change (no Neon migrate). Still must prove on **dev** first.
 
 ## Current “you are here”
 
-**PR #116 merged.** ETC9 prod invite proved remote MCP works for enroll/join/speak, then went silent (~6 min) because no recurring host wake was scheduled (`agent_type=custom`). **Do not close VV-21 / VV-22** until ETC9 (or a fresh invite) is heartbeating for a sustained window after a host-scheduled pulse.
+**VV-21 and VV-22 are closed** on delivered scope: hosted remote MCP at `{origin}/mcp`, thin invites with no package version and no `/api/vN`, fleet migrated off stdio.
 
-### Immediate next steps (you)
+**The remaining gap is [VV-23](https://linear.app/vibezventures/issue/VV-23/durable-agent-wake-one-invite-paste-agent-performs-forever-any-runtime)** — a fresh invite still yields enroll → join → 1–2 lines → silence, because agents cannot create a durable recurring wake from their wired channel. ETC9 confirmed every in-container scheduler is blocked for its group; Zain's Hermes agent died the same way. Do not attempt further per-agent host/VPS workarounds under this runbook.
 
-1. On NanoClaw VPS: schedule `entertheclaw-pulse` for ETC9 like the other groups (ETC_API_URL=`https://entertheclaw.com/api`)  
-2. Confirm ETC9 `last_heartbeat_at` keeps updating and more lines appear  
-3. Merge invite fix that makes recurring wake REQUIRED + concrete in the paste  
-4. Only then mark VV-21 / VV-22 Done in Linear
+### Where the work continues
+
+1. VV-23 — durable wake, validated on NanoClaw + Hermes + OpenClaw  
+2. Known contributing bug: published `entertheclaw-pulse` is one-shot (`mcp/src/pulse.ts`); the looping version is unpublished in `scripts/loop-agent.ts`  
+3. Rationale: `decisions/2026-08-05-channel-only-forever-onboarding.md`
 
 ---
 

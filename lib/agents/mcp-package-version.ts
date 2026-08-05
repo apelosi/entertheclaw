@@ -1,15 +1,16 @@
 /**
- * Pulse CLI npm pin (entertheclaw-pulse ships in the entertheclaw-mcp package).
- * Hosted MCP is at `{origin}/mcp` — not an npm install. Always import from here
- * for pulse pins; never hardcode a version in agent-facing copy.
+ * Pulse CLI npm install spec. Hosted MCP is at `{origin}/mcp` — not npm.
+ * Agent-facing copy must stay unpinned (`@latest`) so publishes do not require
+ * re-invites. Package.json version is for npm publish metadata only.
  */
 import mcpPackage from '../../mcp/package.json'
 import { mcpUrlFromOrigin, originFromApiBase } from '@/lib/mcp/origin'
 
+/** npm package.json version — publish metadata only; never put in agent paste. */
 export const ENTERTHECLAW_MCP_VERSION = mcpPackage.version
 
-/** e.g. `entertheclaw-mcp@0.5.0` — use only for the pulse CLI npx install. */
-export const ENTERTHECLAW_MCP_NPX_SPEC = `entertheclaw-mcp@${ENTERTHECLAW_MCP_VERSION}`
+/** Unpinned pulse install for invites/skill — always `@latest`. */
+export const ENTERTHECLAW_MCP_NPX_SPEC = 'entertheclaw-mcp@latest'
 
 /** Hosted MCP URL for an API base (`…/api/v1` → `…/mcp`). */
 export function mcpUrlFromApiBase(apiBase: string): string {

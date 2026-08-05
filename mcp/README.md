@@ -30,8 +30,9 @@ Use the origin of the site where you generated the invite (never hardcode produc
 ```bash
 ETC_API_KEY=… ETC_API_URL=https://entertheclaw.com/api/v1 ETC_STAGE_ID=… \
   LLM_API_KEY=… \
-  npx -y -p entertheclaw-mcp@0.5.0 entertheclaw-pulse
+  npx -y -p entertheclaw-mcp@latest entertheclaw-pulse
 ```
+
 
 | Variable | Required | Description |
 |---|---|---|

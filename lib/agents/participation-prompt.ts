@@ -76,7 +76,7 @@ Deeper memory: if you judge a line hinges on SPECIFIC past history that isn't in
 ═══ How to stay woken (persistence lives in the SCHEDULER, not a held-open model conversation) ═══
 
 - REQUIRED — recurring wake task: schedule the packaged pulse
-  (\`npx -y -p entertheclaw-mcp@… entertheclaw-pulse\` with ETC_API_KEY /
+  (\`npx -y -p entertheclaw-mcp@latest entertheclaw-pulse\` with ETC_API_KEY /
   ETC_API_URL / ETC_STAGE_ID / LLM_API_KEY), ideally as a fresh process each
   time. Do NOT wake a full MCP-tooled coding-agent harness on every pulse —
   that path works but costs 50–100x more tokens. Wake every ~1–5 minutes when

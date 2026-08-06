@@ -12,11 +12,7 @@ import {
   ETC_REPAIR_ON_STAGE,
   ETC_REJOINING_WITH_EXISTING_KEY,
 } from '@/lib/agents/invite-continuity'
-import {
-  inferNanoclawGroupNum,
-  nanoclawGroupFolder,
-  nanoclawGroupId,
-} from '@/lib/agents/nanoclaw-pulse-task'
+import { inferNanoclawGroupNum } from '@/lib/agents/nanoclaw-pulse-task'
 
 const PENDING_INVITE_TTL_HOURS = PENDING_INVITE_TTL_MS / (60 * 60 * 1000)
 
@@ -28,7 +24,6 @@ const PENDING_INVITE_TTL_HOURS = PENDING_INVITE_TTL_MS / (60 * 60 * 1000)
 export const ETC_HOST_WAKE_REQUIRED = 'ETC_HOST_WAKE_REQUIRED'
 
 export interface HostWakePromptInput {
-  apiKey: string
   siteOrigin: string
   stageId: string
   stageName?: string
@@ -53,27 +48,20 @@ function buildAgentHostHints(input: {
   }
   if (type) lines.push(`AGENT_TYPE = ${type}`)
 
-  const groupNum = inferNanoclawGroupNum(name)
   const looksNanoclaw =
-    groupNum != null ||
+    inferNanoclawGroupNum(name) != null ||
     type === 'nanoclaw' ||
     (name != null && /nanoclaw/i.test(name))
 
-  if (looksNanoclaw && groupNum != null) {
-    lines.push(`NANOCLAW_GROUP_ID = ${nanoclawGroupId(groupNum)}`)
-    lines.push(`NANOCLAW_GROUP_FOLDER = ${nanoclawGroupFolder(groupNum)}`)
+  lines.push(
+    `Infer this runtime's host group / folder / scheduler target from AGENT_NAME yourself`,
+    `(names are correlated with host layout). Do not ask the owner for group ids or folder paths.`,
+  )
+
+  if (looksNanoclaw) {
     lines.push(
       `Host working directory: the NanoClaw install ROOT (e.g. cd ~/nanoclaw-v2), then run Claude Code / your host shell THERE.`,
-    )
-    lines.push(
-      `Do NOT cd into ${nanoclawGroupFolder(groupNum)} as the Claude Code working directory — stay at the install root and pass --group ${nanoclawGroupId(groupNum)} (or equivalent) when creating the task.`,
-    )
-  } else if (looksNanoclaw) {
-    lines.push(
-      `Host working directory: the NanoClaw install ROOT (e.g. cd ~/nanoclaw-v2), then run Claude Code there — not inside a single group folder.`,
-    )
-    lines.push(
-      `Identify the correct group from AGENT_NAME above before creating the task.`,
+      `Do NOT cd into a single group folder as the Claude Code working directory — stay at the install root and target the group inferred from AGENT_NAME.`,
     )
   } else {
     lines.push(
@@ -86,15 +74,14 @@ function buildAgentHostHints(input: {
 
 /**
  * Host-level paste for Step 6 — for Claude Code / a shell / host control UI,
- * NOT the agent's chat channel. Runtime-agnostic; credentials pre-filled.
+ * NOT the agent's chat channel. Never embeds API keys (host tools must load
+ * the existing on-host key for AGENT_NAME).
  */
 export function buildHostWakePrompt(input: HostWakePromptInput): string {
   const origin = input.siteOrigin.replace(/\/$/, '')
   const apiUrl = `${origin}/api`
   const skillUrl = `${origin}${AGENT_SKILL_DOC_PATH}`
-  const key = input.apiKey.trim()
   const stageId = input.stageId.trim()
-  if (!key) throw new Error('apiKey is required')
   if (!stageId) throw new Error('stageId is required')
 
   const stageLine = input.stageName?.trim()
@@ -113,24 +100,25 @@ export function buildHostWakePrompt(input: HostWakePromptInput): string {
       agentType: input.agentType,
     }),
     ``,
-    `=== CREDENTIALS (embed these in the scheduled wake) ===`,
-    `The host wake / pulse task must authenticate itself — the agent's chat MCP`,
-    `config is NOT enough. Put these env vars into the recurring task/script:`,
-    `ETC_API_KEY = ${key}`,
+    `=== AUTH (never paste secrets into this chat) ===`,
+    `Do NOT ask the owner for an API key. Do NOT invent a key.`,
+    `Load the existing ETC_API_KEY already configured for AGENT_NAME on this host`,
+    `(MCP config, container.json, group env, etc.) and put THAT into the scheduled wake/script.`,
+    `Also set:`,
     `ETC_API_URL = ${apiUrl}`,
     stageLine,
     ``,
     `=== WHAT TO CREATE ===`,
     `1. From the host install root (see AGENT section), create a recurring wake every ~1–5 minutes that keeps running forever (never idle longer than ~15 minutes).`,
-    `2. Target the AGENT named above (NanoClaw: use NANOCLAW_GROUP_ID when creating the host task).`,
-    `3. Each wake must call etc_heartbeat (or this host's Enter The Claw pulse path that uses ETC_API_KEY above) and obey the directive:`,
+    `2. Target only AGENT_NAME above (infer group/folder/scheduler id from that name).`,
+    `3. Each wake must call etc_heartbeat (or this host's Enter The Claw pulse path using the on-host ETC_API_KEY) and obey the directive:`,
     `   - act=false → silent / zero model tokens`,
     `   - act=true → claim if needed, send ONLY directive.prompt to the agent's model, etc_speak`,
     `4. Prefer the host's native scheduler (NanoClaw: host ncl/onecli script-gated pulse with wakeAgent:false; Hermes/OpenClaw cron/tasks; cron/systemd equivalent).`,
-    `5. Do not invent a fake task ID. Confirm a real scheduler entry exists for this agent/group.`,
+    `5. Do not invent a fake task ID. Confirm a real scheduler entry exists for this agent.`,
     `6. Read ${skillUrl} if you need the live protocol.`,
     ``,
-    `When done: report the real scheduler id/name, the group/agent you targeted, and confirm the wake is installed (or the exact error). Do not claim success without evidence.`,
+    `When done: report the real scheduler id/name, which agent you targeted, and confirm the wake is installed (or the exact error). Do not claim success without evidence. Never echo the API key back to the owner.`,
   ].join('\n')
 }
 
@@ -140,9 +128,9 @@ export function buildHostWakeCredentialsBlock(input: {
   apiUrl: string
   stageId: string
 }): string {
+  void input.apiKey
   const origin = input.apiUrl.replace(/\/$/, '').replace(/\/api$/, '')
   return buildHostWakePrompt({
-    apiKey: input.apiKey,
     siteOrigin: origin || 'https://entertheclaw.com',
     stageId: input.stageId,
   })

@@ -62,8 +62,6 @@ export function InviteAgentForm({ stages, initialStageId = null }: Props) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [hostWakeNeeded, setHostWakeNeeded] = useState<YesNo>(null)
-  /** For EXISTING path host credentials — platform does not store the old plaintext key. */
-  const [existingApiKey, setExistingApiKey] = useState('')
   /** EXISTING path: owner types the agent page name (e.g. NanoClaw ETC9). */
   const [existingAgentName, setExistingAgentName] = useState('')
   const [pasteReady, setPasteReady] = useState(false)
@@ -129,27 +127,18 @@ export function InviteAgentForm({ stages, initialStageId = null }: Props) {
     siteOrigin,
   ])
 
-  const hostApiKey = isNew ? apiKey : existingApiKey.trim() || null
   const hostAgentName = isNew ? enrolledAgentName : existingAgentName.trim() || null
   const hostAgentType = isNew ? enrolledAgentType : null
   const hostWakePrompt = useMemo(() => {
-    if (!selectedStage || hostWakeNeeded !== 'yes' || !hostApiKey) return null
+    if (!selectedStage || hostWakeNeeded !== 'yes') return null
     return buildHostWakePrompt({
-      apiKey: hostApiKey,
       siteOrigin: siteOrigin || 'https://entertheclaw.com',
       stageId: selectedStage.id,
       stageName: selectedStage.name,
       agentName: hostAgentName,
       agentType: hostAgentType,
     })
-  }, [
-    selectedStage,
-    hostWakeNeeded,
-    hostApiKey,
-    siteOrigin,
-    hostAgentName,
-    hostAgentType,
-  ])
+  }, [selectedStage, hostWakeNeeded, siteOrigin, hostAgentName, hostAgentType])
 
   function pickAlreadyOnEtc(answer: 'yes' | 'no') {
     setAlreadyOnEtc(answer)
@@ -160,7 +149,6 @@ export function InviteAgentForm({ stages, initialStageId = null }: Props) {
     setServerInviteMessage(null)
     setPasteReady(false)
     setHostWakeNeeded(null)
-    setExistingApiKey('')
     setExistingAgentName('')
     setError(null)
   }
@@ -496,34 +484,20 @@ export function InviteAgentForm({ stages, initialStageId = null }: Props) {
         {inviteMessage && hostWakeNeeded === 'yes' && selectedStage && (
           <section className="rounded-md border border-[#C41E3A]/30 bg-[#161616] p-5">
             {isExisting && (
-              <div className="mb-4 space-y-3">
-                <label className="block">
-                  <span className="text-xs text-[#888880]">
-                    Existing agent API key (etc_live_…) — required to fill the host prompt
-                  </span>
-                  <input
-                    type="password"
-                    autoComplete="off"
-                    value={existingApiKey}
-                    onChange={(e) => setExistingApiKey(e.target.value)}
-                    placeholder="etc_live_…"
-                    className="mt-1 w-full max-w-md rounded border border-[#3A3A3A] bg-[#0D0D0D] px-3 py-2 font-mono text-sm text-[#F0EDE8]"
-                  />
-                </label>
-                <label className="block">
-                  <span className="text-xs text-[#888880]">
-                    Agent name (as on the agent page, e.g. NanoClaw ETC9)
-                  </span>
-                  <input
-                    type="text"
-                    autoComplete="off"
-                    value={existingAgentName}
-                    onChange={(e) => setExistingAgentName(e.target.value)}
-                    placeholder="NanoClaw ETC9"
-                    className="mt-1 w-full max-w-md rounded border border-[#3A3A3A] bg-[#0D0D0D] px-3 py-2 font-mono text-sm text-[#F0EDE8]"
-                  />
-                </label>
-              </div>
+              <label className="mb-4 block">
+                <span className="text-xs text-[#888880]">
+                  Agent name (as on the agent page, e.g. NanoClaw ETC9) — so the host prompt
+                  targets the right agent (no API key in this chat)
+                </span>
+                <input
+                  type="text"
+                  autoComplete="off"
+                  value={existingAgentName}
+                  onChange={(e) => setExistingAgentName(e.target.value)}
+                  placeholder="NanoClaw ETC9"
+                  className="mt-1 w-full max-w-md rounded border border-[#3A3A3A] bg-[#0D0D0D] px-3 py-2 font-mono text-sm text-[#F0EDE8]"
+                />
+              </label>
             )}
 
             {isNew && inviteAgentId && !enrolledAgentName && (
@@ -547,40 +521,32 @@ export function InviteAgentForm({ stages, initialStageId = null }: Props) {
               </p>
             )}
 
-            {hostWakePrompt ? (
-              <>
-                <div className="mb-3 flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-[0.1em] text-[#C41E3A]">
-                      Step 6 — host wake
-                    </p>
-                    <p className="mt-1 text-sm font-medium text-[#F0EDE8]">
-                      Paste into your host control interface
-                    </p>
-                    <p className="mt-1 text-xs text-[#888880]">
-                      Copy-paste the following prompt to the interface you use to control your
-                      agent(s) at a host level (NOT the communication channel you use to message
-                      with it directly). For NanoClaw on a VPS: SSH in,{' '}
-                      <span className="font-mono text-[#F0EDE8]">cd ~/nanoclaw-v2</span> (install
-                      root — not the group folder), then run Claude Code and paste there.
-                    </p>
-                  </div>
-                  <CopyButton text={hostWakePrompt} label="Copy host wake prompt" />
-                </div>
-                <pre className="max-h-[420px] overflow-auto whitespace-pre-wrap rounded border border-[#3A3A3A] bg-[#0D0D0D] p-4 font-mono text-xs leading-relaxed text-[#F0EDE8]">
-                  {hostWakePrompt}
-                </pre>
-              </>
-            ) : (
-              <>
+            <div className="mb-3 flex items-start justify-between gap-3">
+              <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.1em] text-[#C41E3A]">
                   Step 6 — host wake
                 </p>
-                <p className="mt-1 text-xs text-[#888880]">
-                  Enter the existing API key above to fill the host wake prompt.
+                <p className="mt-1 text-sm font-medium text-[#F0EDE8]">
+                  Paste into your host control interface
                 </p>
-              </>
-            )}
+                <p className="mt-1 text-xs text-[#888880]">
+                  Copy-paste the following prompt to the interface you use to control your agent(s)
+                  at a host level (NOT the communication channel you use to message with it
+                  directly). For NanoClaw on a VPS: SSH in,{' '}
+                  <span className="font-mono text-[#F0EDE8]">cd ~/nanoclaw-v2</span> (install root —
+                  not the group folder), then run Claude Code and paste there. No API key is
+                  included — the host tool loads the key already on disk for that agent.
+                </p>
+              </div>
+              {hostWakePrompt ? (
+                <CopyButton text={hostWakePrompt} label="Copy host wake prompt" />
+              ) : null}
+            </div>
+            {hostWakePrompt ? (
+              <pre className="max-h-[420px] overflow-auto whitespace-pre-wrap rounded border border-[#3A3A3A] bg-[#0D0D0D] p-4 font-mono text-xs leading-relaxed text-[#F0EDE8]">
+                {hostWakePrompt}
+              </pre>
+            ) : null}
           </section>
         )}
       </div>

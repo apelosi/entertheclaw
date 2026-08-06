@@ -6,10 +6,10 @@ import { Button } from '@/components/ui/button'
 import { CopyButton } from '@/components/ui/copy-button'
 import {
   buildAgentInviteMessage,
+  buildHostWakeCredentialsBlock,
   buildRepairInviteMessage,
   ETC_HOST_WAKE_REQUIRED,
 } from '@/lib/agents/invite-message'
-import { buildNanoclawPulseTaskSpec } from '@/lib/agents/nanoclaw-pulse-task'
 import { cn } from '@/lib/utils'
 
 export interface InviteStageOption {
@@ -58,8 +58,7 @@ export function InviteAgentForm({ stages, initialStageId = null }: Props) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [hostWakeNeeded, setHostWakeNeeded] = useState<YesNo>(null)
-  const [hostGroupNum, setHostGroupNum] = useState('')
-  /** For EXISTING path host command — platform does not store the old plaintext key. */
+  /** For EXISTING path host credentials — platform does not store the old plaintext key. */
   const [existingApiKey, setExistingApiKey] = useState('')
   const [pasteReady, setPasteReady] = useState(false)
 
@@ -95,20 +94,15 @@ export function InviteAgentForm({ stages, initialStageId = null }: Props) {
     siteOrigin,
   ])
 
-  const groupNumParsed = Number(hostGroupNum)
   const hostApiKey = isNew ? apiKey : existingApiKey.trim() || null
-  const hostCommand = useMemo(() => {
+  const hostCredentials = useMemo(() => {
     if (!selectedStage || hostWakeNeeded !== 'yes' || !hostApiKey) return null
-    if (!Number.isInteger(groupNumParsed) || groupNumParsed < 1 || groupNumParsed > 99) {
-      return null
-    }
-    return buildNanoclawPulseTaskSpec({
-      groupNum: groupNumParsed,
-      stageId: selectedStage.id,
+    return buildHostWakeCredentialsBlock({
+      apiKey: hostApiKey,
       apiUrl: `${siteOrigin.replace(/\/$/, '')}/api`,
-      apiKeyPlaceholder: hostApiKey,
+      stageId: selectedStage.id,
     })
-  }, [selectedStage, hostWakeNeeded, hostApiKey, groupNumParsed, siteOrigin])
+  }, [selectedStage, hostWakeNeeded, hostApiKey, siteOrigin])
 
   function pickAlreadyOnEtc(answer: 'yes' | 'no') {
     setAlreadyOnEtc(answer)
@@ -116,7 +110,6 @@ export function InviteAgentForm({ stages, initialStageId = null }: Props) {
     setServerInviteMessage(null)
     setPasteReady(false)
     setHostWakeNeeded(null)
-    setHostGroupNum('')
     setExistingApiKey('')
     setError(null)
   }
@@ -151,7 +144,6 @@ export function InviteAgentForm({ stages, initialStageId = null }: Props) {
       )
       setPasteReady(true)
       setHostWakeNeeded(null)
-      setHostGroupNum('')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error')
     } finally {
@@ -406,9 +398,8 @@ export function InviteAgentForm({ stages, initialStageId = null }: Props) {
               <span className="font-mono text-[#F0EDE8]">{ETC_HOST_WAKE_REQUIRED}</span>?
             </p>
             <p className="mt-1 text-xs text-[#888880]">
-              That exact line means it cannot create its own recurring wake (common on NanoClaw).
-              If it scheduled a wake itself — or said it is already on a stage and stopped — answer
-              No.
+              That exact line means it cannot create its own recurring wake on the host. If it
+              scheduled a wake itself — or said it is already on a stage and stopped — answer No.
             </p>
             <div className="mt-4 flex flex-wrap gap-2">
               <Button
@@ -442,17 +433,28 @@ export function InviteAgentForm({ stages, initialStageId = null }: Props) {
               Step 6 — host wake
             </p>
             <p className="mt-1 text-sm font-medium text-[#F0EDE8]">
-              Run this where the agent is hosted
+              Create a durable wake where the agent is hosted
             </p>
-            <p className="mt-1 text-xs text-[#888880]">
-              SSH to the VPS (or open Claude Code / a shell there),{' '}
-              <span className="font-mono">cd ~/nanoclaw-v2</span>, then paste. Stage is filled.
-            </p>
+            <ol className="mt-3 list-decimal space-y-2 pl-5 text-xs leading-relaxed text-[#888880]">
+              <li>SSH to the VPS (or open Claude Code / a shell there).</li>
+              <li>
+                Change directory to where the agent is hosted (e.g.{' '}
+                <span className="font-mono text-[#F0EDE8]">cd ~/nanoclaw-v2</span>).
+              </li>
+              <li>
+                Create a recurring wake every ~1–5 minutes using whatever your host supports (your
+                runtime&apos;s task scheduler, cron, systemd timer, etc.). Each wake must call{' '}
+                <span className="font-mono text-[#F0EDE8]">etc_heartbeat</span> and obey the
+                directive — see{' '}
+                <span className="font-mono text-[#F0EDE8]">/skill.md</span>.
+              </li>
+              <li>Use the credentials below in that wake.</li>
+            </ol>
 
             {isExisting && (
               <label className="mt-4 block">
                 <span className="text-xs text-[#888880]">
-                  Existing agent API key (etc_live_…) — required to fill the command
+                  Existing agent API key (etc_live_…) — required to fill the credentials
                 </span>
                 <input
                   type="password"
@@ -465,36 +467,22 @@ export function InviteAgentForm({ stages, initialStageId = null }: Props) {
               </label>
             )}
 
-            <label className="mt-4 block">
-              <span className="text-xs text-[#888880]">
-                NanoClaw group number (9 → ag-etc-9 / groups/etc-09)
-              </span>
-              <input
-                type="number"
-                min={1}
-                max={99}
-                value={hostGroupNum}
-                onChange={(e) => setHostGroupNum(e.target.value)}
-                placeholder="e.g. 9"
-                className="mt-1 w-full max-w-[160px] rounded border border-[#3A3A3A] bg-[#0D0D0D] px-3 py-2 font-mono text-sm text-[#F0EDE8]"
-              />
-            </label>
-
-            {hostCommand && (
+            {hostCredentials ? (
               <div className="mt-4">
                 <div className="mb-2 flex items-start justify-between gap-3">
-                  <p className="text-xs text-[#888880]">
-                    Group{' '}
-                    <span className="font-mono text-[#F0EDE8]">{hostCommand.groupId}</span> ·
-                    folder{' '}
-                    <span className="font-mono text-[#F0EDE8]">{hostCommand.groupFolder}</span>
-                  </p>
-                  <CopyButton text={hostCommand.hostCreateCommand} label="Copy host command" />
+                  <p className="text-xs text-[#888880]">Filled credentials for this invite</p>
+                  <CopyButton text={hostCredentials} label="Copy credentials" />
                 </div>
                 <pre className="max-h-[320px] overflow-auto whitespace-pre-wrap rounded border border-[#3A3A3A] bg-[#0D0D0D] p-4 font-mono text-xs leading-relaxed text-[#F0EDE8]">
-                  {hostCommand.hostCreateCommand}
+                  {hostCredentials}
                 </pre>
               </div>
+            ) : (
+              isExisting && (
+                <p className="mt-4 text-xs text-[#888880]">
+                  Enter the existing API key above to fill the credential block.
+                </p>
+              )
             )}
           </section>
         )}

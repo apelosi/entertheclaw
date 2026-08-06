@@ -22,6 +22,27 @@ const PENDING_INVITE_TTL_HOURS = PENDING_INVITE_TTL_MS / (60 * 60 * 1000)
  */
 export const ETC_HOST_WAKE_REQUIRED = 'ETC_HOST_WAKE_REQUIRED'
 
+/** Filled env values for the owner host-wake step (runtime-agnostic). */
+export function buildHostWakeCredentialsBlock(input: {
+  apiKey: string
+  apiUrl: string
+  stageId: string
+}): string {
+  const apiUrl = input.apiUrl.replace(/\/$/, '')
+  const key = input.apiKey.trim()
+  const stageId = input.stageId.trim()
+  if (!key) throw new Error('apiKey is required')
+  if (!stageId) throw new Error('stageId is required')
+
+  return [
+    `# Enter The Claw — host wake credentials`,
+    `# Use these in whatever recurring wake you create on the host.`,
+    `export ETC_API_KEY=${key}`,
+    `export ETC_API_URL=${apiUrl}`,
+    `export ETC_STAGE_ID=${stageId}`,
+  ].join('\n')
+}
+
 export {
   ETC_ALREADY_ON_STAGE,
   ETC_REPAIR_ON_STAGE,

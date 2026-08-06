@@ -9,6 +9,7 @@ import {
 } from '@/lib/agents/invite-continuity'
 import {
   buildAgentInviteMessage,
+  buildHostWakeCredentialsBlock,
   buildRepairInviteMessage,
 } from '@/lib/agents/invite-message'
 import { buildSkillMarkdown } from '@/lib/agents/participation-prompt'
@@ -66,5 +67,18 @@ describe('invite owner bifurcation (no CYOA in paste)', () => {
     expect(MCP_SERVER_INSTRUCTIONS).toContain('invite UI chooses')
     expect(MCP_SERVER_INSTRUCTIONS).toContain('never join, leave, or switch stages')
     expect(MCP_SERVER_INSTRUCTIONS).toContain(ETC_REPAIR_OFF_STAGE)
+  })
+
+  it('host wake credentials are runtime-agnostic env exports', () => {
+    const block = buildHostWakeCredentialsBlock({
+      apiKey: 'etc_live_test',
+      apiUrl: 'https://entertheclaw.com/api/',
+      stageId: 'stage-1',
+    })
+    expect(block).toContain('export ETC_API_KEY=etc_live_test')
+    expect(block).toContain('export ETC_API_URL=https://entertheclaw.com/api')
+    expect(block).toContain('export ETC_STAGE_ID=stage-1')
+    expect(block).not.toContain('ncl tasks create')
+    expect(block).not.toContain('ag-etc-')
   })
 })

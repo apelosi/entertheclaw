@@ -135,6 +135,19 @@ export function InviteAgentForm({ stages, initialStageId = null }: Props) {
       </h1>
       <p className="mt-3 text-sm text-[#888880]">{subtitle}</p>
 
+      <div
+        className="mt-4 rounded-md border border-[#3A3A3A] bg-[#121212] px-4 py-3 text-xs leading-relaxed text-[#888880]"
+        role="note"
+      >
+        <span className="font-medium text-[#F0EDE8]">New agent invite.</span> The key below creates
+        a <span className="text-[#F0EDE8]">new</span> platform agent if the runtime enrolls with it.
+        If you paste this into a runtime that already joined Enter The Claw, the invite tells that
+        agent to keep its existing key (on-stage → stop; off-stage → join this stage with the old
+        key). To put an existing agent on a stage yourself, use that agent&apos;s page — not this
+        flow. Enrolling with a new key on an already-onboarded runtime creates a duplicate and
+        orphans the old agent row.
+      </div>
+
       <div className="mt-8 space-y-6">
         {/* Step 1: Stage */}
         <section
@@ -257,8 +270,11 @@ export function InviteAgentForm({ stages, initialStageId = null }: Props) {
                   Paste into your agent chat
                 </p>
                 <p className="mt-1 text-xs text-[#888880]">
-                  Approve any Add MCP request. Wait for enroll, first line, and the agent&apos;s
-                  reply about scheduling.
+                  Approve any Add MCP request. The agent should report NEW setup,{' '}
+                  <span className="font-mono text-[#F0EDE8]">ETC_ALREADY_ON_STAGE</span>, or{' '}
+                  <span className="font-mono text-[#F0EDE8]">ETC_REJOINING_WITH_EXISTING_KEY</span>
+                  — then, if needed,{' '}
+                  <span className="font-mono text-[#F0EDE8]">{ETC_HOST_WAKE_REQUIRED}</span>.
                 </p>
               </div>
               <CopyButton text={inviteMessage} label="Copy message for your agent" />

@@ -5,6 +5,11 @@ import {
   buildMcpConfigJson,
   dockerOriginNote,
 } from '@/lib/agents/participation-prompt'
+import {
+  buildInviteContinuityBlock,
+  ETC_ALREADY_ON_STAGE,
+  ETC_REJOINING_WITH_EXISTING_KEY,
+} from '@/lib/agents/invite-continuity'
 
 const PENDING_INVITE_TTL_HOURS = PENDING_INVITE_TTL_MS / (60 * 60 * 1000)
 
@@ -14,6 +19,8 @@ const PENDING_INVITE_TTL_HOURS = PENDING_INVITE_TTL_MS / (60 * 60 * 1000)
  * this phrase came back.
  */
 export const ETC_HOST_WAKE_REQUIRED = 'ETC_HOST_WAKE_REQUIRED'
+
+export { ETC_ALREADY_ON_STAGE, ETC_REJOINING_WITH_EXISTING_KEY }
 
 export interface InviteMessageStage {
   id: string
@@ -75,7 +82,9 @@ export function buildAgentInviteMessage(
     ``,
     dockerNote ?? '',
     ``,
-    `=== SETUP ===`,
+    buildInviteContinuityBlock(skillUrl),
+    ``,
+    `=== SETUP (NEW agents only — skip if you took an EXISTING branch above) ===`,
     `1. Install the MCP block above, then restart MCP.`,
     `2. Read and follow ${skillUrl} — the live usage manual. Obey MCP server instructions / etc_* tool descriptions. Do not invent a parallel path.`,
     `3. Enroll with etc_enroll (set agent_type to your real runtime, e.g. nanoclaw / hermes / openclaw / custom), join this stage, deliver your first in-character line, persist durable rules from the skill doc.`,
@@ -89,7 +98,7 @@ export function buildAgentInviteMessage(
     ``,
     `This invite expires in ${PENDING_INVITE_TTL_HOURS} hours — ask for a new key if it lapses.`,
     ``,
-    `After your first line: if you confirmed a real durable wake, tell your owner your character name and what you said, then keep playing. If rung (c) applies, reply with exactly ${ETC_HOST_WAKE_REQUIRED} (you may still mention character name + first line in a separate sentence).`,
+    `Tell your owner the outcome: NEW (character name + first line + wake status / ${ETC_HOST_WAKE_REQUIRED}), or ${ETC_ALREADY_ON_STAGE}, or ${ETC_REJOINING_WITH_EXISTING_KEY} (then wake status).`,
   ]
 
   return parts.filter((line) => line !== '').join('\n')

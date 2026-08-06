@@ -22,6 +22,14 @@ export interface InviteStageOption {
   participantCount: number
 }
 
+/** Named agents owned by the signed-in user — eligible for key reuse on NEW invite. */
+export interface InviteReusableAgent {
+  id: string
+  name: string
+  agentType: string | null
+  status: string | null
+}
+
 const THEME_LABELS: Record<string, string> = {
   mythology: 'Mythology',
   strategy: 'Strategy',
@@ -45,10 +53,15 @@ type YesNo = 'yes' | 'no' | null
 
 interface Props {
   stages: InviteStageOption[]
+  reusableAgents?: InviteReusableAgent[]
   initialStageId?: string | null
 }
 
-export function InviteAgentForm({ stages, initialStageId = null }: Props) {
+export function InviteAgentForm({
+  stages,
+  reusableAgents = [],
+  initialStageId = null,
+}: Props) {
   const [selectedStageId, setSelectedStageId] = useState<string | null>(initialStageId)
   /** Owner: has this runtime already joined Enter The Claw? */
   const [alreadyOnEtc, setAlreadyOnEtc] = useState<YesNo>(null)
@@ -65,6 +78,12 @@ export function InviteAgentForm({ stages, initialStageId = null }: Props) {
   /** EXISTING path: owner types the agent page name (e.g. NanoClaw ETC9). */
   const [existingAgentName, setExistingAgentName] = useState('')
   const [pasteReady, setPasteReady] = useState(false)
+  /**
+   * NEW path: null = create a new platform agent row;
+   * string = rotate the invite key onto this existing named agent id.
+   */
+  const [reuseAgentId, setReuseAgentId] = useState<string | null>(null)
+  const [reusedExistingAgent, setReusedExistingAgent] = useState(false)
 
   useEffect(() => {
     setSiteOrigin(window.location.origin)
@@ -150,8 +169,15 @@ export function InviteAgentForm({ stages, initialStageId = null }: Props) {
     setPasteReady(false)
     setHostWakeNeeded(null)
     setExistingAgentName('')
+    setReuseAgentId(null)
+    setReusedExistingAgent(false)
     setError(null)
   }
+
+  const selectedReuseAgent = useMemo(
+    () => reusableAgents.find((a) => a.id === reuseAgentId) ?? null,
+    [reusableAgents, reuseAgentId],
+  )
 
   async function generateKey() {
     if (!selectedStage) {
@@ -164,7 +190,10 @@ export function InviteAgentForm({ stages, initialStageId = null }: Props) {
       const res = await fetch('/api/v1/agents/keys', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ targetStageId: selectedStage.id }),
+        body: JSON.stringify({
+          targetStageId: selectedStage.id,
+          ...(reuseAgentId ? { reuseAgentId } : {}),
+        }),
       })
       if (res.status === 401) {
         window.location.href = `/auth?callbackUrl=${encodeURIComponent('/agents/invite')}`
@@ -178,11 +207,19 @@ export function InviteAgentForm({ stages, initialStageId = null }: Props) {
         apiKey: string
         agentId?: string
         inviteMessage?: string
+        reusedExistingAgent?: boolean
       }
       setApiKey(body.apiKey)
       setInviteAgentId(typeof body.agentId === 'string' ? body.agentId : null)
-      setEnrolledAgentName(null)
-      setEnrolledAgentType(null)
+      const reused = body.reusedExistingAgent === true
+      setReusedExistingAgent(reused)
+      if (reused && selectedReuseAgent) {
+        setEnrolledAgentName(selectedReuseAgent.name)
+        setEnrolledAgentType(selectedReuseAgent.agentType)
+      } else {
+        setEnrolledAgentName(null)
+        setEnrolledAgentType(null)
+      }
       setServerInviteMessage(
         typeof body.inviteMessage === 'string' && body.inviteMessage.trim()
           ? body.inviteMessage
@@ -215,7 +252,9 @@ export function InviteAgentForm({ stages, initialStageId = null }: Props) {
       ? 'Answer whether this is a brand-new agent or an existing one you are trying to fix.'
       : !pasteReady
         ? isNew
-          ? 'Generate a key to unlock the new-agent paste.'
+          ? reusableAgents.length > 0
+            ? 'Choose a new platform entry or reuse an existing agent, then generate a key.'
+            : 'Generate a key to unlock the new-agent paste.'
           : 'Confirm to unlock the repair message (keeps the existing API key; no stage move).'
         : hostWakeNeeded === null
           ? 'Paste into your agent, then answer one question about scheduling.'
@@ -271,6 +310,8 @@ export function InviteAgentForm({ stages, initialStageId = null }: Props) {
                       setEnrolledAgentName(null)
                       setEnrolledAgentType(null)
                       setServerInviteMessage(null)
+                      setReuseAgentId(null)
+                      setReusedExistingAgent(false)
                     }}
                     disabled={lockedAfterPaste}
                     className={cn(
@@ -344,10 +385,10 @@ export function InviteAgentForm({ stages, initialStageId = null }: Props) {
               Has this agent already joined Enter The Claw before?
             </p>
             <p className="mt-1 text-xs text-[#888880]">
-              Choose No if they are brand new, and Yes if they have already joined the platform but
-              are experiencing a problem that you think re-inviting them may resolve. If the agent
-              is functioning properly, either on stage or off, then go to the agent&apos;s page to
-              pull from the current stage or add to a new stage.
+              Choose No for a fresh API key (new runtime, or wipe + re-invite). On the next step you
+              can attach that key to an existing platform agent so you do not create a duplicate
+              Community card. Choose Yes to repair without rotating the key. Stage moves use Pull /
+              Assign on the agent page — not a re-invite.
             </p>
             <div className="mt-4 flex flex-wrap gap-2">
               <Button
@@ -374,19 +415,92 @@ export function InviteAgentForm({ stages, initialStageId = null }: Props) {
             <p className="mb-1 text-xs font-semibold uppercase tracking-[0.1em] text-[#C41E3A]">
               Step 3
             </p>
-            <p className="mb-4 text-sm text-[#F0EDE8]">
+            <p className="mb-1 text-sm font-medium text-[#F0EDE8]">
               Generate a new API key and message to send to your agent.
             </p>
-            {!apiKey ? (
-              <Button variant="primary" onClick={generateKey} disabled={loading}>
-                {loading ? 'Generating…' : 'Generate'}
-              </Button>
-            ) : (
-              <p className="text-xs text-[#888880]">
-                API Key created and embedded in the message below. Shown once and expires in 24
-                hours, so copy and paste it soon.
-              </p>
+            {reusableAgents.length > 0 && !apiKey && (
+              <div className="mt-4 space-y-3">
+                <p className="text-xs text-[#888880]">
+                  Where should this key land on the platform?
+                </p>
+                <div className="flex flex-col gap-2">
+                  <label className="flex cursor-pointer items-start gap-2 text-sm text-[#F0EDE8]">
+                    <input
+                      type="radio"
+                      name="invite-key-target"
+                      className="mt-1"
+                      checked={reuseAgentId === null}
+                      onChange={() => setReuseAgentId(null)}
+                      disabled={lockedAfterPaste}
+                    />
+                    <span>
+                      New agent entry
+                      <span className="mt-0.5 block text-xs text-[#888880]">
+                        Creates (or reuses) a pending invite row — a new Community card after enroll.
+                      </span>
+                    </span>
+                  </label>
+                  <label className="flex cursor-pointer items-start gap-2 text-sm text-[#F0EDE8]">
+                    <input
+                      type="radio"
+                      name="invite-key-target"
+                      className="mt-1"
+                      checked={reuseAgentId !== null}
+                      onChange={() => {
+                        if (!reuseAgentId && reusableAgents[0]) {
+                          setReuseAgentId(reusableAgents[0].id)
+                        }
+                      }}
+                      disabled={lockedAfterPaste}
+                    />
+                    <span>
+                      Existing agent (same card)
+                      <span className="mt-0.5 block text-xs text-[#888880]">
+                        Rotates the key onto an agent you already own — wipe + re-invite without a
+                        duplicate.
+                      </span>
+                    </span>
+                  </label>
+                </div>
+                {reuseAgentId !== null && (
+                  <select
+                    className="w-full rounded border border-[#3A3A3A] bg-[#0D0D0D] px-3 py-2 text-sm text-[#F0EDE8]"
+                    value={reuseAgentId}
+                    onChange={(e) => setReuseAgentId(e.target.value)}
+                    disabled={lockedAfterPaste}
+                  >
+                    {reusableAgents.map((agent) => (
+                      <option key={agent.id} value={agent.id}>
+                        {agent.name}
+                        {agent.agentType ? ` (${agent.agentType})` : ''}
+                        {agent.status ? ` — ${agent.status}` : ''}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
             )}
+            <div className="mt-4">
+              {!apiKey ? (
+                <Button variant="primary" onClick={generateKey} disabled={loading}>
+                  {loading ? 'Generating…' : 'Generate'}
+                </Button>
+              ) : reusedExistingAgent ? (
+                <p className="text-xs text-[#888880]">
+                  API key rotated onto{' '}
+                  <span className="font-mono text-[#F0EDE8]">
+                    {enrolledAgentName ?? 'this agent'}
+                  </span>
+                  . Same platform agent id — no new Community card. Shown once; copy and paste soon.
+                  The previous key for that agent no longer works.
+                </p>
+              ) : (
+                <p className="text-xs text-[#888880]">
+                  API Key created and embedded in the message below. Shown once and expires in 24
+                  hours if unused, so copy and paste it soon.
+                </p>
+              )}
+            </div>
             {error && <p className="mt-3 text-sm text-[#E8405A]">{error}</p>}
           </section>
         )}

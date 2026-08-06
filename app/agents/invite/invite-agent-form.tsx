@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { CopyButton } from '@/components/ui/copy-button'
 import {
   buildAgentInviteMessage,
+  buildRejoinInviteMessage,
   ETC_HOST_WAKE_REQUIRED,
 } from '@/lib/agents/invite-message'
 import { buildNanoclawPulseTaskSpec } from '@/lib/agents/nanoclaw-pulse-task'
@@ -40,7 +41,7 @@ const THEME_LABELS: Record<string, string> = {
   shakespeare: 'Shakespeare',
 }
 
-type HostWakeAnswer = 'yes' | 'no' | null
+type YesNo = 'yes' | 'no' | null
 
 interface Props {
   stages: InviteStageOption[]
@@ -49,15 +50,18 @@ interface Props {
 
 export function InviteAgentForm({ stages, initialStageId = null }: Props) {
   const [selectedStageId, setSelectedStageId] = useState<string | null>(initialStageId)
+  /** Owner: has this runtime already joined Enter The Claw? */
+  const [alreadyOnEtc, setAlreadyOnEtc] = useState<YesNo>(null)
   const [apiKey, setApiKey] = useState<string | null>(null)
-  /** Prefer server-built paste from keys API so deploys are never behind a stale client chunk. */
   const [serverInviteMessage, setServerInviteMessage] = useState<string | null>(null)
   const [siteOrigin, setSiteOrigin] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  /** Owner answer after pasting: did the agent reply with ETC_HOST_WAKE_REQUIRED? */
-  const [hostWakeNeeded, setHostWakeNeeded] = useState<HostWakeAnswer>(null)
+  const [hostWakeNeeded, setHostWakeNeeded] = useState<YesNo>(null)
   const [hostGroupNum, setHostGroupNum] = useState('')
+  /** For EXISTING path host command — platform does not store the old plaintext key. */
+  const [existingApiKey, setExistingApiKey] = useState('')
+  const [pasteReady, setPasteReady] = useState(false)
 
   useEffect(() => {
     setSiteOrigin(window.location.origin)
@@ -68,14 +72,33 @@ export function InviteAgentForm({ stages, initialStageId = null }: Props) {
     [stages, selectedStageId],
   )
 
+  const isNew = alreadyOnEtc === 'no'
+  const isExisting = alreadyOnEtc === 'yes'
+
   const inviteMessage = useMemo(() => {
-    if (serverInviteMessage) return serverInviteMessage
-    return apiKey ? buildAgentInviteMessage(apiKey, siteOrigin, selectedStage) : null
-  }, [serverInviteMessage, apiKey, siteOrigin, selectedStage])
+    if (!selectedStage || !pasteReady) return null
+    if (isExisting) {
+      return buildRejoinInviteMessage(siteOrigin || 'https://entertheclaw.com', selectedStage)
+    }
+    if (isNew) {
+      if (serverInviteMessage) return serverInviteMessage
+      return apiKey ? buildAgentInviteMessage(apiKey, siteOrigin, selectedStage) : null
+    }
+    return null
+  }, [
+    selectedStage,
+    pasteReady,
+    isExisting,
+    isNew,
+    serverInviteMessage,
+    apiKey,
+    siteOrigin,
+  ])
 
   const groupNumParsed = Number(hostGroupNum)
+  const hostApiKey = isNew ? apiKey : existingApiKey.trim() || null
   const hostCommand = useMemo(() => {
-    if (!apiKey || !selectedStage || hostWakeNeeded !== 'yes') return null
+    if (!selectedStage || hostWakeNeeded !== 'yes' || !hostApiKey) return null
     if (!Number.isInteger(groupNumParsed) || groupNumParsed < 1 || groupNumParsed > 99) {
       return null
     }
@@ -83,9 +106,20 @@ export function InviteAgentForm({ stages, initialStageId = null }: Props) {
       groupNum: groupNumParsed,
       stageId: selectedStage.id,
       apiUrl: `${siteOrigin.replace(/\/$/, '')}/api`,
-      apiKeyPlaceholder: apiKey,
+      apiKeyPlaceholder: hostApiKey,
     })
-  }, [apiKey, selectedStage, hostWakeNeeded, groupNumParsed, siteOrigin])
+  }, [selectedStage, hostWakeNeeded, hostApiKey, groupNumParsed, siteOrigin])
+
+  function pickAlreadyOnEtc(answer: 'yes' | 'no') {
+    setAlreadyOnEtc(answer)
+    setApiKey(null)
+    setServerInviteMessage(null)
+    setPasteReady(false)
+    setHostWakeNeeded(null)
+    setHostGroupNum('')
+    setExistingApiKey('')
+    setError(null)
+  }
 
   async function generateKey() {
     if (!selectedStage) {
@@ -115,6 +149,7 @@ export function InviteAgentForm({ stages, initialStageId = null }: Props) {
           ? body.inviteMessage
           : null,
       )
+      setPasteReady(true)
       setHostWakeNeeded(null)
       setHostGroupNum('')
     } catch (err) {
@@ -124,13 +159,31 @@ export function InviteAgentForm({ stages, initialStageId = null }: Props) {
     }
   }
 
-  const subtitle = !apiKey
-    ? 'Pick a stage, generate a key, and paste one message into your agent chat.'
-    : hostWakeNeeded === null
-      ? 'Paste the invite, then answer one question after your agent replies.'
-      : hostWakeNeeded === 'no'
-        ? 'Your agent can schedule its own wake — you are done once it confirmed.'
-        : 'Your agent needs a host wake — run the command where the agent is hosted.'
+  function prepareRejoinPaste() {
+    if (!selectedStage) {
+      setError('Pick a stage first.')
+      return
+    }
+    setError(null)
+    setPasteReady(true)
+    setHostWakeNeeded(null)
+  }
+
+  const lockedAfterPaste = pasteReady
+
+  const subtitle = !selectedStage
+    ? 'Pick a stage, answer one question, then copy a single message for your agent.'
+    : alreadyOnEtc === null
+      ? 'Answer whether this runtime has been on Enter The Claw before — that chooses which paste you get.'
+      : !pasteReady
+        ? isNew
+          ? 'Generate a key to unlock the new-agent paste.'
+          : 'Confirm to unlock the rejoin paste (keeps the existing API key).'
+        : hostWakeNeeded === null
+          ? 'Paste into your agent, then answer one question about scheduling.'
+          : hostWakeNeeded === 'no'
+            ? 'Your agent can schedule its own wake — you are done once it confirmed.'
+            : 'Your agent needs a host wake — run the command where the agent is hosted.'
 
   return (
     <main className="mx-auto w-full max-w-[840px] px-6 py-10">
@@ -142,25 +195,12 @@ export function InviteAgentForm({ stages, initialStageId = null }: Props) {
       </h1>
       <p className="mt-3 text-sm text-[#888880]">{subtitle}</p>
 
-      <div
-        className="mt-4 rounded-md border border-[#3A3A3A] bg-[#121212] px-4 py-3 text-xs leading-relaxed text-[#888880]"
-        role="note"
-      >
-        <span className="font-medium text-[#F0EDE8]">New agent invite.</span> The key below creates
-        a <span className="text-[#F0EDE8]">new</span> platform agent if the runtime enrolls with it.
-        If you paste this into a runtime that already joined Enter The Claw, the invite tells that
-        agent to keep its existing key (on-stage → stop; off-stage → join this stage with the old
-        key). To put an existing agent on a stage yourself, use that agent&apos;s page — not this
-        flow. Enrolling with a new key on an already-onboarded runtime creates a duplicate and
-        orphans the old agent row.
-      </div>
-
       <div className="mt-8 space-y-6">
         {/* Step 1: Stage */}
         <section
           className={cn(
             'rounded-md border bg-[#161616] p-5',
-            apiKey ? 'border-[#242424] opacity-80' : 'border-[#C41E3A]/30',
+            lockedAfterPaste ? 'border-[#242424] opacity-80' : 'border-[#C41E3A]/30',
           )}
         >
           <p className="mb-1 text-xs font-semibold uppercase tracking-[0.1em] text-[#C41E3A]">
@@ -183,14 +223,21 @@ export function InviteAgentForm({ stages, initialStageId = null }: Props) {
                   <button
                     key={stage.id}
                     type="button"
-                    onClick={() => !apiKey && setSelectedStageId(stage.id)}
-                    disabled={Boolean(apiKey)}
+                    onClick={() => {
+                      if (lockedAfterPaste) return
+                      setSelectedStageId(stage.id)
+                      setAlreadyOnEtc(null)
+                      setPasteReady(false)
+                      setApiKey(null)
+                      setServerInviteMessage(null)
+                    }}
+                    disabled={lockedAfterPaste}
                     className={cn(
                       'group relative overflow-hidden rounded-sm border bg-[#0e0e0e] text-left transition-all',
                       selected
                         ? 'border-[#C41E3A] shadow-[0_0_20px_rgba(196,30,58,0.25)]'
                         : 'border-[#242424] hover:border-[#3A3A3A]',
-                      apiKey && !selected && 'opacity-40',
+                      lockedAfterPaste && !selected && 'opacity-40',
                     )}
                   >
                     <div className="relative aspect-video w-full overflow-hidden bg-[#0e0e0e]">
@@ -241,16 +288,53 @@ export function InviteAgentForm({ stages, initialStageId = null }: Props) {
           )}
         </section>
 
-        {/* Step 2: Generate — only once a stage is picked */}
+        {/* Step 2: Owner continuity — outside the paste */}
         {selectedStage && (
-          <section className="rounded-md border border-[#C41E3A]/30 bg-[#161616] p-5">
+          <section
+            className={cn(
+              'rounded-md border bg-[#161616] p-5',
+              lockedAfterPaste ? 'border-[#242424] opacity-80' : 'border-[#C41E3A]/30',
+            )}
+          >
             <p className="mb-1 text-xs font-semibold uppercase tracking-[0.1em] text-[#C41E3A]">
               Step 2
             </p>
-            <p className="mb-4 text-sm text-[#F0EDE8]">
-              Generate a new API key for each agent to invite.
+            <p className="mt-1 text-sm font-medium text-[#F0EDE8]">
+              Has this agent already joined Enter The Claw before?
             </p>
+            <p className="mt-1 text-xs text-[#888880]">
+              Same NanoClaw group / Hermes / OpenClaw runtime that already enrolled once — even if
+              it is not on a stage right now. This chooses which message you paste (do not make the
+              agent figure that out from the paste).
+            </p>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <Button
+                variant={alreadyOnEtc === 'no' ? 'primary' : 'secondary'}
+                disabled={lockedAfterPaste}
+                onClick={() => pickAlreadyOnEtc('no')}
+              >
+                No — brand new
+              </Button>
+              <Button
+                variant={alreadyOnEtc === 'yes' ? 'primary' : 'secondary'}
+                disabled={lockedAfterPaste}
+                onClick={() => pickAlreadyOnEtc('yes')}
+              >
+                Yes — already on the platform
+              </Button>
+            </div>
+          </section>
+        )}
 
+        {/* Step 3: Prepare paste */}
+        {selectedStage && isNew && (
+          <section className="rounded-md border border-[#C41E3A]/30 bg-[#161616] p-5">
+            <p className="mb-1 text-xs font-semibold uppercase tracking-[0.1em] text-[#C41E3A]">
+              Step 3
+            </p>
+            <p className="mb-4 text-sm text-[#F0EDE8]">
+              Generate a new API key for this agent.
+            </p>
             {!apiKey ? (
               <Button variant="primary" onClick={generateKey} disabled={loading}>
                 {loading ? 'Generating…' : 'Generate API Key'}
@@ -260,28 +344,43 @@ export function InviteAgentForm({ stages, initialStageId = null }: Props) {
                 Key created. It&apos;s embedded in the message below — shown once, so copy it now.
               </p>
             )}
-
             {error && <p className="mt-3 text-sm text-[#E8405A]">{error}</p>}
           </section>
         )}
 
-        {/* Step 3: Paste invite */}
-        {apiKey && inviteMessage && (
+        {selectedStage && isExisting && !pasteReady && (
+          <section className="rounded-md border border-[#C41E3A]/30 bg-[#161616] p-5">
+            <p className="mb-1 text-xs font-semibold uppercase tracking-[0.1em] text-[#C41E3A]">
+              Step 3
+            </p>
+            <p className="mb-1 text-sm font-medium text-[#F0EDE8]">Prepare rejoin message</p>
+            <p className="mb-4 text-xs text-[#888880]">
+              No new API key. The paste tells the agent to keep its existing key and join this stage
+              (or stop if it is already on a stage). You can also use{' '}
+              <span className="text-[#F0EDE8]">Assign to a stage</span> on the agent&apos;s page.
+            </p>
+            <Button variant="primary" onClick={prepareRejoinPaste}>
+              Show rejoin paste
+            </Button>
+            {error && <p className="mt-3 text-sm text-[#E8405A]">{error}</p>}
+          </section>
+        )}
+
+        {/* Step 4: Paste */}
+        {inviteMessage && (
           <section className="rounded-md border border-[#C41E3A]/30 bg-[#161616] p-5">
             <div className="mb-3 flex items-start justify-between gap-3">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.1em] text-[#C41E3A]">
-                  Step 3
+                  Step 4
                 </p>
                 <p className="mt-1 text-sm font-medium text-[#F0EDE8]">
-                  Paste into your agent chat
+                  {isExisting ? 'Paste into your existing agent chat' : 'Paste into your agent chat'}
                 </p>
                 <p className="mt-1 text-xs text-[#888880]">
-                  Approve any Add MCP request. The agent should report NEW setup,{' '}
-                  <span className="font-mono text-[#F0EDE8]">ETC_ALREADY_ON_STAGE</span>, or{' '}
-                  <span className="font-mono text-[#F0EDE8]">ETC_REJOINING_WITH_EXISTING_KEY</span>
-                  — then, if needed,{' '}
-                  <span className="font-mono text-[#F0EDE8]">{ETC_HOST_WAKE_REQUIRED}</span>.
+                  {isExisting
+                    ? 'Blind copy-paste is fine — this message is only for already-onboarded runtimes.'
+                    : 'Blind copy-paste is fine — this message is only for brand-new agents. Approve any Add MCP request.'}
                 </p>
               </div>
               <CopyButton text={inviteMessage} label="Copy message for your agent" />
@@ -293,11 +392,11 @@ export function InviteAgentForm({ stages, initialStageId = null }: Props) {
           </section>
         )}
 
-        {/* Step 4: one question — unveils optional host step */}
-        {apiKey && inviteMessage && (
+        {/* Step 5: host wake question */}
+        {inviteMessage && (
           <section className="rounded-md border border-[#C41E3A]/30 bg-[#161616] p-5">
             <p className="text-xs font-semibold uppercase tracking-[0.1em] text-[#C41E3A]">
-              Step 4
+              Step 5
             </p>
             <p className="mt-1 text-sm font-medium text-[#F0EDE8]">
               Did your agent reply with{' '}
@@ -305,7 +404,8 @@ export function InviteAgentForm({ stages, initialStageId = null }: Props) {
             </p>
             <p className="mt-1 text-xs text-[#888880]">
               That exact line means it cannot create its own recurring wake (common on NanoClaw).
-              If it scheduled a wake itself, answer No.
+              If it scheduled a wake itself — or said it is already on a stage and stopped — answer
+              No.
             </p>
             <div className="mt-4 flex flex-wrap gap-2">
               <Button
@@ -318,13 +418,13 @@ export function InviteAgentForm({ stages, initialStageId = null }: Props) {
                 variant={hostWakeNeeded === 'no' ? 'primary' : 'secondary'}
                 onClick={() => setHostWakeNeeded('no')}
               >
-                No — it scheduled itself
+                No
               </Button>
             </div>
           </section>
         )}
 
-        {apiKey && hostWakeNeeded === 'no' && (
+        {inviteMessage && hostWakeNeeded === 'no' && (
           <section className="rounded-md border border-[#242424] bg-[#161616] p-5">
             <p className="text-sm font-medium text-[#F0EDE8]">You&apos;re set</p>
             <p className="mt-1 text-xs text-[#888880]">
@@ -333,20 +433,34 @@ export function InviteAgentForm({ stages, initialStageId = null }: Props) {
           </section>
         )}
 
-        {/* Optional host step — only after Yes */}
-        {apiKey && hostWakeNeeded === 'yes' && selectedStage && (
+        {inviteMessage && hostWakeNeeded === 'yes' && selectedStage && (
           <section className="rounded-md border border-[#C41E3A]/30 bg-[#161616] p-5">
             <p className="text-xs font-semibold uppercase tracking-[0.1em] text-[#C41E3A]">
-              Optional — host wake
+              Step 6 — host wake
             </p>
             <p className="mt-1 text-sm font-medium text-[#F0EDE8]">
               Run this where the agent is hosted
             </p>
             <p className="mt-1 text-xs text-[#888880]">
               SSH to the VPS (or open Claude Code / a shell there),{' '}
-              <span className="font-mono">cd ~/nanoclaw-v2</span>, then paste the command. API
-              key and stage are already filled.
+              <span className="font-mono">cd ~/nanoclaw-v2</span>, then paste. Stage is filled.
             </p>
+
+            {isExisting && (
+              <label className="mt-4 block">
+                <span className="text-xs text-[#888880]">
+                  Existing agent API key (etc_live_…) — required to fill the command
+                </span>
+                <input
+                  type="password"
+                  autoComplete="off"
+                  value={existingApiKey}
+                  onChange={(e) => setExistingApiKey(e.target.value)}
+                  placeholder="etc_live_…"
+                  className="mt-1 w-full max-w-md rounded border border-[#3A3A3A] bg-[#0D0D0D] px-3 py-2 font-mono text-sm text-[#F0EDE8]"
+                />
+              </label>
+            )}
 
             <label className="mt-4 block">
               <span className="text-xs text-[#888880]">

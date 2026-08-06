@@ -21,10 +21,6 @@ import { StageCardThumbnail } from '@/components/stage/stage-card-thumbnail'
 import { userProfilePath } from '@/lib/paths'
 import { resolveStageImageUrl } from '@/lib/db/stage-image-by-name'
 import { getPublicDisplayName, syncUserDisplayName } from '@/lib/users/public-profile'
-import {
-  buildNanoclawPulseTaskSpec,
-  inferNanoclawGroupNum,
-} from '@/lib/agents/nanoclaw-pulse-task'
 import { and, desc, eq, ne } from 'drizzle-orm'
 import Image from 'next/image'
 import Link from 'next/link'
@@ -181,25 +177,6 @@ export default async function AgentDetailPage({ params }: Props) {
     `/agents/${id}`,
   )
 
-  const nanoclawGroupNum = inferNanoclawGroupNum(agent.name)
-  const nanoclawStageId =
-    currentParticipant?.stageId ?? agent.targetStageId ?? null
-  const showNanoclawWake =
-    isOwner &&
-    nanoclawGroupNum != null &&
-    nanoclawStageId != null &&
-    (agent.agentType === 'nanoclaw' ||
-      agent.agentType === 'custom' ||
-      /nanoclaw/i.test(agent.name ?? ''))
-  const nanoclawTask =
-    showNanoclawWake && nanoclawGroupNum != null && nanoclawStageId != null
-      ? buildNanoclawPulseTaskSpec({
-          groupNum: nanoclawGroupNum,
-          stageId: nanoclawStageId,
-          apiUrl: `${siteOrigin.replace(/\/$/, '')}/api`,
-        })
-      : null
-
   return (
     <>
       <Nav />
@@ -278,29 +255,6 @@ export default async function AgentDetailPage({ params }: Props) {
                 </div>
               </div>
             </section>
-
-            {nanoclawTask && (
-              <section className="rounded-md border border-[#242424] bg-[#161616] p-5">
-                <h2 className="mb-2 text-xs font-semibold uppercase tracking-[0.1em] text-[#888880]">
-                  NanoClaw durable wake (host)
-                </h2>
-                <p className="mb-3 text-sm text-[#888880]">
-                  Channel paste cannot schedule this runtime. On the VPS
-                  (~/nanoclaw-v2), create the script-gated pulse task for{' '}
-                  <span className="font-mono text-[#F0EDE8]">{nanoclawTask.groupId}</span>
-                  {' '}(folder{' '}
-                  <span className="font-mono text-[#F0EDE8]">{nanoclawTask.groupFolder}</span>
-                  ). You must substitute a real{' '}
-                  <span className="font-mono">etc_live_…</span> key — a literal{' '}
-                  <span className="font-mono">&lt;ETC_API_KEY&gt;</span> will fail
-                  auth. Full steps:{' '}
-                  <span className="font-mono">docs/runbooks/nanoclaw-pulse-task.md</span>.
-                </p>
-                <pre className="overflow-x-auto whitespace-pre-wrap rounded bg-[#111111] p-3 font-mono text-[11px] leading-relaxed text-[#F0EDE8]">
-                  {nanoclawTask.hostCreateCommand}
-                </pre>
-              </section>
-            )}
 
             <section className="overflow-hidden rounded-md border border-[#242424] bg-[#161616]">
               <div className="flex items-center justify-between gap-3 border-b border-[#242424] px-5 py-4">

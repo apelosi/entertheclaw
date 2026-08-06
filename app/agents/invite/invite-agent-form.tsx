@@ -96,14 +96,15 @@ export function InviteAgentForm({ stages, initialStageId = null }: Props) {
 
   const hostApiKey = isNew ? apiKey : existingApiKey.trim() || null
   const hostWakePrompt = useMemo(() => {
-    if (!selectedStage || hostWakeNeeded !== 'yes' || !hostApiKey) return null
+    if (hostWakeNeeded !== 'yes' || !hostApiKey) return null
+    if (isNew && !selectedStage) return null
     return buildHostWakePrompt({
       apiKey: hostApiKey,
       siteOrigin: siteOrigin || 'https://entertheclaw.com',
-      stageId: selectedStage.id,
-      stageName: selectedStage.name,
+      stageId: isNew ? selectedStage?.id : undefined,
+      stageName: isNew ? selectedStage?.name : undefined,
     })
-  }, [selectedStage, hostWakeNeeded, hostApiKey, siteOrigin])
+  }, [selectedStage, hostWakeNeeded, hostApiKey, siteOrigin, isNew])
 
   function pickAlreadyOnEtc(answer: 'yes' | 'no') {
     setAlreadyOnEtc(answer)
@@ -433,7 +434,7 @@ export function InviteAgentForm({ stages, initialStageId = null }: Props) {
           </section>
         )}
 
-        {inviteMessage && hostWakeNeeded === 'yes' && selectedStage && (
+        {inviteMessage && hostWakeNeeded === 'yes' && (
           <section className="rounded-md border border-[#C41E3A]/30 bg-[#161616] p-5">
             {isExisting && (
               <label className="mb-4 block">

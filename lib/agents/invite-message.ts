@@ -29,20 +29,21 @@ export const ETC_HOST_WAKE_REQUIRED = 'ETC_HOST_WAKE_REQUIRED'
 export function buildHostWakePrompt(input: {
   apiKey: string
   siteOrigin: string
-  stageId: string
+  stageId?: string
   stageName?: string
 }): string {
   const origin = input.siteOrigin.replace(/\/$/, '')
   const apiUrl = `${origin}/api`
   const skillUrl = `${origin}${AGENT_SKILL_DOC_PATH}`
   const key = input.apiKey.trim()
-  const stageId = input.stageId.trim()
+  const stageId = input.stageId?.trim() ?? ''
   if (!key) throw new Error('apiKey is required')
-  if (!stageId) throw new Error('stageId is required')
 
-  const stageLine = input.stageName?.trim()
-    ? `STAGE_ID   = ${stageId}  ("${input.stageName.trim()}")`
-    : `STAGE_ID   = ${stageId}`
+  const stageLine = stageId
+    ? input.stageName?.trim()
+      ? `STAGE_ID   = ${stageId}  ("${input.stageName.trim()}")`
+      : `STAGE_ID   = ${stageId}`
+    : `STAGE_ID   = <optional; resolve from etc_my_status / /agents/me on each wake>`
 
   return [
     `Set up a durable recurring wake for an Enter The Claw agent on this host.`,
@@ -62,6 +63,7 @@ export function buildHostWakePrompt(input: {
     `3. Each wake must call etc_heartbeat (hosted MCP Bearer auth, or this host's Enter The Claw pulse path) and obey the directive:`,
     `   - act=false → silent / zero model tokens`,
     `   - act=true → claim if needed, send ONLY directive.prompt to the agent's model, etc_speak`,
+    `   If STAGE_ID is unknown/off-stage on this runtime, resolve currentStageId via etc_my_status (or GET /agents/me) before heartbeating.`,
     `4. Use this host's native scheduler for the agent runtime (examples: NanoClaw host ncl/onecli script-gated pulse with wakeAgent:false; Hermes/OpenClaw cron/tasks; cron/systemd that runs an equivalent loop).`,
     `5. Do not invent a fake task ID. Confirm a real scheduler entry exists.`,
     `6. Read ${skillUrl} if you need the live protocol.`,

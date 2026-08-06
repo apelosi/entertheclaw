@@ -56,14 +56,16 @@ const spec = buildNanoclawPulseTaskSpec({
 })
 
 console.log(`# NanoClaw pulse task — WHERE: VPS ~/nanoclaw-v2
-# group=${spec.groupId}  folder=${spec.groupFolder}  recurrence=${spec.recurrence}
+# group=${spec.groupId}  folder=${spec.groupFolder} (alt ${spec.groupFolderAlt})
+# name=${spec.taskName}  recurrence=${spec.recurrence}
 # Gate always ends wakeAgent:false; uses OPENROUTER_API_KEY inside etc-pulse-run.sh.
 #
 # 1) Confirm group folder exists and has OPENROUTER_API_KEY configured in onecli.
-# 2) Substitute <ETC_API_KEY> from the group's existing ETC key (MCP env / prior invite).
-#    Do not invent a key. Prod DB cannot recover plaintext.
+# 2) MUST substitute a real etc_live_… key for <ETC_API_KEY> before create.
+#    Literal <ETC_API_KEY> will schedule a task that fails auth forever.
+#    Prod DB cannot recover plaintext — read from ${spec.groupFolder}/container.json.
 # 3) Run the create command below, then verify with:
-#      ./bin/ncl tasks list | rg '${spec.groupId}|etc-pulse'
+#      ./bin/ncl tasks list | grep -E '${spec.groupId}|etc-pulse'
 #      ./bin/ncl tasks get <task-id>
 # 4) Within ~1–2 minutes, agent last_heartbeat_at should advance on the stage.
 

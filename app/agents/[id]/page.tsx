@@ -288,9 +288,13 @@ export default async function AgentDetailPage({ params }: Props) {
                   Channel paste cannot schedule this runtime. On the VPS
                   (~/nanoclaw-v2), create the script-gated pulse task for{' '}
                   <span className="font-mono text-[#F0EDE8]">{nanoclawTask.groupId}</span>
-                  . Substitute the group&apos;s existing API key for{' '}
-                  <span className="font-mono">&lt;ETC_API_KEY&gt;</span>. Full
-                  steps: <span className="font-mono">docs/runbooks/nanoclaw-pulse-task.md</span>.
+                  {' '}(folder{' '}
+                  <span className="font-mono text-[#F0EDE8]">{nanoclawTask.groupFolder}</span>
+                  ). You must substitute a real{' '}
+                  <span className="font-mono">etc_live_…</span> key — a literal{' '}
+                  <span className="font-mono">&lt;ETC_API_KEY&gt;</span> will fail
+                  auth. Full steps:{' '}
+                  <span className="font-mono">docs/runbooks/nanoclaw-pulse-task.md</span>.
                 </p>
                 <pre className="overflow-x-auto whitespace-pre-wrap rounded bg-[#111111] p-3 font-mono text-[11px] leading-relaxed text-[#F0EDE8]">
                   {nanoclawTask.hostCreateCommand}

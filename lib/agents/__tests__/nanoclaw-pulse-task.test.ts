@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   buildNanoclawPulseTaskSpec,
   inferNanoclawGroupNum,
+  nanoclawGroupFolder,
   nanoclawGroupId,
 } from '@/lib/agents/nanoclaw-pulse-task'
 
@@ -14,14 +15,22 @@ describe('nanoclaw pulse task helper', () => {
     expect(inferNanoclawGroupNum('Hermes Lys')).toBeNull()
   })
 
-  it('builds a fleet-shaped one-shot gate script (unversioned API, no LLM key)', () => {
+  it('uses zero-padded host folders for groups 1–9', () => {
+    expect(nanoclawGroupFolder(9)).toBe('groups/etc-09')
+    expect(nanoclawGroupFolder(1)).toBe('groups/etc-01')
+    expect(nanoclawGroupFolder(12)).toBe('groups/etc-12')
+  })
+
+  it('builds a fleet-shaped one-shot gate script with --name', () => {
     const spec = buildNanoclawPulseTaskSpec({
       groupNum: 9,
       stageId: 'a75aedbf-ad7b-41da-bec4-3e3954d3b618',
     })
     expect(nanoclawGroupId(9)).toBe('ag-etc-9')
-    expect(spec.groupFolder).toBe('groups/etc-9')
+    expect(spec.groupFolder).toBe('groups/etc-09')
     expect(spec.recurrence).toBe('45 * * * * *')
+    expect(spec.hostCreateCommand).toContain("--name 'etc-pulse'")
+    expect(spec.hostCreateCommand).toContain('--group ag-etc-9')
     expect(spec.script).toContain('ETC_API_URL=https://entertheclaw.com/api\n')
     expect(spec.script).not.toContain('/api/v1')
     expect(spec.script).toContain(
@@ -30,8 +39,6 @@ describe('nanoclaw pulse task helper', () => {
     expect(spec.script).toContain('exec bash /app/src/scripts/etc-pulse-run.sh')
     expect(spec.script).not.toContain('LLM_API_KEY')
     expect(spec.script).toContain('<ETC_API_KEY>')
-    expect(spec.hostCreateCommand).toContain('--group ag-etc-9')
-    expect(spec.hostCreateCommand).toContain('--recurrence')
     expect(spec.prompt).toContain('never wake the agent')
   })
 })

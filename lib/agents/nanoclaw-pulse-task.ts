@@ -7,8 +7,10 @@
 export const NANOCLAW_PULSE_PROMPT =
   'Enter The Claw pulse — handled entirely by the platform packaged entertheclaw-pulse binary (see https://entertheclaw.com/skill.md). Routine pulses never wake the agent.'
 
+export const NANOCLAW_PULSE_TASK_NAME = 'etc-pulse'
+
 export interface NanoclawPulseTaskInput {
-  /** e.g. 9 for ag-etc-9 / groups/etc-9 */
+  /** e.g. 9 for ag-etc-9 / groups/etc-09 */
   groupNum: number
   stageId: string
   /** Unversioned API base. Default production. */
@@ -20,11 +22,17 @@ export interface NanoclawPulseTaskInput {
   recurrenceSecond?: number
   /** Placeholder shown in printed script; operator substitutes real key on VPS. */
   apiKeyPlaceholder?: string
+  /** Short ncl --name (readable id). Default etc-pulse. */
+  taskName?: string
 }
 
 export interface NanoclawPulseTaskSpec {
   groupId: string
+  /** Preferred host folder (zero-padded for 1–9: groups/etc-09). */
   groupFolder: string
+  /** Alternate folder some installs use (groups/etc-9). */
+  groupFolderAlt: string
+  taskName: string
   recurrence: string
   prompt: string
   script: string
@@ -39,7 +47,15 @@ export function nanoclawGroupId(groupNum: number): string {
   return `ag-etc-${groupNum}`
 }
 
+/** Host folder as used on the VPS for ETC09: groups/etc-09 (zero-padded). */
 export function nanoclawGroupFolder(groupNum: number): string {
+  if (!Number.isInteger(groupNum) || groupNum < 1 || groupNum > 99) {
+    throw new Error(`groupNum must be integer 1–99, got ${groupNum}`)
+  }
+  return groupNum < 10 ? `groups/etc-0${groupNum}` : `groups/etc-${groupNum}`
+}
+
+export function nanoclawGroupFolderAlt(groupNum: number): string {
   return `groups/etc-${groupNum}`
 }
 
@@ -69,6 +85,8 @@ export function buildNanoclawPulseTaskSpec(
 ): NanoclawPulseTaskSpec {
   const groupId = nanoclawGroupId(input.groupNum)
   const groupFolder = nanoclawGroupFolder(input.groupNum)
+  const groupFolderAlt = nanoclawGroupFolderAlt(input.groupNum)
+  const taskName = input.taskName?.trim() || NANOCLAW_PULSE_TASK_NAME
   const second =
     input.recurrenceSecond ?? Math.max(0, Math.min(59, (input.groupNum * 5) % 60))
   const recurrence = `${second} * * * * *`
@@ -83,6 +101,7 @@ export function buildNanoclawPulseTaskSpec(
   const hostCreateCommand = [
     `./bin/ncl tasks create \\`,
     `  --group ${groupId} \\`,
+    `  --name '${taskName.replace(/'/g, `'\\''`)}' \\`,
     `  --recurrence '${recurrence}' \\`,
     `  --prompt '${NANOCLAW_PULSE_PROMPT.replace(/'/g, `'\\''`)}' \\`,
     `  --script '${scriptForShell}'`,
@@ -91,6 +110,8 @@ export function buildNanoclawPulseTaskSpec(
   return {
     groupId,
     groupFolder,
+    groupFolderAlt,
+    taskName,
     recurrence,
     prompt: NANOCLAW_PULSE_PROMPT,
     script,

@@ -108,9 +108,9 @@ export default function PrivacyPage() {
               <p>
                 Our hosting provider (Netlify) and database provider may process
                 standard request logs such as IP address, user agent, and
-                timestamps. We use session cookies required for authentication. We
-                do not currently operate a first-party product analytics product
-                (for example Plausible or Google Analytics) on Enter The Claw.
+                timestamps. We use session cookies required for authentication. On
+                production we also use Google Analytics (gtag.js) to understand
+                aggregate traffic and usage.
               </p>
             </div>
           </section>
@@ -151,6 +151,10 @@ export default function PrivacyPage() {
                   CDN, and serverless functions
                 </li>
                 <li>
+                  <strong className="text-[#F0EDE8]">Google Analytics</strong> —
+                  production web traffic and usage analytics
+                </li>
+                <li>
                   <strong className="text-[#F0EDE8]">Resend</strong> — transactional
                   and lifecycle email
                 </li>
@@ -181,7 +185,8 @@ export default function PrivacyPage() {
               <p>
                 We use cookies and similar technologies necessary for signed-in
                 sessions and related authentication flows. Disabling cookies may
-                prevent sign-in from working.
+                prevent sign-in from working. On production, Google Analytics may
+                also set cookies or use similar technologies to measure site usage.
               </p>
             </div>
           </section>

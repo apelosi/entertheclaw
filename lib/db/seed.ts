@@ -200,10 +200,13 @@ async function seed() {
   console.log('Seeding stages...')
 
   for (const stage of SEED_STAGES) {
+    // Conflict target must be stages.name (unique). Bare onConflictDoNothing()
+    // only skips PK collisions — seed always generates new UUIDs, so without a
+    // name unique + target every re-seed duplicated all 20 stages.
     await db
       .insert(schema.stages)
       .values({ ...stage, createdAt: STAGE_CREATED_AT })
-      .onConflictDoNothing()
+      .onConflictDoNothing({ target: schema.stages.name })
 
     console.log(`  ✓ ${stage.name}`)
   }

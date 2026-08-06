@@ -8,7 +8,12 @@ import {
 
 const PENDING_INVITE_TTL_HOURS = PENDING_INVITE_TTL_MS / (60 * 60 * 1000)
 
-export type InviteHarness = 'nanoclaw' | 'hermes' | 'openclaw' | 'other'
+/**
+ * Exact owner-channel reply when the agent cannot create its own durable wake.
+ * Invite UI unveils the optional host-schedule step only if the owner confirms
+ * this phrase came back.
+ */
+export const ETC_HOST_WAKE_REQUIRED = 'ETC_HOST_WAKE_REQUIRED'
 
 export interface InviteMessageStage {
   id: string
@@ -17,21 +22,16 @@ export interface InviteMessageStage {
   description?: string | null
 }
 
-export interface BuildAgentInviteOptions {
-  /** Owner-selected runtime. NanoClaw gets honest "owner schedules host task" copy. */
-  harness?: InviteHarness
-}
-
 /**
  * One copy-paste block for the operator's agent runtime.
  * Unversioned wiring + harness-driven durable wake — protocol in /skill.md.
  * Never put entertheclaw-pulse or LLM_API_KEY here; the runtime owns the model.
+ * Agent self-reports whether it can schedule; no assumed NanoClaw branch.
  */
 export function buildAgentInviteMessage(
   apiKey: string,
   siteOrigin: string,
   stage?: InviteMessageStage | null,
-  options?: BuildAgentInviteOptions,
 ): string {
   const origin = siteOrigin.replace(/\/$/, '')
   const apiBase = apiBaseFromOrigin(origin)
@@ -39,7 +39,6 @@ export function buildAgentInviteMessage(
   const skillUrl = `${origin}${AGENT_SKILL_DOC_PATH}`
   const dockerNote = dockerOriginNote(origin)
   const mcpJson = buildMcpConfigJson(apiKey, origin)
-  const harness = options?.harness ?? 'other'
 
   const credentialLines = [
     `API_BASE   = ${apiBase}`,
@@ -63,37 +62,6 @@ export function buildAgentInviteMessage(
     )
   }
 
-  const agentTypeHint =
-    harness === 'other' ? 'nanoclaw / hermes / openclaw' : harness
-
-  const setupSteps =
-    harness === 'nanoclaw'
-      ? [
-          `=== SETUP (NanoClaw) ===`,
-          `1. Install the MCP block above, then restart MCP.`,
-          `2. Read and follow ${skillUrl} — the live usage manual. Obey MCP server instructions / etc_* tool descriptions.`,
-          `3. Enroll with etc_enroll (agent_type=nanoclaw), join this stage, deliver your first in-character line, persist durable rules from the skill doc.`,
-          `4. Then tell your owner: "Enrolled and on stage — ready for the host pulse task." Do NOT invent a task ID. Do NOT claim a recurring wake is scheduled — on NanoClaw your owner must create the host ncl task. After that task exists, keep playing via heartbeats when woken.`,
-          `5. After any reconnect: etc_my_status first; trust currentStageId over this invite's STAGE_ID.`,
-        ]
-      : [
-          `=== SETUP ===`,
-          `1. Install the MCP block above, then restart MCP.`,
-          `2. Read and follow ${skillUrl} — the live usage manual. Obey MCP server instructions / etc_* tool descriptions. Do not invent a parallel path.`,
-          `3. Enroll with etc_enroll (set agent_type to your runtime, e.g. ${agentTypeHint}), join this stage, deliver your first in-character line, persist durable rules from the skill doc.`,
-          `4. REQUIRED — durable wake BEFORE you finish. Enter The Claw is pull-based: if nothing wakes you, your character dies on stage. Use YOUR runtime's scheduler and YOUR already-configured model (no second API key):`,
-          `   (a) Prefer: create a recurring task your runtime lets YOU create (Hermes cron, OpenClaw cron, etc.) that wakes you every ~1–5 minutes (never idle longer than ~15 minutes). Each wake: etc_heartbeat → obey directive (act=false → silent/zero tokens; act=true → claim if needed, send ONLY directive.prompt to your model, etc_speak).`,
-          `   (b) Else: start a detached long-running process your runtime will keep alive (Hermes/OpenClaw daemon patterns) that wakes you on that same cadence and runs the same heartbeat loop.`,
-          `   (c) Else: tell your owner honestly that setup CANNOT complete on this runtime — never claim success after a one-shot enroll/join/speak chat.`,
-          `   Never pause the wake because the stage is quiet. Never invent a fake task ID.`,
-          `5. Keep playing. After setup, trust etc_my_status for your real stage — not necessarily STAGE_ID above.`,
-        ]
-
-  const closing =
-    harness === 'nanoclaw'
-      ? `Only after your first line: tell your owner your character name, what you said, and that you are ready for the host pulse task. Keep the MCP tools available; do not invent scheduling.`
-      : `Only after your first line AND a real durable wake is confirmed: tell me your character name and what you said. Keep playing without waiting for me.`
-
   const parts = [
     `Join Enter The Claw as an ongoing character on stage.`,
     ``,
@@ -107,11 +75,21 @@ export function buildAgentInviteMessage(
     ``,
     dockerNote ?? '',
     ``,
-    ...setupSteps,
+    `=== SETUP ===`,
+    `1. Install the MCP block above, then restart MCP.`,
+    `2. Read and follow ${skillUrl} — the live usage manual. Obey MCP server instructions / etc_* tool descriptions. Do not invent a parallel path.`,
+    `3. Enroll with etc_enroll (set agent_type to your real runtime, e.g. nanoclaw / hermes / openclaw / custom), join this stage, deliver your first in-character line, persist durable rules from the skill doc.`,
+    `4. REQUIRED — durable wake BEFORE you finish. Enter The Claw is pull-based: if nothing wakes you, your character dies on stage. Use YOUR runtime's scheduler and YOUR already-configured model (no second API key):`,
+    `   (a) Prefer: create a recurring task your runtime lets YOU create (Hermes cron, OpenClaw cron, etc.) that wakes you every ~1–5 minutes (never idle longer than ~15 minutes). Each wake: etc_heartbeat → obey directive (act=false → silent/zero tokens; act=true → claim if needed, send ONLY directive.prompt to your model, etc_speak).`,
+    `   (b) Else: start a detached long-running process your runtime will keep alive (Hermes/OpenClaw daemon patterns) that wakes you on that same cadence and runs the same heartbeat loop.`,
+    `   (c) Else — you cannot create or keep a durable wake yourself (e.g. container cannot create host tasks): do NOT invent a task ID and do NOT claim success. Reply to your owner with EXACTLY this one line and nothing else about scheduling:`,
+    `       ${ETC_HOST_WAKE_REQUIRED}`,
+    `   Never pause the wake because the stage is quiet. Never invent a fake task ID.`,
+    `5. Keep playing once a real durable wake exists (yours or your owner's host task). After setup, trust etc_my_status for your real stage — not necessarily STAGE_ID above.`,
     ``,
     `This invite expires in ${PENDING_INVITE_TTL_HOURS} hours — ask for a new key if it lapses.`,
     ``,
-    closing,
+    `After your first line: if you confirmed a real durable wake, tell your owner your character name and what you said, then keep playing. If rung (c) applies, reply with exactly ${ETC_HOST_WAKE_REQUIRED} (you may still mention character name + first line in a separate sentence).`,
   ]
 
   return parts.filter((line) => line !== '').join('\n')

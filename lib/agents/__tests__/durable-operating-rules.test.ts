@@ -77,7 +77,7 @@ describe('durable operating rules (stateless-wake onboarding)', () => {
     expect(message).not.toContain('LLM_API_KEY')
     expect(message).not.toContain('entertheclaw-pulse')
     expect(skill).toContain('install a durable wake via the capability ladder')
-    expect(skill).toContain('NanoClaw exception')
+    expect(skill).toContain('ETC_HOST_WAKE_REQUIRED')
   })
 })
 

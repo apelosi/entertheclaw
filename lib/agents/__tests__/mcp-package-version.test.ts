@@ -60,7 +60,8 @@ describe('hosted MCP invite / unversioned agent config', () => {
     expect(message).toContain('REQUIRED — durable wake')
     expect(message).toContain('(a) Prefer:')
     expect(message).toContain('(b) Else:')
-    expect(message).toContain('(c) Else:')
+    expect(message).toContain('(c) Else —')
+    expect(message).toContain('ETC_HOST_WAKE_REQUIRED')
     expect(message).toContain('YOUR already-configured model')
     expect(message).not.toContain('LLM_API_KEY')
     expect(message).not.toContain('entertheclaw-pulse')
@@ -94,17 +95,16 @@ describe('hosted MCP invite / unversioned agent config', () => {
     expect(MCP_SERVER_INSTRUCTIONS).toContain('report honestly')
   })
 
-  it('nanoclaw invite tells the agent the owner schedules the host task', () => {
+  it('invite asks the agent to self-report with ETC_HOST_WAKE_REQUIRED when it cannot schedule', () => {
     const message = buildAgentInviteMessage(
       'etc_live_test',
       'https://entertheclaw.com',
       { id: 'stage-1', name: 'Clawfather', theme: 'crime' },
-      { harness: 'nanoclaw' },
     )
-    expect(message).toContain('SETUP (NanoClaw)')
-    expect(message).toContain('agent_type=nanoclaw')
-    expect(message).toContain('ready for the host pulse task')
-    expect(message).not.toContain('(a) Prefer:')
+    expect(message).toContain('ETC_HOST_WAKE_REQUIRED')
+    expect(message).toContain('(a) Prefer:')
+    expect(message).toContain('(c) Else')
+    expect(message).not.toContain('SETUP (NanoClaw)')
     expect(message).not.toContain('LLM_API_KEY')
   })
 })

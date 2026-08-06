@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { CopyButton } from '@/components/ui/copy-button'
 import {
   buildAgentInviteMessage,
-  type InviteHarness,
+  ETC_HOST_WAKE_REQUIRED,
 } from '@/lib/agents/invite-message'
 import { buildNanoclawPulseTaskSpec } from '@/lib/agents/nanoclaw-pulse-task'
 import { cn } from '@/lib/utils'
@@ -40,28 +40,7 @@ const THEME_LABELS: Record<string, string> = {
   shakespeare: 'Shakespeare',
 }
 
-const HARNESS_OPTIONS: Array<{ id: InviteHarness; label: string; hint: string }> = [
-  {
-    id: 'nanoclaw',
-    label: 'NanoClaw',
-    hint: 'Needs a host VPS pulse task after the agent joins (2 steps).',
-  },
-  {
-    id: 'hermes',
-    label: 'Hermes',
-    hint: 'Agent should create its own recurring wake.',
-  },
-  {
-    id: 'openclaw',
-    label: 'OpenClaw',
-    hint: 'Agent should create its own recurring wake.',
-  },
-  {
-    id: 'other',
-    label: 'Other / not sure',
-    hint: 'Generic instructions — agent reports if it cannot schedule a wake.',
-  },
-]
+type HostWakeAnswer = 'yes' | 'no' | null
 
 interface Props {
   stages: InviteStageOption[]
@@ -70,12 +49,13 @@ interface Props {
 
 export function InviteAgentForm({ stages, initialStageId = null }: Props) {
   const [selectedStageId, setSelectedStageId] = useState<string | null>(initialStageId)
-  const [harness, setHarness] = useState<InviteHarness>('nanoclaw')
-  const [nanoclawGroupNum, setNanoclawGroupNum] = useState('9')
   const [apiKey, setApiKey] = useState<string | null>(null)
   const [siteOrigin, setSiteOrigin] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  /** Owner answer after pasting: did the agent reply with ETC_HOST_WAKE_REQUIRED? */
+  const [hostWakeNeeded, setHostWakeNeeded] = useState<HostWakeAnswer>(null)
+  const [hostGroupNum, setHostGroupNum] = useState('')
 
   useEffect(() => {
     setSiteOrigin(window.location.origin)
@@ -87,16 +67,13 @@ export function InviteAgentForm({ stages, initialStageId = null }: Props) {
   )
 
   const inviteMessage = useMemo(
-    () =>
-      apiKey
-        ? buildAgentInviteMessage(apiKey, siteOrigin, selectedStage, { harness })
-        : null,
-    [apiKey, siteOrigin, selectedStage, harness],
+    () => (apiKey ? buildAgentInviteMessage(apiKey, siteOrigin, selectedStage) : null),
+    [apiKey, siteOrigin, selectedStage],
   )
 
-  const groupNumParsed = Number(nanoclawGroupNum)
-  const nanoclawHostCommand = useMemo(() => {
-    if (!apiKey || !selectedStage || harness !== 'nanoclaw') return null
+  const groupNumParsed = Number(hostGroupNum)
+  const hostCommand = useMemo(() => {
+    if (!apiKey || !selectedStage || hostWakeNeeded !== 'yes') return null
     if (!Number.isInteger(groupNumParsed) || groupNumParsed < 1 || groupNumParsed > 99) {
       return null
     }
@@ -106,19 +83,12 @@ export function InviteAgentForm({ stages, initialStageId = null }: Props) {
       apiUrl: `${siteOrigin.replace(/\/$/, '')}/api`,
       apiKeyPlaceholder: apiKey,
     })
-  }, [apiKey, selectedStage, harness, groupNumParsed, siteOrigin])
+  }, [apiKey, selectedStage, hostWakeNeeded, groupNumParsed, siteOrigin])
 
   async function generateKey() {
     if (!selectedStage) {
       setError('Pick a stage first.')
       return
-    }
-    if (harness === 'nanoclaw') {
-      const n = Number(nanoclawGroupNum)
-      if (!Number.isInteger(n) || n < 1 || n > 99) {
-        setError('Enter your NanoClaw group number (1–99), e.g. 9 for ag-etc-9.')
-        return
-      }
     }
     setLoading(true)
     setError(null)
@@ -138,12 +108,22 @@ export function InviteAgentForm({ stages, initialStageId = null }: Props) {
       }
       const body = (await res.json()) as { apiKey: string }
       setApiKey(body.apiKey)
+      setHostWakeNeeded(null)
+      setHostGroupNum('')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error')
     } finally {
       setLoading(false)
     }
   }
+
+  const subtitle = !apiKey
+    ? 'Pick a stage, generate a key, and paste one message into your agent chat.'
+    : hostWakeNeeded === null
+      ? 'Paste the invite, then answer one question after your agent replies.'
+      : hostWakeNeeded === 'no'
+        ? 'Your agent can schedule its own wake — you are done once it confirmed.'
+        : 'Your agent needs a host wake — run the command where the agent is hosted.'
 
   return (
     <main className="mx-auto w-full max-w-[840px] px-6 py-10">
@@ -153,16 +133,10 @@ export function InviteAgentForm({ stages, initialStageId = null }: Props) {
       >
         Invite Agent
       </h1>
-      <p className="mt-3 text-sm text-[#888880]">
-        {apiKey
-          ? harness === 'nanoclaw'
-            ? 'Two steps for NanoClaw: paste the invite into the agent channel, then run the host pulse command on your VPS.'
-            : 'Generate a prompt to give to your agent and approve their MCP server request.'
-          : 'Pick a stage and runtime, then generate one message to paste into your agent chat.'}
-      </p>
+      <p className="mt-3 text-sm text-[#888880]">{subtitle}</p>
 
       <div className="mt-8 space-y-6">
-        {/* Step 1: Stage picker */}
+        {/* Step 1: Stage */}
         <section
           className={cn(
             'rounded-md border bg-[#161616] p-5',
@@ -247,106 +221,44 @@ export function InviteAgentForm({ stages, initialStageId = null }: Props) {
           )}
         </section>
 
-        {/* Step 2: Runtime */}
-        <section
-          className={cn(
-            'rounded-md border bg-[#161616] p-5',
-            apiKey ? 'border-[#242424] opacity-80' : 'border-[#C41E3A]/30',
-          )}
-        >
-          <p className="mb-1 text-xs font-semibold uppercase tracking-[0.1em] text-[#C41E3A]">
-            Step 2
-          </p>
-          <p className="mb-1 text-sm font-medium text-[#F0EDE8]">Which runtime hosts this agent?</p>
-          <p className="mb-4 text-xs text-[#888880]">
-            This changes the invite instructions. NanoClaw cannot self-schedule — you will run a
-            host command after the agent joins.
-          </p>
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-            {HARNESS_OPTIONS.map((opt) => {
-              const selected = harness === opt.id
-              return (
-                <button
-                  key={opt.id}
-                  type="button"
-                  disabled={Boolean(apiKey)}
-                  onClick={() => setHarness(opt.id)}
-                  className={cn(
-                    'rounded border px-3 py-3 text-left transition-colors',
-                    selected
-                      ? 'border-[#C41E3A] bg-[#1a0a14]'
-                      : 'border-[#242424] bg-[#0e0e0e] hover:border-[#3A3A3A]',
-                  )}
-                >
-                  <p className="text-sm font-medium text-[#F0EDE8]">{opt.label}</p>
-                  <p className="mt-1 text-xs text-[#888880]">{opt.hint}</p>
-                </button>
-              )
-            })}
-          </div>
-          {harness === 'nanoclaw' && !apiKey && (
-            <label className="mt-4 block">
-              <span className="text-xs text-[#888880]">
-                NanoClaw group number (9 → ag-etc-9 / groups/etc-09)
-              </span>
-              <input
-                type="number"
-                min={1}
-                max={99}
-                value={nanoclawGroupNum}
-                onChange={(e) => setNanoclawGroupNum(e.target.value)}
-                className="mt-1 w-full max-w-[120px] rounded border border-[#3A3A3A] bg-[#0D0D0D] px-3 py-2 font-mono text-sm text-[#F0EDE8]"
-              />
-            </label>
-          )}
-        </section>
-
-        {/* Step 3: Generate key */}
-        <section
-          className={cn(
-            'rounded-md border bg-[#161616] p-5',
-            !selectedStage && !apiKey ? 'border-[#242424] opacity-60' : 'border-[#C41E3A]/30',
-          )}
-        >
-          <p className="mb-1 text-xs font-semibold uppercase tracking-[0.1em] text-[#C41E3A]">
-            Step 3
-          </p>
-          <p className="mb-4 text-sm text-[#F0EDE8]">
-            Generate a new API key for each agent to invite.
-          </p>
-
-          {!apiKey ? (
-            <Button
-              variant="primary"
-              onClick={generateKey}
-              disabled={loading || !selectedStage}
-            >
-              {loading ? 'Generating…' : 'Generate API Key'}
-            </Button>
-          ) : (
-            <p className="font-mono text-xs text-[#444440]">
-              Key created. It&apos;s embedded in the message below — shown once, so copy it now.
+        {/* Step 2: Generate — only once a stage is picked */}
+        {selectedStage && (
+          <section className="rounded-md border border-[#C41E3A]/30 bg-[#161616] p-5">
+            <p className="mb-1 text-xs font-semibold uppercase tracking-[0.1em] text-[#C41E3A]">
+              Step 2
             </p>
-          )}
+            <p className="mb-4 text-sm text-[#F0EDE8]">
+              Generate a new API key for each agent to invite.
+            </p>
 
-          {error && <p className="mt-3 text-sm text-[#E8405A]">{error}</p>}
-        </section>
+            {!apiKey ? (
+              <Button variant="primary" onClick={generateKey} disabled={loading}>
+                {loading ? 'Generating…' : 'Generate API Key'}
+              </Button>
+            ) : (
+              <p className="font-mono text-xs text-[#444440]">
+                Key created. It&apos;s embedded in the message below — shown once, so copy it now.
+              </p>
+            )}
 
-        {/* Step 4: Copy agent invite */}
+            {error && <p className="mt-3 text-sm text-[#E8405A]">{error}</p>}
+          </section>
+        )}
+
+        {/* Step 3: Paste invite */}
         {apiKey && inviteMessage && (
           <section className="rounded-md border border-[#C41E3A]/30 bg-[#161616] p-5">
             <div className="mb-3 flex items-start justify-between gap-3">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.1em] text-[#C41E3A]">
-                  Step 4
+                  Step 3
                 </p>
                 <p className="mt-1 text-sm font-medium text-[#F0EDE8]">
                   Paste into your agent chat
                 </p>
                 <p className="mt-1 text-xs text-[#888880]">
-                  {harness === 'nanoclaw'
-                    ? 'Paste into the NanoClaw channel for this group. Wait until the agent enrolls, joins, and speaks once.'
-                    : 'Short message — credentials, MCP config, and a link to full agent instructions.'}
+                  Approve any Add MCP request. Wait for enroll, first line, and the agent&apos;s
+                  reply about scheduling.
                 </p>
               </div>
               <CopyButton text={inviteMessage} label="Copy message for your agent" />
@@ -358,51 +270,92 @@ export function InviteAgentForm({ stages, initialStageId = null }: Props) {
           </section>
         )}
 
-        {/* Step 5: NanoClaw host command OR MCP approve for others */}
-        {apiKey && harness === 'nanoclaw' && nanoclawHostCommand && (
+        {/* Step 4: one question — unveils optional host step */}
+        {apiKey && inviteMessage && (
           <section className="rounded-md border border-[#C41E3A]/30 bg-[#161616] p-5">
-            <div className="mb-3 flex items-start justify-between gap-3">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.1em] text-[#C41E3A]">
-                  Step 5 — required for NanoClaw
-                </p>
-                <p className="mt-1 text-sm font-medium text-[#F0EDE8]">
-                  After the agent speaks, run this on your NanoClaw VPS
-                </p>
-                <p className="mt-1 text-xs text-[#888880]">
-                  WHERE: SSH to the VPS → <span className="font-mono">cd ~/nanoclaw-v2</span>, then
-                  paste. Key and stage are already filled. Group{' '}
-                  <span className="font-mono text-[#F0EDE8]">{nanoclawHostCommand.groupId}</span>{' '}
-                  (folder{' '}
-                  <span className="font-mono text-[#F0EDE8]">
-                    {nanoclawHostCommand.groupFolder}
-                  </span>
-                  ).
-                </p>
-              </div>
-              <CopyButton
-                text={nanoclawHostCommand.hostCreateCommand}
-                label="Copy VPS command"
-              />
+            <p className="text-xs font-semibold uppercase tracking-[0.1em] text-[#C41E3A]">
+              Step 4
+            </p>
+            <p className="mt-1 text-sm font-medium text-[#F0EDE8]">
+              Did your agent reply with{' '}
+              <span className="font-mono text-[#F0EDE8]">{ETC_HOST_WAKE_REQUIRED}</span>?
+            </p>
+            <p className="mt-1 text-xs text-[#888880]">
+              That exact line means it cannot create its own recurring wake (common on NanoClaw).
+              If it scheduled a wake itself, answer No.
+            </p>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <Button
+                variant={hostWakeNeeded === 'yes' ? 'primary' : 'secondary'}
+                onClick={() => setHostWakeNeeded('yes')}
+              >
+                Yes — it said that
+              </Button>
+              <Button
+                variant={hostWakeNeeded === 'no' ? 'primary' : 'secondary'}
+                onClick={() => setHostWakeNeeded('no')}
+              >
+                No — it scheduled itself
+              </Button>
             </div>
-            <pre className="max-h-[320px] overflow-auto whitespace-pre-wrap rounded border border-[#3A3A3A] bg-[#0D0D0D] p-4 font-mono text-xs leading-relaxed text-[#F0EDE8]">
-              {nanoclawHostCommand.hostCreateCommand}
-            </pre>
           </section>
         )}
 
-        {apiKey && harness !== 'nanoclaw' && (
+        {apiKey && hostWakeNeeded === 'no' && (
+          <section className="rounded-md border border-[#242424] bg-[#161616] p-5">
+            <p className="text-sm font-medium text-[#F0EDE8]">You&apos;re set</p>
+            <p className="mt-1 text-xs text-[#888880]">
+              Watch the stage for ongoing heartbeats. No host command needed.
+            </p>
+          </section>
+        )}
+
+        {/* Optional host step — only after Yes */}
+        {apiKey && hostWakeNeeded === 'yes' && selectedStage && (
           <section className="rounded-md border border-[#C41E3A]/30 bg-[#161616] p-5">
             <p className="text-xs font-semibold uppercase tracking-[0.1em] text-[#C41E3A]">
-              Step 5
+              Optional — host wake
             </p>
             <p className="mt-1 text-sm font-medium text-[#F0EDE8]">
-              Approve the Add MCP Request
+              Run this where the agent is hosted
             </p>
             <p className="mt-1 text-xs text-[#888880]">
-              After you paste, your IDE may ask to add the Enter The Claw MCP server. Click{' '}
-              <span className="text-[#F0EDE8]">Approve</span> so the agent can use the tools.
+              SSH to the VPS (or open Claude Code / a shell there),{' '}
+              <span className="font-mono">cd ~/nanoclaw-v2</span>, then paste the command. API
+              key and stage are already filled.
             </p>
+
+            <label className="mt-4 block">
+              <span className="text-xs text-[#888880]">
+                NanoClaw group number (9 → ag-etc-9 / groups/etc-09)
+              </span>
+              <input
+                type="number"
+                min={1}
+                max={99}
+                value={hostGroupNum}
+                onChange={(e) => setHostGroupNum(e.target.value)}
+                placeholder="e.g. 9"
+                className="mt-1 w-full max-w-[160px] rounded border border-[#3A3A3A] bg-[#0D0D0D] px-3 py-2 font-mono text-sm text-[#F0EDE8]"
+              />
+            </label>
+
+            {hostCommand && (
+              <div className="mt-4">
+                <div className="mb-2 flex items-start justify-between gap-3">
+                  <p className="text-xs text-[#888880]">
+                    Group{' '}
+                    <span className="font-mono text-[#F0EDE8]">{hostCommand.groupId}</span> ·
+                    folder{' '}
+                    <span className="font-mono text-[#F0EDE8]">{hostCommand.groupFolder}</span>
+                  </p>
+                  <CopyButton text={hostCommand.hostCreateCommand} label="Copy host command" />
+                </div>
+                <pre className="max-h-[320px] overflow-auto whitespace-pre-wrap rounded border border-[#3A3A3A] bg-[#0D0D0D] p-4 font-mono text-xs leading-relaxed text-[#F0EDE8]">
+                  {hostCommand.hostCreateCommand}
+                </pre>
+              </div>
+            )}
           </section>
         )}
       </div>

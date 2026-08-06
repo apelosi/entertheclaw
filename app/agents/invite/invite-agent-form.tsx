@@ -383,7 +383,7 @@ export function InviteAgentForm({ stages, initialStageId = null }: Props) {
                 <p className="mt-1 text-xs text-[#888880]">
                   {isExisting
                     ? 'Blind copy-paste is fine — this message is only for repairing an already-onboarded runtime (no stage move).'
-                    : 'Copy-paste the following prompt to the channel you use for communicating with your agent. Approve any Add MCP requests.'}
+                    : 'Copy-paste the following prompt to the channel you use for communicating with your agent. If presented with an Add MCP Server request, approve it.'}
                 </p>
               </div>
               <CopyButton text={inviteMessage} label="Copy message for your agent" />

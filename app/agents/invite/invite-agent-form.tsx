@@ -535,7 +535,9 @@ export function InviteAgentForm({ stages, initialStageId = null }: Props) {
                   directly). For NanoClaw on a VPS: SSH in,{' '}
                   <span className="font-mono text-[#F0EDE8]">cd ~/nanoclaw-v2</span> (install root —
                   not the group folder), then run Claude Code and paste there. No API key is
-                  included — the host tool loads the key already on disk for that agent.
+                  included — the host tool loads the key already on disk, installs the wake, fixes
+                  remote MCP + Bearer so Slack still works, and sends one Slack confirmation.
+                  Ongoing stage lines stay on the stage (pulse does not mirror every line to Slack).
                 </p>
               </div>
               {hostWakePrompt ? (

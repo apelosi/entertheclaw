@@ -32,11 +32,26 @@ describe('invite owner bifurcation (no CYOA in paste)', () => {
     expect(message).not.toContain(ETC_REPAIR_OFF_STAGE)
   })
 
+  it('NEW invite requires the agent to self-install MCP (not stop to report missing tools)', () => {
+    const message = buildAgentInviteMessage('etc_live_test', 'https://entertheclaw.com', {
+      id: 'stage-1',
+      name: 'Clawfather',
+      theme: 'crime',
+    })
+    expect(message).toContain('you must install this — do not only diagnose')
+    expect(message).toContain('add_mcp_server')
+    expect(message).toContain('Do NOT stop after diagnosing')
+    expect(message).toContain('Do NOT ask your owner to open a desktop Add-MCP dialog')
+    expect(message).toContain('Gate: do not enroll/join until etc_* tools')
+  })
+
   it('EXISTING repair paste keeps key, refreshes, never joins or leaves stages', () => {
     const message = buildRepairInviteMessage('https://entertheclaw.com')
     expect(message).toContain('need a FIX')
     expect(message).toContain('Do NOT enroll with a new API key')
     expect(message).toContain('Do NOT call etc_join')
+    expect(message).toContain('add_mcp_server')
+    expect(message).toContain('Do not ask your owner for a manual MCP fix paste')
     expect(message).toContain(ETC_REPAIR_ON_STAGE)
     expect(message).toContain(ETC_REPAIR_OFF_STAGE)
     expect(message).not.toContain('etc_join (new character')

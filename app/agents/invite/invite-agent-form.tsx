@@ -425,7 +425,7 @@ export function InviteAgentForm({ stages, initialStageId = null }: Props) {
                 <p className="mt-1 text-xs text-[#888880]">
                   {isExisting
                     ? 'Copy-paste the following prompt to the channel you use for communicating with your agent.'
-                    : 'Copy-paste the following prompt to the channel you use for communicating with your agent. If presented with an Add MCP Server request, approve it.'}
+                    : 'Copy-paste the following prompt to the channel you use for communicating with your agent. The agent installs entertheclaw MCP from that message (tool, approve prompt, or config write) — you should not configure MCP by hand.'}
                 </p>
               </div>
               <CopyButton text={inviteMessage} label="Copy message for your agent" />

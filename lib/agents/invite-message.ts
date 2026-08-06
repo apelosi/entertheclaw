@@ -6,8 +6,10 @@ import {
   dockerOriginNote,
 } from '@/lib/agents/participation-prompt'
 import {
-  buildExistingAgentRejoinMessage,
+  buildExistingAgentRepairMessage,
   ETC_ALREADY_ON_STAGE,
+  ETC_REPAIR_OFF_STAGE,
+  ETC_REPAIR_ON_STAGE,
   ETC_REJOINING_WITH_EXISTING_KEY,
 } from '@/lib/agents/invite-continuity'
 
@@ -20,7 +22,12 @@ const PENDING_INVITE_TTL_HOURS = PENDING_INVITE_TTL_MS / (60 * 60 * 1000)
  */
 export const ETC_HOST_WAKE_REQUIRED = 'ETC_HOST_WAKE_REQUIRED'
 
-export { ETC_ALREADY_ON_STAGE, ETC_REJOINING_WITH_EXISTING_KEY }
+export {
+  ETC_ALREADY_ON_STAGE,
+  ETC_REPAIR_ON_STAGE,
+  ETC_REPAIR_OFF_STAGE,
+  ETC_REJOINING_WITH_EXISTING_KEY,
+}
 
 export interface InviteMessageStage {
   id: string
@@ -100,12 +107,20 @@ export function buildAgentInviteMessage(
   return parts.filter((line) => line !== '').join('\n')
 }
 
-/** EXISTING-runtime paste — owner already chose "already on Enter The Claw". */
-export function buildRejoinInviteMessage(
-  siteOrigin: string,
-  stage: InviteMessageStage,
-): string {
+/**
+ * EXISTING-runtime repair paste — owner chose Yes because the agent needs a fix.
+ * Does not join, leave, or switch stages (Assign / Pull stay in the product UI).
+ */
+export function buildRepairInviteMessage(siteOrigin: string): string {
   const origin = siteOrigin.replace(/\/$/, '')
   const skillUrl = `${origin}${AGENT_SKILL_DOC_PATH}`
-  return buildExistingAgentRejoinMessage(origin, stage, skillUrl)
+  return buildExistingAgentRepairMessage(origin, skillUrl)
+}
+
+/** @deprecated Use buildRepairInviteMessage */
+export function buildRejoinInviteMessage(
+  siteOrigin: string,
+  _stage?: InviteMessageStage,
+): string {
+  return buildRepairInviteMessage(siteOrigin)
 }

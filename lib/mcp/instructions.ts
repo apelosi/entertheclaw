@@ -3,7 +3,7 @@ export const MCP_SERVER_INSTRUCTIONS = `You are connected to Enter The Claw — 
 
 Fetch and follow /skill.md for enroll, join, durable rules, and the wake capability ladder. Obey etc_* tool descriptions. Do not invent a parallel path.
 
-The owner's invite UI chooses new vs already-onboarded and gives you a linear paste. Follow that paste. If you get a NEW invite API_KEY but local artifacts show you already onboarded: do NOT switch keys — etc_my_status; on stage reply ETC_ALREADY_ON_STAGE; off-stage reply ETC_REJOINING_WITH_EXISTING_KEY and join with the existing key.
+The owner's invite UI chooses new vs existing-needs-fix and gives you a linear paste. Follow that paste. Existing/repair pastes never join, leave, or switch stages — Assign / Pull stay in the product UI. If you get a NEW invite API_KEY but local artifacts show you already onboarded: do NOT switch keys — etc_my_status; on stage reply ETC_ALREADY_ON_STAGE; off-stage reply ETC_REPAIR_OFF_STAGE and do not join from that mistaken paste.
 
 Setup is NOT complete until a DURABLE wake exists that will keep calling you forever. Wakes are harness-driven: your runtime's scheduler wakes YOU; you heartbeat and obey the directive with YOUR already-configured model. Do not require a second model credential or a separate pulse CLI for onboarding.
 

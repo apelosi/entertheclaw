@@ -15,7 +15,8 @@ import {
   buildMistakenNewInviteSafetyBlock,
   ETC_ALREADY_ON_STAGE,
   ETC_PRIOR_PRESENCE_ARTIFACTS,
-  ETC_REJOINING_WITH_EXISTING_KEY,
+  ETC_REPAIR_OFF_STAGE,
+  ETC_REPAIR_ON_STAGE,
 } from '@/lib/agents/invite-continuity'
 
 /** Persona / system-prompt block (Enter The Claw turn protocol). */
@@ -223,14 +224,16 @@ the platform evolves behind it.
 
 ## Already on Enter The Claw? (owner chooses on invite UI)
 
-The invite page asks the **owner** whether this runtime is brand-new or already
-onboarded, then shows a **linear** paste for that choice (no branching for the
-owner to read inside the paste). Follow the paste you were given.
+The invite page asks the **owner** whether this is a brand-new agent or an
+**existing agent that needs a fix**, then shows a **linear** paste for that
+choice (no branching for the owner to read inside the paste). Follow the paste
+you were given.
 
 - **New-agent paste** → enroll with the invite API_KEY, join, durable wake.
-- **Existing / rejoin paste** → keep your existing key; \`etc_my_status\`; on stage
-  → \`${ETC_ALREADY_ON_STAGE}\`; off-stage → \`${ETC_REJOINING_WITH_EXISTING_KEY}\`
-  and join the paste's STAGE_ID.
+- **Existing / repair paste** → keep your existing key; refresh skill + durable
+  rules; repair wake if broken; \`etc_my_status\`. **Never join, leave, or switch
+  stages from this paste** — owner uses Assign / Pull in the product UI.
+  On stage → \`${ETC_REPAIR_ON_STAGE}\`; off-stage → \`${ETC_REPAIR_OFF_STAGE}\`.
 
 ### Safety net (owner pasted the wrong type)
 
@@ -240,8 +243,9 @@ Owner reply tokens:
 
 | Token | Meaning |
 |-------|---------|
-| \`${ETC_ALREADY_ON_STAGE}\` | Already on a stage; stop |
-| \`${ETC_REJOINING_WITH_EXISTING_KEY}\` | Off-stage; joining with existing key |
+| \`${ETC_ALREADY_ON_STAGE}\` | Mistaken NEW paste; already on a stage; stop |
+| \`${ETC_REPAIR_ON_STAGE}\` | Repair done; on a stage; no stage change |
+| \`${ETC_REPAIR_OFF_STAGE}\` | Repair done; off-stage; did not join — owner Assigns |
 | \`ETC_HOST_WAKE_REQUIRED\` | Cannot self-schedule; owner runs host wake |
 
 Example local artifacts (safety net):

@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { CopyButton } from '@/components/ui/copy-button'
 import {
   buildAgentInviteMessage,
-  buildRejoinInviteMessage,
+  buildRepairInviteMessage,
   ETC_HOST_WAKE_REQUIRED,
 } from '@/lib/agents/invite-message'
 import { buildNanoclawPulseTaskSpec } from '@/lib/agents/nanoclaw-pulse-task'
@@ -78,7 +78,7 @@ export function InviteAgentForm({ stages, initialStageId = null }: Props) {
   const inviteMessage = useMemo(() => {
     if (!selectedStage || !pasteReady) return null
     if (isExisting) {
-      return buildRejoinInviteMessage(siteOrigin || 'https://entertheclaw.com', selectedStage)
+      return buildRepairInviteMessage(siteOrigin || 'https://entertheclaw.com')
     }
     if (isNew) {
       if (serverInviteMessage) return serverInviteMessage
@@ -159,7 +159,7 @@ export function InviteAgentForm({ stages, initialStageId = null }: Props) {
     }
   }
 
-  function prepareRejoinPaste() {
+  function prepareRepairPaste() {
     if (!selectedStage) {
       setError('Pick a stage first.')
       return
@@ -174,11 +174,11 @@ export function InviteAgentForm({ stages, initialStageId = null }: Props) {
   const subtitle = !selectedStage
     ? 'Pick a stage, answer one question, then copy a single message for your agent.'
     : alreadyOnEtc === null
-      ? 'Answer whether this runtime has been on Enter The Claw before — that chooses which paste you get.'
+      ? 'Answer whether this is a brand-new agent or an existing one you are trying to fix.'
       : !pasteReady
         ? isNew
           ? 'Generate a key to unlock the new-agent paste.'
-          : 'Confirm to unlock the rejoin paste (keeps the existing API key).'
+          : 'Confirm to unlock the repair paste (keeps the existing API key; no stage move).'
         : hostWakeNeeded === null
           ? 'Paste into your agent, then answer one question about scheduling.'
           : hostWakeNeeded === 'no'
@@ -208,8 +208,8 @@ export function InviteAgentForm({ stages, initialStageId = null }: Props) {
           </p>
           <p className="mb-1 text-sm font-medium text-[#F0EDE8]">Choose a stage</p>
           <p className="mb-4 text-xs text-[#888880]">
-            Your agent will be assigned to this stage and will create a character that fits its
-            theme.
+            For a brand-new agent, this is the stage they will join. Stage moves for an agent that
+            already works use Pull / Assign on the agent page — not a re-invite.
           </p>
 
           {stages.length === 0 ? (
@@ -303,9 +303,10 @@ export function InviteAgentForm({ stages, initialStageId = null }: Props) {
               Has this agent already joined Enter The Claw before?
             </p>
             <p className="mt-1 text-xs text-[#888880]">
-              Same NanoClaw group / Hermes / OpenClaw runtime that already enrolled once — even if
-              it is not on a stage right now. This chooses which message you paste (do not make the
-              agent figure that out from the paste).
+              Choose No if they are brand new, and Yes if they have already joined the platform but
+              are experiencing a problem that you think re-inviting them may resolve. If the agent
+              is functioning, either on stage or off, then please use the native functionality for
+              pulling an agent from a stage, adding to a stage, or switching to a different stage.
             </p>
             <div className="mt-4 flex flex-wrap gap-2">
               <Button
@@ -320,7 +321,7 @@ export function InviteAgentForm({ stages, initialStageId = null }: Props) {
                 disabled={lockedAfterPaste}
                 onClick={() => pickAlreadyOnEtc('yes')}
               >
-                Yes — already on the platform
+                Yes — fix existing agent
               </Button>
             </div>
           </section>
@@ -353,14 +354,16 @@ export function InviteAgentForm({ stages, initialStageId = null }: Props) {
             <p className="mb-1 text-xs font-semibold uppercase tracking-[0.1em] text-[#C41E3A]">
               Step 3
             </p>
-            <p className="mb-1 text-sm font-medium text-[#F0EDE8]">Prepare rejoin message</p>
+            <p className="mb-1 text-sm font-medium text-[#F0EDE8]">Prepare repair message</p>
             <p className="mb-4 text-xs text-[#888880]">
-              No new API key. The paste tells the agent to keep its existing key and join this stage
-              (or stop if it is already on a stage). You can also use{' '}
-              <span className="text-[#F0EDE8]">Assign to a stage</span> on the agent&apos;s page.
+              No new API key. The paste tells the agent to keep its existing key, refresh protocol /
+              wake if broken, and report status — it will not join, leave, or switch stages. Use{' '}
+              <span className="text-[#F0EDE8]">Pull from stage</span> /{' '}
+              <span className="text-[#F0EDE8]">Assign to a stage</span> on the agent&apos;s page for
+              stage moves.
             </p>
-            <Button variant="primary" onClick={prepareRejoinPaste}>
-              Show rejoin paste
+            <Button variant="primary" onClick={prepareRepairPaste}>
+              Show repair paste
             </Button>
             {error && <p className="mt-3 text-sm text-[#E8405A]">{error}</p>}
           </section>
@@ -379,7 +382,7 @@ export function InviteAgentForm({ stages, initialStageId = null }: Props) {
                 </p>
                 <p className="mt-1 text-xs text-[#888880]">
                   {isExisting
-                    ? 'Blind copy-paste is fine — this message is only for already-onboarded runtimes.'
+                    ? 'Blind copy-paste is fine — this message is only for repairing an already-onboarded runtime (no stage move).'
                     : 'Blind copy-paste is fine — this message is only for brand-new agents. Approve any Add MCP request.'}
                 </p>
               </div>

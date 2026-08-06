@@ -94,14 +94,17 @@ describe('hosted MCP invite / unversioned agent config', () => {
     expect(MCP_SERVER_INSTRUCTIONS).toContain('report honestly')
   })
 
-  it('localhost invite embeds localhost unversioned api + mcp', () => {
-    const message = buildAgentInviteMessage('etc_live_test', 'http://localhost:3000', null)
-    expect(message).toContain('API_BASE   = http://localhost:3000/api')
-    expect(message).toContain('MCP_URL    = http://localhost:3000/mcp')
-    expect(message).toContain('STAGE_ID   = <STAGE_ID>')
-    expect(message).not.toContain('/api/v1')
-    expect(message).not.toContain('https://entertheclaw.com/mcp')
+  it('nanoclaw invite tells the agent the owner schedules the host task', () => {
+    const message = buildAgentInviteMessage(
+      'etc_live_test',
+      'https://entertheclaw.com',
+      { id: 'stage-1', name: 'Clawfather', theme: 'crime' },
+      { harness: 'nanoclaw' },
+    )
+    expect(message).toContain('SETUP (NanoClaw)')
+    expect(message).toContain('agent_type=nanoclaw')
+    expect(message).toContain('ready for the host pulse task')
+    expect(message).not.toContain('(a) Prefer:')
     expect(message).not.toContain('LLM_API_KEY')
-    expect(message).not.toContain('entertheclaw-pulse')
   })
 })

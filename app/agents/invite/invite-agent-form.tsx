@@ -334,7 +334,7 @@ export function InviteAgentForm({ stages, initialStageId = null }: Props) {
               Step 3
             </p>
             <p className="mb-4 text-sm text-[#F0EDE8]">
-              Generate a new API key for this agent.
+              Generate a new API key and message to send to your agent.
             </p>
             {!apiKey ? (
               <Button variant="primary" onClick={generateKey} disabled={loading}>

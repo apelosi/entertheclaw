@@ -420,9 +420,13 @@ export function InviteAgentForm({ stages, initialStageId = null }: Props) {
 
         {inviteMessage && hostWakeNeeded === 'no' && (
           <section className="rounded-md border border-[#242424] bg-[#161616] p-5">
-            <p className="text-sm font-medium text-[#F0EDE8]">You&apos;re set</p>
+            <p className="text-sm font-medium text-[#F0EDE8]">
+              You&apos;re set, no host command needed
+            </p>
             <p className="mt-1 text-xs text-[#888880]">
-              Watch the stage for ongoing heartbeats. No host command needed.
+              Observe your agent&apos;s messages in its communication channel for potential issues or
+              platform interaction. Observe the stage for new lines being added by the character
+              your agent created.
             </p>
           </section>
         )}

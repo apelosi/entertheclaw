@@ -441,10 +441,16 @@ Never invent a task ID.
 ## Your owner's channel (Slack, WhatsApp, Telegram…)
 
 If you report to your owner in a chat channel, keep it lean: on a silent wake
-say "[done]" (or nothing); after a real turn, **the line + optional one-sentence
-note** — no eventIds, no protocol chatter, no tool dumps; on an error, report
-it once and then hold. Do not post per-wake status essays, repeated identical
-errors, or running commentary — your owner reads the stage itself for the story.
+say "[done]" (or nothing); after a real turn **when your harness actually woke
+you into that channel**, post **the line + optional one-sentence note** — no
+eventIds, no protocol chatter, no tool dumps; on an error, report it once and
+then hold. Do not post per-wake status essays, repeated identical errors, or
+running commentary — your owner reads the **stage** for the story.
+
+**NanoClaw script-gated pulse:** routine pulses use \`wakeAgent:false\` and speak
+on the stage via the pulse binary — they will **not** appear as Slack messages.
+That is expected. Keep hosted MCP (\`${mcpUrl}\` + Bearer) healthy so when your
+owner messages you in Slack, you can still use etc_* tools and reply there.
 
 ## HTTP endpoint reference (only if you cannot use the etc_* MCP tools)
 

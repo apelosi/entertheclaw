@@ -12,6 +12,7 @@ import {
   ETC_REPAIR_ON_STAGE,
   ETC_REJOINING_WITH_EXISTING_KEY,
 } from '@/lib/agents/invite-continuity'
+import { inferNanoclawGroupNum } from '@/lib/agents/nanoclaw-pulse-task'
 
 const PENDING_INVITE_TTL_HOURS = PENDING_INVITE_TTL_MS / (60 * 60 * 1000)
 
@@ -22,22 +23,65 @@ const PENDING_INVITE_TTL_HOURS = PENDING_INVITE_TTL_MS / (60 * 60 * 1000)
  */
 export const ETC_HOST_WAKE_REQUIRED = 'ETC_HOST_WAKE_REQUIRED'
 
-/**
- * Host-level paste for Step 6 — for Claude Code / a shell / host control UI,
- * NOT the agent's chat channel. Runtime-agnostic; credentials pre-filled.
- */
-export function buildHostWakePrompt(input: {
-  apiKey: string
+export interface HostWakePromptInput {
   siteOrigin: string
   stageId: string
   stageName?: string
-}): string {
+  /** Enrolled agent display name (e.g. "NanoClaw ETC9"), when known. */
+  agentName?: string | null
+  agentType?: string | null
+}
+
+function buildAgentHostHints(input: {
+  agentName?: string | null
+  agentType?: string | null
+}): string[] {
+  const name = input.agentName?.trim() || null
+  const type = input.agentType?.trim() || null
+  const lines: string[] = ['=== AGENT (target this one) ===']
+  if (name) {
+    lines.push(`AGENT_NAME = ${name}`)
+  } else {
+    lines.push(
+      `AGENT_NAME = (unknown yet — wait until the agent has enrolled and set a name, or ask the owner)`,
+    )
+  }
+  if (type) lines.push(`AGENT_TYPE = ${type}`)
+
+  const looksNanoclaw =
+    inferNanoclawGroupNum(name) != null ||
+    type === 'nanoclaw' ||
+    (name != null && /nanoclaw/i.test(name))
+
+  lines.push(
+    `Infer this runtime's host group / folder / scheduler target from AGENT_NAME yourself`,
+    `(names are correlated with host layout). Do not ask the owner for group ids or folder paths.`,
+  )
+
+  if (looksNanoclaw) {
+    lines.push(
+      `Host working directory: the NanoClaw install ROOT (e.g. cd ~/nanoclaw-v2), then run Claude Code / your host shell THERE.`,
+      `Do NOT cd into a single group folder as the Claude Code working directory — stay at the install root and target the group inferred from AGENT_NAME.`,
+    )
+  } else {
+    lines.push(
+      `Host working directory: the install root where you normally control this agent runtime (not the agent chat channel).`,
+    )
+  }
+
+  return lines
+}
+
+/**
+ * Host-level paste for Step 6 — for Claude Code / a shell / host control UI,
+ * NOT the agent's chat channel. Never embeds API keys (host tools must load
+ * the existing on-host key for AGENT_NAME).
+ */
+export function buildHostWakePrompt(input: HostWakePromptInput): string {
   const origin = input.siteOrigin.replace(/\/$/, '')
   const apiUrl = `${origin}/api`
   const skillUrl = `${origin}${AGENT_SKILL_DOC_PATH}`
-  const key = input.apiKey.trim()
   const stageId = input.stageId.trim()
-  if (!key) throw new Error('apiKey is required')
   if (!stageId) throw new Error('stageId is required')
 
   const stageLine = input.stageName?.trim()
@@ -51,22 +95,41 @@ export function buildHostWakePrompt(input: {
     `not in the agent's chat / messaging channel. The agent already replied`,
     `ETC_HOST_WAKE_REQUIRED because it cannot create this wake itself.`,
     ``,
-    `=== CREDENTIALS (use these exactly) ===`,
-    `ETC_API_KEY = ${key}`,
+    ...buildAgentHostHints({
+      agentName: input.agentName,
+      agentType: input.agentType,
+    }),
+    ``,
+    `=== AUTH (never paste secrets into this chat) ===`,
+    `Do NOT ask the owner for an API key. Do NOT invent a key. Never echo keys in your reply.`,
+    `Load the existing ETC_API_KEY already on this host for AGENT_NAME (MCP config,`,
+    `container.json, group env, sibling agents' pattern — copy shape from a healthy sibling).`,
+    `Public values for the wake/script:`,
     `ETC_API_URL = ${apiUrl}`,
     stageLine,
     ``,
-    `=== WHAT TO CREATE ===`,
-    `1. Work in the directory where this agent is hosted (e.g. cd ~/nanoclaw-v2 or the group's folder).`,
-    `2. Create a recurring wake every ~1–5 minutes that keeps running forever (never idle longer than ~15 minutes).`,
-    `3. Each wake must call etc_heartbeat (hosted MCP Bearer auth, or this host's Enter The Claw pulse path) and obey the directive:`,
-    `   - act=false → silent / zero model tokens`,
-    `   - act=true → claim if needed, send ONLY directive.prompt to the agent's model, etc_speak`,
-    `4. Use this host's native scheduler for the agent runtime (examples: NanoClaw host ncl/onecli script-gated pulse with wakeAgent:false; Hermes/OpenClaw cron/tasks; cron/systemd that runs an equivalent loop).`,
-    `5. Do not invent a fake task ID. Confirm a real scheduler entry exists.`,
-    `6. Read ${skillUrl} if you need the live protocol.`,
+    `=== REQUIRED FIXES (do all) ===`,
+    `1. Recurring wake every ~1–5 minutes forever (never idle longer than ~15 minutes).`,
+    `   NanoClaw: host ncl/onecli script-gated pulse with wakeAgent:false that runs the`,
+    `   packaged entertheclaw-pulse path (same pattern as healthy sibling etc-* agents).`,
+    `   Embed on-host ETC_API_KEY + ETC_API_URL + STAGE_ID above into that script.`,
+    `2. Fix Enter The Claw MCP for AGENT_NAME so the owner's Slack/chat channel still works.`,
+    `   Required shape: hosted remote Streamable HTTP at ${origin}/mcp with`,
+    `   Authorization: Bearer <that same on-host ETC_API_KEY>.`,
+    `   Remove broken stubs (e.g. npx @modelcontextprotocol/server-http without Bearer).`,
+    `   Match a healthy sibling group's entertheclaw MCP entry if unsure.`,
+    `3. Confirm a real scheduler entry exists (do not invent a fake task ID).`,
+    `4. Read ${skillUrl} if you need the live protocol.`,
     ``,
-    `When done: report the real scheduler id/name and confirm the wake is installed (or the exact error). Do not claim success without evidence.`,
+    `=== OWNER CHANNEL (Slack) ===`,
+    `Script-gated pulses post story lines to the Enter The Claw STAGE, not into Slack.`,
+    `That is expected. The owner still needs a working MCP so when THEY message the`,
+    `agent in Slack, the agent can reply with etc_* tools.`,
+    `When the wake is installed: send ONE short confirmation into that agent's Slack/`,
+    `owner session (scheduler id + "wake live") — no keys, no script dumps.`,
+    ``,
+    `When done: report scheduler id/name, confirm MCP Bearer remote is fixed, confirm`,
+    `you posted the one Slack confirmation (or the exact error). No success without evidence.`,
   ].join('\n')
 }
 
@@ -76,9 +139,9 @@ export function buildHostWakeCredentialsBlock(input: {
   apiUrl: string
   stageId: string
 }): string {
+  void input.apiKey
   const origin = input.apiUrl.replace(/\/$/, '').replace(/\/api$/, '')
   return buildHostWakePrompt({
-    apiKey: input.apiKey,
     siteOrigin: origin || 'https://entertheclaw.com',
     stageId: input.stageId,
   })

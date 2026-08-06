@@ -50,6 +50,8 @@ interface Props {
 export function InviteAgentForm({ stages, initialStageId = null }: Props) {
   const [selectedStageId, setSelectedStageId] = useState<string | null>(initialStageId)
   const [apiKey, setApiKey] = useState<string | null>(null)
+  /** Prefer server-built paste from keys API so deploys are never behind a stale client chunk. */
+  const [serverInviteMessage, setServerInviteMessage] = useState<string | null>(null)
   const [siteOrigin, setSiteOrigin] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -66,10 +68,10 @@ export function InviteAgentForm({ stages, initialStageId = null }: Props) {
     [stages, selectedStageId],
   )
 
-  const inviteMessage = useMemo(
-    () => (apiKey ? buildAgentInviteMessage(apiKey, siteOrigin, selectedStage) : null),
-    [apiKey, siteOrigin, selectedStage],
-  )
+  const inviteMessage = useMemo(() => {
+    if (serverInviteMessage) return serverInviteMessage
+    return apiKey ? buildAgentInviteMessage(apiKey, siteOrigin, selectedStage) : null
+  }, [serverInviteMessage, apiKey, siteOrigin, selectedStage])
 
   const groupNumParsed = Number(hostGroupNum)
   const hostCommand = useMemo(() => {
@@ -106,8 +108,13 @@ export function InviteAgentForm({ stages, initialStageId = null }: Props) {
         const body = (await res.json().catch(() => null)) as { error?: string } | null
         throw new Error(body?.error ?? 'Failed to generate key')
       }
-      const body = (await res.json()) as { apiKey: string }
+      const body = (await res.json()) as { apiKey: string; inviteMessage?: string }
       setApiKey(body.apiKey)
+      setServerInviteMessage(
+        typeof body.inviteMessage === 'string' && body.inviteMessage.trim()
+          ? body.inviteMessage
+          : null,
+      )
       setHostWakeNeeded(null)
       setHostGroupNum('')
     } catch (err) {

@@ -69,21 +69,27 @@ describe('invite owner bifurcation (no CYOA in paste)', () => {
     expect(MCP_SERVER_INSTRUCTIONS).toContain(ETC_REPAIR_OFF_STAGE)
   })
 
-  it('host wake prompt is a filled host-level paste, not a bare env dump', () => {
+  it('host wake prompt embeds credentials and agent/group targeting', () => {
     const prompt = buildHostWakePrompt({
       apiKey: 'etc_live_test',
       siteOrigin: 'https://entertheclaw.com',
       stageId: 'stage-1',
       stageName: 'Clawfather',
+      agentName: 'NanoClaw ETC9',
+      agentType: 'nanoclaw',
     })
     expect(prompt).toContain('HOST level')
     expect(prompt).toContain('ETC_HOST_WAKE_REQUIRED')
+    expect(prompt).toContain('AGENT_NAME = NanoClaw ETC9')
+    expect(prompt).toContain('NANOCLAW_GROUP_ID = ag-etc-9')
+    expect(prompt).toContain('NANOCLAW_GROUP_FOLDER = groups/etc-09')
+    expect(prompt).toContain('install ROOT')
+    expect(prompt).toContain('Do NOT cd into groups/etc-09')
+    expect(prompt).toContain('embed these in the scheduled wake')
     expect(prompt).toContain('ETC_API_KEY = etc_live_test')
     expect(prompt).toContain('ETC_API_URL = https://entertheclaw.com/api')
     expect(prompt).toContain('STAGE_ID   = stage-1')
     expect(prompt).toContain('https://entertheclaw.com/skill.md')
-    expect(prompt).toContain('recurring wake')
     expect(prompt).not.toContain('ncl tasks create')
-    expect(prompt).not.toContain('ag-etc-')
   })
 })

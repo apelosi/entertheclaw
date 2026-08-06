@@ -53,6 +53,10 @@ export function InviteAgentForm({ stages, initialStageId = null }: Props) {
   /** Owner: has this runtime already joined Enter The Claw? */
   const [alreadyOnEtc, setAlreadyOnEtc] = useState<YesNo>(null)
   const [apiKey, setApiKey] = useState<string | null>(null)
+  /** Pending/enrolled agent row from POST /agents/keys (NEW path). */
+  const [inviteAgentId, setInviteAgentId] = useState<string | null>(null)
+  const [enrolledAgentName, setEnrolledAgentName] = useState<string | null>(null)
+  const [enrolledAgentType, setEnrolledAgentType] = useState<string | null>(null)
   const [serverInviteMessage, setServerInviteMessage] = useState<string | null>(null)
   const [siteOrigin, setSiteOrigin] = useState('')
   const [loading, setLoading] = useState(false)
@@ -60,11 +64,42 @@ export function InviteAgentForm({ stages, initialStageId = null }: Props) {
   const [hostWakeNeeded, setHostWakeNeeded] = useState<YesNo>(null)
   /** For EXISTING path host credentials — platform does not store the old plaintext key. */
   const [existingApiKey, setExistingApiKey] = useState('')
+  /** EXISTING path: owner types the agent page name (e.g. NanoClaw ETC9). */
+  const [existingAgentName, setExistingAgentName] = useState('')
   const [pasteReady, setPasteReady] = useState(false)
 
   useEffect(() => {
     setSiteOrigin(window.location.origin)
   }, [])
+
+  // After enroll, poll so Step 6 can name the agent + NanoClaw group.
+  useEffect(() => {
+    if (hostWakeNeeded !== 'yes' || !inviteAgentId) return
+
+    let cancelled = false
+    async function loadAgent() {
+      try {
+        const res = await fetch(`/api/v1/agents/${inviteAgentId}`)
+        if (!res.ok || cancelled) return
+        const body = (await res.json()) as {
+          name?: string | null
+          agentType?: string | null
+        }
+        if (cancelled) return
+        setEnrolledAgentName(typeof body.name === 'string' ? body.name : null)
+        setEnrolledAgentType(typeof body.agentType === 'string' ? body.agentType : null)
+      } catch {
+        // ignore transient poll errors
+      }
+    }
+
+    void loadAgent()
+    const timer = window.setInterval(() => void loadAgent(), 3000)
+    return () => {
+      cancelled = true
+      window.clearInterval(timer)
+    }
+  }, [hostWakeNeeded, inviteAgentId])
 
   const selectedStage = useMemo(
     () => stages.find((s) => s.id === selectedStageId) ?? null,
@@ -95,6 +130,8 @@ export function InviteAgentForm({ stages, initialStageId = null }: Props) {
   ])
 
   const hostApiKey = isNew ? apiKey : existingApiKey.trim() || null
+  const hostAgentName = isNew ? enrolledAgentName : existingAgentName.trim() || null
+  const hostAgentType = isNew ? enrolledAgentType : null
   const hostWakePrompt = useMemo(() => {
     if (!selectedStage || hostWakeNeeded !== 'yes' || !hostApiKey) return null
     return buildHostWakePrompt({
@@ -102,16 +139,29 @@ export function InviteAgentForm({ stages, initialStageId = null }: Props) {
       siteOrigin: siteOrigin || 'https://entertheclaw.com',
       stageId: selectedStage.id,
       stageName: selectedStage.name,
+      agentName: hostAgentName,
+      agentType: hostAgentType,
     })
-  }, [selectedStage, hostWakeNeeded, hostApiKey, siteOrigin])
+  }, [
+    selectedStage,
+    hostWakeNeeded,
+    hostApiKey,
+    siteOrigin,
+    hostAgentName,
+    hostAgentType,
+  ])
 
   function pickAlreadyOnEtc(answer: 'yes' | 'no') {
     setAlreadyOnEtc(answer)
     setApiKey(null)
+    setInviteAgentId(null)
+    setEnrolledAgentName(null)
+    setEnrolledAgentType(null)
     setServerInviteMessage(null)
     setPasteReady(false)
     setHostWakeNeeded(null)
     setExistingApiKey('')
+    setExistingAgentName('')
     setError(null)
   }
 
@@ -136,8 +186,15 @@ export function InviteAgentForm({ stages, initialStageId = null }: Props) {
         const body = (await res.json().catch(() => null)) as { error?: string } | null
         throw new Error(body?.error ?? 'Failed to generate key')
       }
-      const body = (await res.json()) as { apiKey: string; inviteMessage?: string }
+      const body = (await res.json()) as {
+        apiKey: string
+        agentId?: string
+        inviteMessage?: string
+      }
       setApiKey(body.apiKey)
+      setInviteAgentId(typeof body.agentId === 'string' ? body.agentId : null)
+      setEnrolledAgentName(null)
+      setEnrolledAgentType(null)
       setServerInviteMessage(
         typeof body.inviteMessage === 'string' && body.inviteMessage.trim()
           ? body.inviteMessage
@@ -222,6 +279,9 @@ export function InviteAgentForm({ stages, initialStageId = null }: Props) {
                       setAlreadyOnEtc(null)
                       setPasteReady(false)
                       setApiKey(null)
+                      setInviteAgentId(null)
+                      setEnrolledAgentName(null)
+                      setEnrolledAgentType(null)
                       setServerInviteMessage(null)
                     }}
                     disabled={lockedAfterPaste}
@@ -436,19 +496,55 @@ export function InviteAgentForm({ stages, initialStageId = null }: Props) {
         {inviteMessage && hostWakeNeeded === 'yes' && selectedStage && (
           <section className="rounded-md border border-[#C41E3A]/30 bg-[#161616] p-5">
             {isExisting && (
-              <label className="mb-4 block">
-                <span className="text-xs text-[#888880]">
-                  Existing agent API key (etc_live_…) — required to fill the host prompt
-                </span>
-                <input
-                  type="password"
-                  autoComplete="off"
-                  value={existingApiKey}
-                  onChange={(e) => setExistingApiKey(e.target.value)}
-                  placeholder="etc_live_…"
-                  className="mt-1 w-full max-w-md rounded border border-[#3A3A3A] bg-[#0D0D0D] px-3 py-2 font-mono text-sm text-[#F0EDE8]"
-                />
-              </label>
+              <div className="mb-4 space-y-3">
+                <label className="block">
+                  <span className="text-xs text-[#888880]">
+                    Existing agent API key (etc_live_…) — required to fill the host prompt
+                  </span>
+                  <input
+                    type="password"
+                    autoComplete="off"
+                    value={existingApiKey}
+                    onChange={(e) => setExistingApiKey(e.target.value)}
+                    placeholder="etc_live_…"
+                    className="mt-1 w-full max-w-md rounded border border-[#3A3A3A] bg-[#0D0D0D] px-3 py-2 font-mono text-sm text-[#F0EDE8]"
+                  />
+                </label>
+                <label className="block">
+                  <span className="text-xs text-[#888880]">
+                    Agent name (as on the agent page, e.g. NanoClaw ETC9)
+                  </span>
+                  <input
+                    type="text"
+                    autoComplete="off"
+                    value={existingAgentName}
+                    onChange={(e) => setExistingAgentName(e.target.value)}
+                    placeholder="NanoClaw ETC9"
+                    className="mt-1 w-full max-w-md rounded border border-[#3A3A3A] bg-[#0D0D0D] px-3 py-2 font-mono text-sm text-[#F0EDE8]"
+                  />
+                </label>
+              </div>
+            )}
+
+            {isNew && inviteAgentId && !enrolledAgentName && (
+              <p className="mb-3 text-xs text-[#888880]">
+                Waiting for the agent to enroll and set a name so this prompt can target the right
+                host group…
+              </p>
+            )}
+
+            {isNew && enrolledAgentName && (
+              <p className="mb-3 text-xs text-[#888880]">
+                Targeting agent{' '}
+                <span className="font-mono text-[#F0EDE8]">{enrolledAgentName}</span>
+                {enrolledAgentType ? (
+                  <>
+                    {' '}
+                    (<span className="font-mono text-[#F0EDE8]">{enrolledAgentType}</span>)
+                  </>
+                ) : null}
+                .
+              </p>
             )}
 
             {hostWakePrompt ? (
@@ -464,8 +560,9 @@ export function InviteAgentForm({ stages, initialStageId = null }: Props) {
                     <p className="mt-1 text-xs text-[#888880]">
                       Copy-paste the following prompt to the interface you use to control your
                       agent(s) at a host level (NOT the communication channel you use to message
-                      with it directly). For example, if using nanoclaw on a VPS, open a terminal,
-                      SSH to the VPS, and run claude code.
+                      with it directly). For NanoClaw on a VPS: SSH in,{' '}
+                      <span className="font-mono text-[#F0EDE8]">cd ~/nanoclaw-v2</span> (install
+                      root — not the group folder), then run Claude Code and paste there.
                     </p>
                   </div>
                   <CopyButton text={hostWakePrompt} label="Copy host wake prompt" />

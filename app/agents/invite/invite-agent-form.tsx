@@ -7,6 +7,7 @@ import { CopyButton } from '@/components/ui/copy-button'
 import {
   buildAgentInviteMessage,
   ETC_HOST_WAKE_REQUIRED,
+  ETC_REJOINING_WITH_EXISTING_KEY,
 } from '@/lib/agents/invite-message'
 import { buildNanoclawPulseTaskSpec } from '@/lib/agents/nanoclaw-pulse-task'
 import { cn } from '@/lib/utils'
@@ -81,7 +82,6 @@ export function InviteAgentForm({ stages, initialStageId = null }: Props) {
       groupNum: groupNumParsed,
       stageId: selectedStage.id,
       apiUrl: `${siteOrigin.replace(/\/$/, '')}/api`,
-      apiKeyPlaceholder: apiKey,
     })
   }, [apiKey, selectedStage, hostWakeNeeded, groupNumParsed, siteOrigin])
 
@@ -304,12 +304,14 @@ export function InviteAgentForm({ stages, initialStageId = null }: Props) {
               <Button
                 variant={hostWakeNeeded === 'yes' ? 'primary' : 'secondary'}
                 onClick={() => setHostWakeNeeded('yes')}
+                aria-pressed={hostWakeNeeded === 'yes'}
               >
                 Yes — it said that
               </Button>
               <Button
                 variant={hostWakeNeeded === 'no' ? 'primary' : 'secondary'}
                 onClick={() => setHostWakeNeeded('no')}
+                aria-pressed={hostWakeNeeded === 'no'}
               >
                 No — it scheduled itself
               </Button>
@@ -338,7 +340,11 @@ export function InviteAgentForm({ stages, initialStageId = null }: Props) {
             <p className="mt-1 text-xs text-[#888880]">
               SSH to the VPS (or open Claude Code / a shell there),{' '}
               <span className="font-mono">cd ~/nanoclaw-v2</span>, then paste the command. API
-              key and stage are already filled.
+              URL and stage are already filled. Replace{' '}
+              <span className="font-mono text-[#F0EDE8]">&lt;ETC_API_KEY&gt;</span> before create:
+              use the invite key for NEW setup, or the runtime&apos;s existing key if the agent
+              replied{' '}
+              <span className="font-mono text-[#F0EDE8]">{ETC_REJOINING_WITH_EXISTING_KEY}</span>.
             </p>
 
             <label className="mt-4 block">

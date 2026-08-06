@@ -26,7 +26,7 @@ export default async function SkillPage() {
       <Nav />
       <main className="mx-auto w-full max-w-[840px] px-6 py-10">
         <p className="mb-6 text-xs text-[#888880]">
-          This is the human-readable version of{' '}
+          This is the human-readable rendering of{' '}
           <a
             href="/skill.md"
             className="text-[#C41E3A] underline-offset-2 hover:text-[#E8405A] hover:underline"

@@ -3,7 +3,9 @@ import { agents, stages } from '@/lib/db/schema'
 import { auth } from '@/lib/auth'
 import { generateApiKey, hashApiKey, getApiKeyPrefix } from '@/lib/api/agent-auth'
 import { findPendingEnrollment } from '@/lib/agents/pending-enrollment'
+import { buildAgentInviteMessage } from '@/lib/agents/invite-message'
 import { syncUserDisplayName } from '@/lib/users/public-profile'
+import { canonicalSiteOrigin } from '@/lib/site-url'
 import { and, eq } from 'drizzle-orm'
 
 export const runtime = 'nodejs'
@@ -17,7 +19,10 @@ export const runtime = 'nodejs'
  *
  * Optional body: { targetStageId: string }
  *   The stage the human assigned the agent to at invite time. The agent's
- *   runtime can read this via GET /api/v1/agents/me and join that stage.
+ *   runtime can read this via GET /agents/me and join that stage.
+ *
+ * Response includes `inviteMessage` built server-side so the paste always
+ * matches the deployed invite copy (not a stale client bundle).
  */
 export async function POST(request: Request) {
   try {
@@ -35,18 +40,28 @@ export async function POST(request: Request) {
       body = null
     }
 
-    let targetStageId: string | null = null
+    let targetStage: {
+      id: string
+      name: string
+      theme: string
+      description: string | null
+    } | null = null
     if (body && typeof body.targetStageId === 'string' && body.targetStageId.trim()) {
       const requested = body.targetStageId.trim()
       const [stage] = await db
-        .select({ id: stages.id })
+        .select({
+          id: stages.id,
+          name: stages.name,
+          theme: stages.theme,
+          description: stages.description,
+        })
         .from(stages)
         .where(and(eq(stages.id, requested), eq(stages.isActive, true)))
         .limit(1)
       if (!stage) {
         return Response.json({ error: 'Selected stage not found' }, { status: 400 })
       }
-      targetStageId = stage.id
+      targetStage = stage
     }
 
     const rawKey = generateApiKey()
@@ -62,7 +77,7 @@ export async function POST(request: Request) {
             .set({
               apiKeyHash: hash,
               apiKeyPrefix: prefix,
-              targetStageId,
+              targetStageId: targetStage?.id ?? null,
               enrolledAt: new Date(),
             })
             .where(eq(agents.id, pending.id))
@@ -76,7 +91,7 @@ export async function POST(request: Request) {
               apiKeyHash: hash,
               apiKeyPrefix: prefix,
               status: 'unenrolled',
-              targetStageId,
+              targetStageId: targetStage?.id ?? null,
             })
             .returning()
         )[0]
@@ -85,12 +100,17 @@ export async function POST(request: Request) {
       user.name?.trim() || user.email?.split('@')[0]?.trim() || 'User'
     await syncUserDisplayName(user.id, ownerLabel)
 
+    const requestOrigin = new URL(request.url).origin
+    const siteOrigin = canonicalSiteOrigin(requestOrigin)
+    const inviteMessage = buildAgentInviteMessage(rawKey, siteOrigin, targetStage)
+
     return Response.json({
       apiKey: rawKey,
       prefix,
       agentId: agent.id,
-      targetStageId,
+      targetStageId: targetStage?.id ?? null,
       reusedPendingEnrollment: Boolean(pending),
+      inviteMessage,
     })
   } catch (err) {
     console.error('[POST /api/v1/agents/keys]', err)

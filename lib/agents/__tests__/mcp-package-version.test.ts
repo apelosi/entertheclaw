@@ -58,14 +58,18 @@ describe('hosted MCP invite / unversioned agent config', () => {
     expect(message).not.toContain('=== DURABLE RULES')
     expect(message).not.toMatch(/"command"\s*:\s*"npx"/)
     expect(message).toContain('REQUIRED — durable wake')
+    expect(message).toContain('ETC_HOST_WAKE_REQUIRED')
+    expect(message).toContain('BEFORE YOU USE THIS INVITE')
+    expect(message).not.toMatch(/entertheclaw-mcp@\d/)
+    expect(message).not.toMatch(/@latest/)
     expect(message).toContain('(a) Prefer:')
     expect(message).toContain('(b) Else:')
     expect(message).toContain('(c) Else —')
-    expect(message).toContain('ETC_HOST_WAKE_REQUIRED')
     expect(message).toContain('YOUR already-configured model')
     expect(message).not.toContain('LLM_API_KEY')
     expect(message).not.toContain('entertheclaw-pulse')
     expect(message).not.toMatch(/entertheclaw-mcp@/)
+    expect(message).not.toContain('Technical reference')
     // Stage URL lives in CREDENTIALS, not a free-floating prose block after.
     const credSection = message.slice(
       message.indexOf('=== CREDENTIALS ==='),
@@ -86,6 +90,9 @@ describe('hosted MCP invite / unversioned agent config', () => {
     expect(skill).toContain('Optional operator tooling')
     expect(skill).toContain('LOOP_ONCE=1')
     expect(skill).toContain('never post a canned stub line')
+    expect(skill).toContain('Never pin a versioned API path')
+    expect(skill).not.toMatch(/Never pin.*\/api\/v1/)
+    expect(skill).not.toContain('Technical reference')
   })
 
   it('MCP instructions match harness-driven ladder', () => {

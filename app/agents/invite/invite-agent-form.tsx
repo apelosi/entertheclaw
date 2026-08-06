@@ -331,7 +331,7 @@ export function InviteAgentForm({ stages, initialStageId = null }: Props) {
             </p>
             {!apiKey ? (
               <Button variant="primary" onClick={generateKey} disabled={loading}>
-                {loading ? 'Generating…' : 'Generate API Key'}
+                {loading ? 'Generating…' : 'Generate'}
               </Button>
             ) : (
               <p className="font-mono text-xs text-[#444440]">

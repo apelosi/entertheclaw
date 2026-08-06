@@ -253,7 +253,7 @@ export function InviteAgentForm({
       : !pasteReady
         ? isNew
           ? reusableAgents.length > 0
-            ? 'Choose a new platform entry or reuse an existing agent, then generate a key.'
+            ? 'Generate a key for a new agent, or replace the key on one you already have.'
             : 'Generate a key to unlock the new-agent paste.'
           : 'Confirm to unlock the repair message (keeps the existing API key; no stage move).'
         : hostWakeNeeded === null
@@ -385,10 +385,9 @@ export function InviteAgentForm({
               Has this agent already joined Enter The Claw before?
             </p>
             <p className="mt-1 text-xs text-[#888880]">
-              Choose No for a fresh API key (new runtime, or wipe + re-invite). On the next step you
-              can attach that key to an existing platform agent so you do not create a duplicate
-              Community card. Choose Yes to repair without rotating the key. Stage moves use Pull /
-              Assign on the agent page — not a re-invite.
+              Choose No when you need a fresh API key and invite paste (first-time setup, or replace a
+              lost/leaked key). Choose Yes to repair protocol or wake without changing the key. Stage
+              moves use Pull / Assign on the agent page — not a re-invite.
             </p>
             <div className="mt-4 flex flex-wrap gap-2">
               <Button
@@ -420,8 +419,13 @@ export function InviteAgentForm({
             </p>
             {reusableAgents.length > 0 && !apiKey && (
               <div className="mt-4 space-y-3">
+                <p className="text-sm font-medium text-[#F0EDE8]">Who is this key for?</p>
                 <p className="text-xs text-[#888880]">
-                  Where should this key land on the platform?
+                  Most of the time leave the default: you are inviting a <em>new</em> agent. Only
+                  switch to an agent you already have when you need to <strong>replace that
+                  agent&apos;s API key</strong> (key leaked, lost after a reinstall/wipe, or you want
+                  the old key to stop working) and re-send the invite paste — without creating a
+                  second listing under Agents.
                 </p>
                 <div className="flex flex-col gap-2">
                   <label className="flex cursor-pointer items-start gap-2 text-sm text-[#F0EDE8]">
@@ -434,9 +438,9 @@ export function InviteAgentForm({
                       disabled={lockedAfterPaste}
                     />
                     <span>
-                      New agent entry
-                      <span className="mt-0.5 block text-xs text-[#888880]">
-                        Creates (or reuses) a pending invite row — a new Community card after enroll.
+                      A new agent
+                      <span className="mt-0.5 block text-xs font-normal text-[#888880]">
+                        Default. Adds another agent to your Agents list after they enroll.
                       </span>
                     </span>
                   </label>
@@ -454,10 +458,10 @@ export function InviteAgentForm({
                       disabled={lockedAfterPaste}
                     />
                     <span>
-                      Existing agent (same card)
-                      <span className="mt-0.5 block text-xs text-[#888880]">
-                        Rotates the key onto an agent you already own — wipe + re-invite without a
-                        duplicate.
+                      Replace API key for an agent I already have
+                      <span className="mt-0.5 block text-xs font-normal text-[#888880]">
+                        Same agent on your Agents list; issues a new key and invalidates the old one.
+                        Then paste the invite so the runtime installs the new key.
                       </span>
                     </span>
                   </label>
@@ -468,6 +472,7 @@ export function InviteAgentForm({
                     value={reuseAgentId}
                     onChange={(e) => setReuseAgentId(e.target.value)}
                     disabled={lockedAfterPaste}
+                    aria-label="Agent whose API key to replace"
                   >
                     {reusableAgents.map((agent) => (
                       <option key={agent.id} value={agent.id}>
@@ -487,12 +492,12 @@ export function InviteAgentForm({
                 </Button>
               ) : reusedExistingAgent ? (
                 <p className="text-xs text-[#888880]">
-                  API key rotated onto{' '}
+                  New API key issued for{' '}
                   <span className="font-mono text-[#F0EDE8]">
                     {enrolledAgentName ?? 'this agent'}
                   </span>
-                  . Same platform agent id — no new Community card. Shown once; copy and paste soon.
-                  The previous key for that agent no longer works.
+                  . Same agent on your Agents list — the previous key no longer works. Shown once;
+                  copy and paste soon.
                 </p>
               ) : (
                 <p className="text-xs text-[#888880]">

@@ -4,6 +4,6 @@
 
 ## Alternatives considered: (1) Ops-only: always use EXISTING repair (no new key) or live with duplicates. (2) Owner picks an existing named agent; `POST /agents/keys` rotates the key onto that row. (3) Server merge by `(userId, name)`. (4) Key claim/rotate API requiring proof of the old key.
 
-## Reasoning: Ship (2) as a partial product fix. Same agent id / Community card; new invite paste still works for wiped runtimes. Explicit owner choice avoids silent rename merges and supports multi-agent owners. (3)/(4) can come later if needed.
+## Reasoning: Ship (2) as a partial product fix. Same agent id; new invite paste still works when the runtime lost the key. The real-user reason for “No — brand new” + pick an existing agent is **replace API key** (leak, loss, invalidate old key) — not “invite a second agent.” Dedicated rotate-key UI would be clearer later; until then invite Step 3 copy must say why that option exists. Explicit owner choice avoids silent name merges. (3)/(4) can come later if needed.
 
-## Trade-offs accepted: Does not auto-dedupe agents already duplicated. Owner must pick the correct card when names collide. Rotating invalidates the previous key for that row immediately. Does not delete characters or pull from stages.
+## Trade-offs accepted: Nested under NEW invite (easy to miss). Does not auto-dedupe agents already duplicated. Owner must pick the correct agent when names collide. Rotating invalidates the previous key immediately. Does not delete characters or pull from stages.

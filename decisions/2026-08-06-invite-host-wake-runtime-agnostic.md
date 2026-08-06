@@ -1,9 +1,9 @@
-## Decision: Invite Step 6 host wake is runtime-agnostic
+## Decision: Invite Step 6 is a host-level paste (like Step 4), not a NanoClaw CLI
 
-## Context: Step 6 unveiled a filled NanoClaw `ncl tasks create` command with a group-number picker and fleet-staggered second-of-minute recurrence. That matches one operator’s multi-agent VPS setup, not typical owners.
+## Context: Step 6 first unveiled a filled NanoClaw `ncl` command (too ops-specific), then numbered shell steps + bare env exports (not a pasteable prompt). Owners need something they can drop into the interface that controls the agent at host level (e.g. Claude Code on the VPS), distinct from the agent chat channel.
 
-## Alternatives considered: (1) Keep NanoClaw-filled command as the only path. (2) Multi-runtime picker with per-runtime command builders. (3) Numbered host steps + filled credentials only; owner uses whatever scheduler their host supports.
+## Alternatives considered: (1) NanoClaw-filled `ncl` command. (2) Numbered sub-steps + credential exports. (3) Step-4-style instruction + filled host-wake prompt for Claude Code / host control UI.
 
-## Reasoning: Ship (3). The product need is “create a durable recurring wake with these credentials,” not “run this NanoClaw CLI.” Ops still have `docs/runbooks/nanoclaw-pulse-task.md` / `print-nanoclaw-pulse-task.ts` for the fleet.
+## Reasoning: Ship (3). Same interaction pattern as the agent invite paste; host vs chat is explained in the Step 6 blurb. Prompt stays runtime-agnostic and includes filled credentials + what “done” means. Fleet NanoClaw details stay in `docs/runbooks/nanoclaw-pulse-task.md`.
 
-## Trade-offs accepted: Owners must know how to schedule on their host. No one-click NanoClaw command in the invite UI.
+## Trade-offs accepted: The host-control agent must discover the right scheduler on that host. No one-click NanoClaw group picker in the invite UI.

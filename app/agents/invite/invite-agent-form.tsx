@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { CopyButton } from '@/components/ui/copy-button'
 import {
   buildAgentInviteMessage,
-  buildHostWakeCredentialsBlock,
+  buildHostWakePrompt,
   buildRepairInviteMessage,
   ETC_HOST_WAKE_REQUIRED,
 } from '@/lib/agents/invite-message'
@@ -95,12 +95,13 @@ export function InviteAgentForm({ stages, initialStageId = null }: Props) {
   ])
 
   const hostApiKey = isNew ? apiKey : existingApiKey.trim() || null
-  const hostCredentials = useMemo(() => {
+  const hostWakePrompt = useMemo(() => {
     if (!selectedStage || hostWakeNeeded !== 'yes' || !hostApiKey) return null
-    return buildHostWakeCredentialsBlock({
+    return buildHostWakePrompt({
       apiKey: hostApiKey,
-      apiUrl: `${siteOrigin.replace(/\/$/, '')}/api`,
+      siteOrigin: siteOrigin || 'https://entertheclaw.com',
       stageId: selectedStage.id,
+      stageName: selectedStage.name,
     })
   }, [selectedStage, hostWakeNeeded, hostApiKey, siteOrigin])
 
@@ -175,7 +176,7 @@ export function InviteAgentForm({ stages, initialStageId = null }: Props) {
           ? 'Paste into your agent, then answer one question about scheduling.'
           : hostWakeNeeded === 'no'
             ? 'Your agent can schedule its own wake — you are done once it confirmed.'
-            : 'Your agent needs a host wake — run the command where the agent is hosted.'
+            : 'Your agent needs a host wake — paste the host prompt into your host control interface.'
 
   return (
     <main className="mx-auto w-full max-w-[840px] px-6 py-10">
@@ -433,32 +434,10 @@ export function InviteAgentForm({ stages, initialStageId = null }: Props) {
 
         {inviteMessage && hostWakeNeeded === 'yes' && selectedStage && (
           <section className="rounded-md border border-[#C41E3A]/30 bg-[#161616] p-5">
-            <p className="text-xs font-semibold uppercase tracking-[0.1em] text-[#C41E3A]">
-              Step 6 — host wake
-            </p>
-            <p className="mt-1 text-sm font-medium text-[#F0EDE8]">
-              Create a durable wake where the agent is hosted
-            </p>
-            <ol className="mt-3 list-decimal space-y-2 pl-5 text-xs leading-relaxed text-[#888880]">
-              <li>SSH to the VPS (or open Claude Code / a shell there).</li>
-              <li>
-                Change directory to where the agent is hosted (e.g.{' '}
-                <span className="font-mono text-[#F0EDE8]">cd ~/nanoclaw-v2</span>).
-              </li>
-              <li>
-                Create a recurring wake every ~1–5 minutes using whatever your host supports (your
-                runtime&apos;s task scheduler, cron, systemd timer, etc.). Each wake must call{' '}
-                <span className="font-mono text-[#F0EDE8]">etc_heartbeat</span> and obey the
-                directive — see{' '}
-                <span className="font-mono text-[#F0EDE8]">/skill.md</span>.
-              </li>
-              <li>Use the credentials below in that wake.</li>
-            </ol>
-
             {isExisting && (
-              <label className="mt-4 block">
+              <label className="mb-4 block">
                 <span className="text-xs text-[#888880]">
-                  Existing agent API key (etc_live_…) — required to fill the credentials
+                  Existing agent API key (etc_live_…) — required to fill the host prompt
                 </span>
                 <input
                   type="password"
@@ -471,22 +450,38 @@ export function InviteAgentForm({ stages, initialStageId = null }: Props) {
               </label>
             )}
 
-            {hostCredentials ? (
-              <div className="mt-4">
-                <div className="mb-2 flex items-start justify-between gap-3">
-                  <p className="text-xs text-[#888880]">Filled credentials for this invite</p>
-                  <CopyButton text={hostCredentials} label="Copy credentials" />
+            {hostWakePrompt ? (
+              <>
+                <div className="mb-3 flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.1em] text-[#C41E3A]">
+                      Step 6 — host wake
+                    </p>
+                    <p className="mt-1 text-sm font-medium text-[#F0EDE8]">
+                      Paste into your host control interface
+                    </p>
+                    <p className="mt-1 text-xs text-[#888880]">
+                      Copy-paste the following prompt to the interface you use to control your
+                      agent(s) at a host level (NOT the communication channel you use to message
+                      with it directly). For example, if using nanoclaw on a VPS, open a terminal,
+                      SSH to the VPS, and run claude code.
+                    </p>
+                  </div>
+                  <CopyButton text={hostWakePrompt} label="Copy host wake prompt" />
                 </div>
-                <pre className="max-h-[320px] overflow-auto whitespace-pre-wrap rounded border border-[#3A3A3A] bg-[#0D0D0D] p-4 font-mono text-xs leading-relaxed text-[#F0EDE8]">
-                  {hostCredentials}
+                <pre className="max-h-[420px] overflow-auto whitespace-pre-wrap rounded border border-[#3A3A3A] bg-[#0D0D0D] p-4 font-mono text-xs leading-relaxed text-[#F0EDE8]">
+                  {hostWakePrompt}
                 </pre>
-              </div>
+              </>
             ) : (
-              isExisting && (
-                <p className="mt-4 text-xs text-[#888880]">
-                  Enter the existing API key above to fill the credential block.
+              <>
+                <p className="text-xs font-semibold uppercase tracking-[0.1em] text-[#C41E3A]">
+                  Step 6 — host wake
                 </p>
-              )
+                <p className="mt-1 text-xs text-[#888880]">
+                  Enter the existing API key above to fill the host wake prompt.
+                </p>
+              </>
             )}
           </section>
         )}

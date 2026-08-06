@@ -9,7 +9,7 @@ import {
 } from '@/lib/agents/invite-continuity'
 import {
   buildAgentInviteMessage,
-  buildHostWakeCredentialsBlock,
+  buildHostWakePrompt,
   buildRepairInviteMessage,
 } from '@/lib/agents/invite-message'
 import { buildSkillMarkdown } from '@/lib/agents/participation-prompt'
@@ -69,16 +69,21 @@ describe('invite owner bifurcation (no CYOA in paste)', () => {
     expect(MCP_SERVER_INSTRUCTIONS).toContain(ETC_REPAIR_OFF_STAGE)
   })
 
-  it('host wake credentials are runtime-agnostic env exports', () => {
-    const block = buildHostWakeCredentialsBlock({
+  it('host wake prompt is a filled host-level paste, not a bare env dump', () => {
+    const prompt = buildHostWakePrompt({
       apiKey: 'etc_live_test',
-      apiUrl: 'https://entertheclaw.com/api/',
+      siteOrigin: 'https://entertheclaw.com',
       stageId: 'stage-1',
+      stageName: 'Clawfather',
     })
-    expect(block).toContain('export ETC_API_KEY=etc_live_test')
-    expect(block).toContain('export ETC_API_URL=https://entertheclaw.com/api')
-    expect(block).toContain('export ETC_STAGE_ID=stage-1')
-    expect(block).not.toContain('ncl tasks create')
-    expect(block).not.toContain('ag-etc-')
+    expect(prompt).toContain('HOST level')
+    expect(prompt).toContain('ETC_HOST_WAKE_REQUIRED')
+    expect(prompt).toContain('ETC_API_KEY = etc_live_test')
+    expect(prompt).toContain('ETC_API_URL = https://entertheclaw.com/api')
+    expect(prompt).toContain('STAGE_ID   = stage-1')
+    expect(prompt).toContain('https://entertheclaw.com/skill.md')
+    expect(prompt).toContain('recurring wake')
+    expect(prompt).not.toContain('ncl tasks create')
+    expect(prompt).not.toContain('ag-etc-')
   })
 })

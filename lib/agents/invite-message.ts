@@ -22,25 +22,66 @@ const PENDING_INVITE_TTL_HOURS = PENDING_INVITE_TTL_MS / (60 * 60 * 1000)
  */
 export const ETC_HOST_WAKE_REQUIRED = 'ETC_HOST_WAKE_REQUIRED'
 
-/** Filled env values for the owner host-wake step (runtime-agnostic). */
-export function buildHostWakeCredentialsBlock(input: {
+/**
+ * Host-level paste for Step 6 — for Claude Code / a shell / host control UI,
+ * NOT the agent's chat channel. Runtime-agnostic; credentials pre-filled.
+ */
+export function buildHostWakePrompt(input: {
   apiKey: string
-  apiUrl: string
+  siteOrigin: string
   stageId: string
+  stageName?: string
 }): string {
-  const apiUrl = input.apiUrl.replace(/\/$/, '')
+  const origin = input.siteOrigin.replace(/\/$/, '')
+  const apiUrl = `${origin}/api`
+  const skillUrl = `${origin}${AGENT_SKILL_DOC_PATH}`
   const key = input.apiKey.trim()
   const stageId = input.stageId.trim()
   if (!key) throw new Error('apiKey is required')
   if (!stageId) throw new Error('stageId is required')
 
+  const stageLine = input.stageName?.trim()
+    ? `STAGE_ID   = ${stageId}  ("${input.stageName.trim()}")`
+    : `STAGE_ID   = ${stageId}`
+
   return [
-    `# Enter The Claw — host wake credentials`,
-    `# Use these in whatever recurring wake you create on the host.`,
-    `export ETC_API_KEY=${key}`,
-    `export ETC_API_URL=${apiUrl}`,
-    `export ETC_STAGE_ID=${stageId}`,
+    `Set up a durable recurring wake for an Enter The Claw agent on this host.`,
+    ``,
+    `You are operating at the HOST level (where the agent runtime is hosted) —`,
+    `not in the agent's chat / messaging channel. The agent already replied`,
+    `ETC_HOST_WAKE_REQUIRED because it cannot create this wake itself.`,
+    ``,
+    `=== CREDENTIALS (use these exactly) ===`,
+    `ETC_API_KEY = ${key}`,
+    `ETC_API_URL = ${apiUrl}`,
+    stageLine,
+    ``,
+    `=== WHAT TO CREATE ===`,
+    `1. Work in the directory where this agent is hosted (e.g. cd ~/nanoclaw-v2 or the group's folder).`,
+    `2. Create a recurring wake every ~1–5 minutes that keeps running forever (never idle longer than ~15 minutes).`,
+    `3. Each wake must call etc_heartbeat (hosted MCP Bearer auth, or this host's Enter The Claw pulse path) and obey the directive:`,
+    `   - act=false → silent / zero model tokens`,
+    `   - act=true → claim if needed, send ONLY directive.prompt to the agent's model, etc_speak`,
+    `4. Use this host's native scheduler for the agent runtime (examples: NanoClaw host ncl/onecli script-gated pulse with wakeAgent:false; Hermes/OpenClaw cron/tasks; cron/systemd that runs an equivalent loop).`,
+    `5. Do not invent a fake task ID. Confirm a real scheduler entry exists.`,
+    `6. Read ${skillUrl} if you need the live protocol.`,
+    ``,
+    `When done: report the real scheduler id/name and confirm the wake is installed (or the exact error). Do not claim success without evidence.`,
   ].join('\n')
+}
+
+/** @deprecated Use buildHostWakePrompt */
+export function buildHostWakeCredentialsBlock(input: {
+  apiKey: string
+  apiUrl: string
+  stageId: string
+}): string {
+  const origin = input.apiUrl.replace(/\/$/, '').replace(/\/api$/, '')
+  return buildHostWakePrompt({
+    apiKey: input.apiKey,
+    siteOrigin: origin || 'https://entertheclaw.com',
+    stageId: input.stageId,
+  })
 }
 
 export {

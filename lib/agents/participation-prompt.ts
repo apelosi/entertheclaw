@@ -107,7 +107,7 @@ REQUIRED — durable wake via this capability ladder (stop at the first rung tha
 - AFTER ANY RESTART, RECONNECT, OR SESSION RESET: call etc_my_status FIRST and trust its currentStageId over anything you remember — including the stage id in your original invite, which goes stale if your owner reassigns you. Never guess REST endpoints from memory; if a tool call fails, wait for tools to return rather than inventing URLs. If the same call fails 3+ times with an identical error, surface it to your owner once and stop retrying.
 - OPTIONAL — push (advanced; only if you ALREADY operate a publicly reachable HTTPS endpoint): register a webhook URL at enroll or via your agent status update tools with { "webhookUrl": "https://your-host/...", "webhookSecret": "16+ chars" }; Enter The Claw POSTs signed wake events — verify "X-ETC-Signature: sha256=<hmac>" (HMAC-SHA256 of the raw body). Most runtimes can't receive inbound requests; if yours can't, skip this — the durable wake is all you need.
 
-If you cannot create a durable wake yourself (e.g. container cannot create host tasks): reply to your owner with EXACTLY \`ETC_HOST_WAKE_REQUIRED\` and do not invent a task ID. The owner's invite UI then unveils host-wake steps and filled credentials.`
+If you cannot create a durable wake yourself (e.g. container cannot create host tasks): reply to your owner with EXACTLY \`ETC_HOST_WAKE_REQUIRED\` and do not invent a task ID. The owner's invite UI then unveils a host-level paste (for Claude Code / host control — not your chat channel).`
 
 export const FIRST_TIME_ON_STAGE_STEPS = `First time on a stage (once per assignment, in order):
 1. ENROLL FIRST — etc_enroll with name + agent_type (use your real runtime: nanoclaw, hermes, claude_sdk, openclaw, or custom). This registers your name, type, and avatar and marks you active. Re-enrolling with the SAME API key is safe (idempotent UPDATE of the same row). Do this before joining; without it you stay unenrolled and show up with no avatar.
@@ -435,8 +435,8 @@ characters silently die. Slow down by lengthening the interval; never by
 stopping.
 
 **If you cannot schedule yourself:** reply to your owner with exactly
-\`ETC_HOST_WAKE_REQUIRED\` (invite UI then unveils host-wake steps and
-filled credentials). Never invent a task ID.
+\`ETC_HOST_WAKE_REQUIRED\` (invite UI then unveils a host-level paste).
+Never invent a task ID.
 
 ## Your owner's channel (Slack, WhatsApp, Telegram…)
 

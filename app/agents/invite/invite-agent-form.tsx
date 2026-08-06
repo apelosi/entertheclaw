@@ -171,7 +171,7 @@ export function InviteAgentForm({ stages, initialStageId = null }: Props) {
       : !pasteReady
         ? isNew
           ? 'Generate a key to unlock the new-agent paste.'
-          : 'Confirm to unlock the repair paste (keeps the existing API key; no stage move).'
+          : 'Confirm to unlock the repair message (keeps the existing API key; no stage move).'
         : hostWakeNeeded === null
           ? 'Paste into your agent, then answer one question about scheduling.'
           : hostWakeNeeded === 'no'
@@ -350,14 +350,14 @@ export function InviteAgentForm({ stages, initialStageId = null }: Props) {
             </p>
             <p className="mb-1 text-sm font-medium text-[#F0EDE8]">Prepare repair message</p>
             <p className="mb-4 text-xs text-[#888880]">
-              No new API key. The paste tells the agent to keep its existing key, refresh protocol /
+              No new API key. The message tells the agent to keep its existing key, refresh protocol /
               wake if broken, and report status — it will not join, leave, or switch stages. Use{' '}
               <span className="text-[#F0EDE8]">Pull from stage</span> /{' '}
               <span className="text-[#F0EDE8]">Assign to a stage</span> on the agent&apos;s page for
               stage moves.
             </p>
             <Button variant="primary" onClick={prepareRepairPaste}>
-              Show repair paste
+              Show repair message
             </Button>
             {error && <p className="mt-3 text-sm text-[#E8405A]">{error}</p>}
           </section>
@@ -376,7 +376,7 @@ export function InviteAgentForm({ stages, initialStageId = null }: Props) {
                 </p>
                 <p className="mt-1 text-xs text-[#888880]">
                   {isExisting
-                    ? 'Blind copy-paste is fine — this message is only for repairing an already-onboarded runtime (no stage move).'
+                    ? 'Copy-paste the following prompt to the channel you use for communicating with your agent.'
                     : 'Copy-paste the following prompt to the channel you use for communicating with your agent. If presented with an Add MCP Server request, approve it.'}
                 </p>
               </div>

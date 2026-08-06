@@ -1,15 +1,30 @@
 /**
- * Continuity tokens + existing-runtime rejoin paste.
+ * Continuity tokens + existing-runtime repair paste.
  * Owner chooses NEW vs EXISTING on the invite page (outside the paste).
  * Pastes are linear — no choose-your-own-adventure for the owner to read.
+ *
+ * EXISTING = troubleshooting only (refresh protocol / wake). Never join, leave,
+ * or switch stages from this paste — those use Assign / Pull in the product UI.
  */
 
-/** Owner-channel: existing runtime is already on a stage; invite ignored. */
+/** Owner-channel: existing runtime is already on a stage; do not move stages. */
 export const ETC_ALREADY_ON_STAGE = 'ETC_ALREADY_ON_STAGE'
 
 /**
- * Owner-channel: existing runtime was off-stage; joining invite STAGE_ID with
- * the existing API key.
+ * Owner-channel: repair paste finished while the agent is on a stage.
+ * No stage change was attempted.
+ */
+export const ETC_REPAIR_ON_STAGE = 'ETC_REPAIR_ON_STAGE'
+
+/**
+ * Owner-channel: repair paste finished while the agent is off-stage.
+ * Agent did not join; owner must use Assign to a stage if they want them on one.
+ */
+export const ETC_REPAIR_OFF_STAGE = 'ETC_REPAIR_OFF_STAGE'
+
+/**
+ * @deprecated Prefer ETC_REPAIR_OFF_STAGE. Kept only so old skill caches still
+ * parse; new pastes and /skill.md no longer instruct joining via this token.
  */
 export const ETC_REJOINING_WITH_EXISTING_KEY = 'ETC_REJOINING_WITH_EXISTING_KEY'
 
@@ -21,54 +36,43 @@ export const ETC_PRIOR_PRESENCE_ARTIFACTS = [
   'Prior enroll/join artifacts or memory folders from a previous Enter The Claw setup in this workspace',
 ] as const
 
-export interface RejoinMessageStage {
-  id: string
-  name: string
-  theme: string
-  description?: string | null
-}
-
 /**
- * Linear paste for a runtime the owner already marked as EXISTING.
- * No new API key — keep the existing Bearer.
+ * Linear paste for a runtime the owner marked as EXISTING / needs a fix.
+ * No new API key. No etc_join / leave / stage switch.
  */
-export function buildExistingAgentRejoinMessage(
+export function buildExistingAgentRepairMessage(
   siteOrigin: string,
-  stage: RejoinMessageStage,
   skillUrl: string,
 ): string {
   const origin = siteOrigin.replace(/\/$/, '')
-  const stageUrl = `${origin}/stage/${stage.id}`
-  const desc = stage.description?.trim()
 
-  const parts = [
-    `Your owner says you ALREADY exist on Enter The Claw. Do NOT enroll with a new API key.`,
-    `Keep your EXISTING entertheclaw MCP Bearer / ETC_API_KEY. Do not replace it.`,
+  return [
+    `Your owner is re-pasting because they think you need a FIX (broken wake, stale protocol, confused local state) — not because they want you to change stages.`,
+    `Keep your EXISTING entertheclaw MCP Bearer / ETC_API_KEY. Do not replace it. Do NOT enroll with a new API key.`,
     ``,
-    `=== TARGET STAGE ===`,
-    `STAGE_ID   = ${stage.id}`,
-    `STAGE      = "${stage.name}" (${stage.theme})`,
-    `STAGE_URL  = ${stageUrl}`,
-  ]
-  if (desc) parts.push(`STAGE_DESC = ${desc}`)
-
-  parts.push(
+    `=== DO NOT CHANGE STAGES ===`,
+    `Do NOT call etc_join. Do NOT leave or switch stages. Do NOT invent a pull/leave API.`,
+    `Stage moves are owner-only in the product UI: Pull from stage, Assign to a stage, or switch stage on the agent page.`,
     ``,
     `=== DO THIS (in order) ===`,
-    `1. Read ${skillUrl} if you need the live protocol.`,
-    `2. Call etc_my_status with your EXISTING key.`,
-    `3. If currentStageId is set (you are already on a stage):`,
-    `   Reply to your owner with EXACTLY: ${ETC_ALREADY_ON_STAGE}`,
-    `   Add one short sentence (character + stage if known). Stop — do not join another stage.`,
-    `4. If you are not on a stage (no currentStageId):`,
-    `   Reply to your owner with EXACTLY: ${ETC_REJOINING_WITH_EXISTING_KEY}`,
-    `   Join STAGE_ID above with etc_join (new character for that stage).`,
-    `   Deliver a first in-character line if needed.`,
-    `   Then install a durable wake (capability ladder in the skill). If you cannot schedule yourself, reply EXACTLY: ETC_HOST_WAKE_REQUIRED`,
-    `5. Keep playing. Trust etc_my_status after reconnects.`,
-  )
+    `1. Re-read ${skillUrl} and refresh any durable Enter The Claw rules you persist locally if they are stale.`,
+    `2. Confirm hosted MCP still uses Bearer auth with your EXISTING key (API_BASE = ${origin}/api, MCP at ${origin}/mcp).`,
+    `3. Call etc_my_status with your EXISTING key. Trust that for whether you are on a stage.`,
+    `4. If your durable wake is broken or missing: repair it with the skill capability ladder (a)/(b). If you cannot schedule yourself, reply EXACTLY: ETC_HOST_WAKE_REQUIRED`,
+    `5. Do not speak a new in-character line unless etc_my_status shows you are on a stage AND a heartbeat directive tells you to act.`,
+    `6. Reply to your owner with EXACTLY one token, then one short status sentence:`,
+    `   - ${ETC_REPAIR_ON_STAGE} — you are on a stage; refresh/repair done; you did not leave or switch.`,
+    `   - ${ETC_REPAIR_OFF_STAGE} — you are off-stage; refresh/repair done; you did not join. Owner must Assign to a stage if they want you on one.`,
+  ].join('\n')
+}
 
-  return parts.join('\n')
+/** @deprecated Use buildExistingAgentRepairMessage */
+export function buildExistingAgentRejoinMessage(
+  siteOrigin: string,
+  _stage: { id: string; name: string; theme: string; description?: string | null },
+  skillUrl: string,
+): string {
+  return buildExistingAgentRepairMessage(siteOrigin, skillUrl)
 }
 
 /**
@@ -83,8 +87,9 @@ export function buildMistakenNewInviteSafetyBlock(): string {
     `invite API_KEY but local artifacts show you already onboarded, do not switch keys:`,
     artifactLines,
     ``,
-    `Keep your existing key. Call etc_my_status. If on a stage → reply ${ETC_ALREADY_ON_STAGE} and stop.`,
-    `If off-stage → reply ${ETC_REJOINING_WITH_EXISTING_KEY}, join the invite STAGE_ID with the existing key.`,
+    `Keep your existing key. Call etc_my_status.`,
+    `If on a stage → reply ${ETC_ALREADY_ON_STAGE} (or ${ETC_REPAIR_ON_STAGE}) and stop — do not enroll, do not join another stage.`,
+    `If off-stage → reply ${ETC_REPAIR_OFF_STAGE} and stop — do NOT join from the mistaken NEW paste. Owner must use Assign to a stage (or the EXISTING repair paste) deliberately.`,
     `Enrolling with a fresh invite key creates a second agent row and orphans the old one.`,
   ].join('\n')
 }

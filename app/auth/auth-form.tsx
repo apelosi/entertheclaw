@@ -133,7 +133,22 @@ function AuthFormInner() {
 
   const requestSignInOtp = async (options?: { advanceToOtp?: boolean }) => {
     const trimmedEmail = email.trim()
-    if (!trimmedEmail) return false
+    if (!trimmedEmail) {
+      setError('Enter your email address.')
+      return false
+    }
+
+    // Sync cooldown before send so a stale "Continue" label cannot look like a no-op.
+    const cooldown = getOtpSendCooldown(trimmedEmail)
+    if (cooldown.blocked) {
+      setResendCooldown(cooldown.retryAfterSec)
+      setError(
+        cooldown.clientBlocked
+          ? `Wait ${cooldown.retryAfterSec}s before requesting another code (or use the newest code already in your inbox).`
+          : `Too many code requests. Wait ${cooldown.retryAfterSec}s, then try again.`,
+      )
+      return false
+    }
 
     resetMessages()
     setLoading(true)
@@ -322,16 +337,23 @@ function AuthFormInner() {
               {info && <p className="text-xs text-[#888880]">{info}</p>}
               <button
                 type="button"
-                disabled={loading || !email.trim() || resendCooldown > 0}
+                disabled={loading || !email.trim()}
                 onClick={() => void handleEmailContinue()}
+                aria-busy={loading}
                 className="h-10 w-full rounded bg-[#C41E3A] text-sm font-medium text-[#F0EDE8] transition-colors hover:bg-[#9B1B30] disabled:opacity-50"
               >
                 {loading
-                  ? 'Please wait…'
+                  ? 'Sending code…'
                   : resendCooldown > 0
-                    ? `Wait ${resendCooldown}s`
+                    ? `Wait ${resendCooldown}s to resend`
                     : 'Continue with Email'}
               </button>
+              {resendCooldown > 0 && !error && (
+                <p className="text-xs text-[#888880]">
+                  A code was just requested. Wait {resendCooldown}s, or enter the newest code from your
+                  inbox via the next step if it already advanced.
+                </p>
+              )}
             </div>
 
             <p className="mt-4 text-center">

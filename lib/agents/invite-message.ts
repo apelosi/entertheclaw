@@ -6,8 +6,10 @@ import {
   dockerOriginNote,
 } from '@/lib/agents/participation-prompt'
 import {
-  buildExistingAgentRejoinMessage,
+  buildExistingAgentRepairMessage,
   ETC_ALREADY_ON_STAGE,
+  ETC_REPAIR_OFF_STAGE,
+  ETC_REPAIR_ON_STAGE,
   ETC_REJOINING_WITH_EXISTING_KEY,
 } from '@/lib/agents/invite-continuity'
 
@@ -20,7 +22,74 @@ const PENDING_INVITE_TTL_HOURS = PENDING_INVITE_TTL_MS / (60 * 60 * 1000)
  */
 export const ETC_HOST_WAKE_REQUIRED = 'ETC_HOST_WAKE_REQUIRED'
 
-export { ETC_ALREADY_ON_STAGE, ETC_REJOINING_WITH_EXISTING_KEY }
+/**
+ * Host-level paste for Step 6 — for Claude Code / a shell / host control UI,
+ * NOT the agent's chat channel. Runtime-agnostic; credentials pre-filled.
+ */
+export function buildHostWakePrompt(input: {
+  apiKey: string
+  siteOrigin: string
+  stageId: string
+  stageName?: string
+}): string {
+  const origin = input.siteOrigin.replace(/\/$/, '')
+  const apiUrl = `${origin}/api`
+  const skillUrl = `${origin}${AGENT_SKILL_DOC_PATH}`
+  const key = input.apiKey.trim()
+  const stageId = input.stageId.trim()
+  if (!key) throw new Error('apiKey is required')
+  if (!stageId) throw new Error('stageId is required')
+
+  const stageLine = input.stageName?.trim()
+    ? `STAGE_ID   = ${stageId}  ("${input.stageName.trim()}")`
+    : `STAGE_ID   = ${stageId}`
+
+  return [
+    `Set up a durable recurring wake for an Enter The Claw agent on this host.`,
+    ``,
+    `You are operating at the HOST level (where the agent runtime is hosted) —`,
+    `not in the agent's chat / messaging channel. The agent already replied`,
+    `ETC_HOST_WAKE_REQUIRED because it cannot create this wake itself.`,
+    ``,
+    `=== CREDENTIALS (use these exactly) ===`,
+    `ETC_API_KEY = ${key}`,
+    `ETC_API_URL = ${apiUrl}`,
+    stageLine,
+    ``,
+    `=== WHAT TO CREATE ===`,
+    `1. Work in the directory where this agent is hosted (e.g. cd ~/nanoclaw-v2 or the group's folder).`,
+    `2. Create a recurring wake every ~1–5 minutes that keeps running forever (never idle longer than ~15 minutes).`,
+    `3. Each wake must call etc_heartbeat (hosted MCP Bearer auth, or this host's Enter The Claw pulse path) and obey the directive:`,
+    `   - act=false → silent / zero model tokens`,
+    `   - act=true → claim if needed, send ONLY directive.prompt to the agent's model, etc_speak`,
+    `4. Use this host's native scheduler for the agent runtime (examples: NanoClaw host ncl/onecli script-gated pulse with wakeAgent:false; Hermes/OpenClaw cron/tasks; cron/systemd that runs an equivalent loop).`,
+    `5. Do not invent a fake task ID. Confirm a real scheduler entry exists.`,
+    `6. Read ${skillUrl} if you need the live protocol.`,
+    ``,
+    `When done: report the real scheduler id/name and confirm the wake is installed (or the exact error). Do not claim success without evidence.`,
+  ].join('\n')
+}
+
+/** @deprecated Use buildHostWakePrompt */
+export function buildHostWakeCredentialsBlock(input: {
+  apiKey: string
+  apiUrl: string
+  stageId: string
+}): string {
+  const origin = input.apiUrl.replace(/\/$/, '').replace(/\/api$/, '')
+  return buildHostWakePrompt({
+    apiKey: input.apiKey,
+    siteOrigin: origin || 'https://entertheclaw.com',
+    stageId: input.stageId,
+  })
+}
+
+export {
+  ETC_ALREADY_ON_STAGE,
+  ETC_REPAIR_ON_STAGE,
+  ETC_REPAIR_OFF_STAGE,
+  ETC_REJOINING_WITH_EXISTING_KEY,
+}
 
 export interface InviteMessageStage {
   id: string
@@ -100,12 +169,20 @@ export function buildAgentInviteMessage(
   return parts.filter((line) => line !== '').join('\n')
 }
 
-/** EXISTING-runtime paste — owner already chose "already on Enter The Claw". */
-export function buildRejoinInviteMessage(
-  siteOrigin: string,
-  stage: InviteMessageStage,
-): string {
+/**
+ * EXISTING-runtime repair paste — owner chose Yes because the agent needs a fix.
+ * Does not join, leave, or switch stages (Assign / Pull stay in the product UI).
+ */
+export function buildRepairInviteMessage(siteOrigin: string): string {
   const origin = siteOrigin.replace(/\/$/, '')
   const skillUrl = `${origin}${AGENT_SKILL_DOC_PATH}`
-  return buildExistingAgentRejoinMessage(origin, stage, skillUrl)
+  return buildExistingAgentRepairMessage(origin, skillUrl)
+}
+
+/** @deprecated Use buildRepairInviteMessage */
+export function buildRejoinInviteMessage(
+  siteOrigin: string,
+  _stage?: InviteMessageStage,
+): string {
+  return buildRepairInviteMessage(siteOrigin)
 }

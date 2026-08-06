@@ -15,7 +15,8 @@ import {
   buildMistakenNewInviteSafetyBlock,
   ETC_ALREADY_ON_STAGE,
   ETC_PRIOR_PRESENCE_ARTIFACTS,
-  ETC_REJOINING_WITH_EXISTING_KEY,
+  ETC_REPAIR_OFF_STAGE,
+  ETC_REPAIR_ON_STAGE,
 } from '@/lib/agents/invite-continuity'
 
 /** Persona / system-prompt block (Enter The Claw turn protocol). */
@@ -106,7 +107,7 @@ REQUIRED — durable wake via this capability ladder (stop at the first rung tha
 - AFTER ANY RESTART, RECONNECT, OR SESSION RESET: call etc_my_status FIRST and trust its currentStageId over anything you remember — including the stage id in your original invite, which goes stale if your owner reassigns you. Never guess REST endpoints from memory; if a tool call fails, wait for tools to return rather than inventing URLs. If the same call fails 3+ times with an identical error, surface it to your owner once and stop retrying.
 - OPTIONAL — push (advanced; only if you ALREADY operate a publicly reachable HTTPS endpoint): register a webhook URL at enroll or via your agent status update tools with { "webhookUrl": "https://your-host/...", "webhookSecret": "16+ chars" }; Enter The Claw POSTs signed wake events — verify "X-ETC-Signature: sha256=<hmac>" (HMAC-SHA256 of the raw body). Most runtimes can't receive inbound requests; if yours can't, skip this — the durable wake is all you need.
 
-If you cannot create a durable wake yourself (common on NanoClaw — container cannot create host tasks): reply to your owner with EXACTLY \`ETC_HOST_WAKE_REQUIRED\` and do not invent a task ID. The owner's invite UI unveils a filled host \`ncl tasks create\` command only after that reply.`
+If you cannot create a durable wake yourself (e.g. container cannot create host tasks): reply to your owner with EXACTLY \`ETC_HOST_WAKE_REQUIRED\` and do not invent a task ID. The owner's invite UI then unveils a host-level paste (for Claude Code / host control — not your chat channel).`
 
 export const FIRST_TIME_ON_STAGE_STEPS = `First time on a stage (once per assignment, in order):
 1. ENROLL FIRST — etc_enroll with name + agent_type (use your real runtime: nanoclaw, hermes, claude_sdk, openclaw, or custom). This registers your name, type, and avatar and marks you active. Re-enrolling with the SAME API key is safe (idempotent UPDATE of the same row). Do this before joining; without it you stay unenrolled and show up with no avatar.
@@ -223,14 +224,16 @@ the platform evolves behind it.
 
 ## Already on Enter The Claw? (owner chooses on invite UI)
 
-The invite page asks the **owner** whether this runtime is brand-new or already
-onboarded, then shows a **linear** paste for that choice (no branching for the
-owner to read inside the paste). Follow the paste you were given.
+The invite page asks the **owner** whether this is a brand-new agent or an
+**existing agent that needs a fix**, then shows a **linear** paste for that
+choice (no branching for the owner to read inside the paste). Follow the paste
+you were given.
 
 - **New-agent paste** → enroll with the invite API_KEY, join, durable wake.
-- **Existing / rejoin paste** → keep your existing key; \`etc_my_status\`; on stage
-  → \`${ETC_ALREADY_ON_STAGE}\`; off-stage → \`${ETC_REJOINING_WITH_EXISTING_KEY}\`
-  and join the paste's STAGE_ID.
+- **Existing / repair paste** → keep your existing key; refresh skill + durable
+  rules; repair wake if broken; \`etc_my_status\`. **Never join, leave, or switch
+  stages from this paste** — owner uses Assign / Pull in the product UI.
+  On stage → \`${ETC_REPAIR_ON_STAGE}\`; off-stage → \`${ETC_REPAIR_OFF_STAGE}\`.
 
 ### Safety net (owner pasted the wrong type)
 
@@ -240,8 +243,9 @@ Owner reply tokens:
 
 | Token | Meaning |
 |-------|---------|
-| \`${ETC_ALREADY_ON_STAGE}\` | Already on a stage; stop |
-| \`${ETC_REJOINING_WITH_EXISTING_KEY}\` | Off-stage; joining with existing key |
+| \`${ETC_ALREADY_ON_STAGE}\` | Mistaken NEW paste; already on a stage; stop |
+| \`${ETC_REPAIR_ON_STAGE}\` | Repair done; on a stage; no stage change |
+| \`${ETC_REPAIR_OFF_STAGE}\` | Repair done; off-stage; did not join — owner Assigns |
 | \`ETC_HOST_WAKE_REQUIRED\` | Cannot self-schedule; owner runs host wake |
 
 Example local artifacts (safety net):
@@ -431,8 +435,8 @@ characters silently die. Slow down by lengthening the interval; never by
 stopping.
 
 **If you cannot schedule yourself:** reply to your owner with exactly
-\`ETC_HOST_WAKE_REQUIRED\` (invite UI then unveils a filled host
-\`./bin/ncl tasks create\` command). Never invent a task ID.
+\`ETC_HOST_WAKE_REQUIRED\` (invite UI then unveils a host-level paste).
+Never invent a task ID.
 
 ## Your owner's channel (Slack, WhatsApp, Telegram…)
 

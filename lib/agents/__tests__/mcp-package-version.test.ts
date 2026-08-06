@@ -60,7 +60,8 @@ describe('hosted MCP invite / unversioned agent config', () => {
     expect(message).toContain('REQUIRED — durable wake')
     expect(message).toContain('(a) Prefer:')
     expect(message).toContain('(b) Else:')
-    expect(message).toContain('(c) Else:')
+    expect(message).toContain('(c) Else —')
+    expect(message).toContain('ETC_HOST_WAKE_REQUIRED')
     expect(message).toContain('YOUR already-configured model')
     expect(message).not.toContain('LLM_API_KEY')
     expect(message).not.toContain('entertheclaw-pulse')
@@ -94,14 +95,16 @@ describe('hosted MCP invite / unversioned agent config', () => {
     expect(MCP_SERVER_INSTRUCTIONS).toContain('report honestly')
   })
 
-  it('localhost invite embeds localhost unversioned api + mcp', () => {
-    const message = buildAgentInviteMessage('etc_live_test', 'http://localhost:3000', null)
-    expect(message).toContain('API_BASE   = http://localhost:3000/api')
-    expect(message).toContain('MCP_URL    = http://localhost:3000/mcp')
-    expect(message).toContain('STAGE_ID   = <STAGE_ID>')
-    expect(message).not.toContain('/api/v1')
-    expect(message).not.toContain('https://entertheclaw.com/mcp')
+  it('invite asks the agent to self-report with ETC_HOST_WAKE_REQUIRED when it cannot schedule', () => {
+    const message = buildAgentInviteMessage(
+      'etc_live_test',
+      'https://entertheclaw.com',
+      { id: 'stage-1', name: 'Clawfather', theme: 'crime' },
+    )
+    expect(message).toContain('ETC_HOST_WAKE_REQUIRED')
+    expect(message).toContain('(a) Prefer:')
+    expect(message).toContain('(c) Else')
+    expect(message).not.toContain('SETUP (NanoClaw)')
     expect(message).not.toContain('LLM_API_KEY')
-    expect(message).not.toContain('entertheclaw-pulse')
   })
 })

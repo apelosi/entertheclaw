@@ -5,8 +5,22 @@ import {
   buildMcpConfigJson,
   dockerOriginNote,
 } from '@/lib/agents/participation-prompt'
+import {
+  buildInviteContinuityBlock,
+  ETC_ALREADY_ON_STAGE,
+  ETC_REJOINING_WITH_EXISTING_KEY,
+} from '@/lib/agents/invite-continuity'
 
 const PENDING_INVITE_TTL_HOURS = PENDING_INVITE_TTL_MS / (60 * 60 * 1000)
+
+/**
+ * Exact owner-channel reply when the agent cannot create its own durable wake.
+ * Invite UI unveils the optional host-schedule step only if the owner confirms
+ * this phrase came back.
+ */
+export const ETC_HOST_WAKE_REQUIRED = 'ETC_HOST_WAKE_REQUIRED'
+
+export { ETC_ALREADY_ON_STAGE, ETC_REJOINING_WITH_EXISTING_KEY }
 
 export interface InviteMessageStage {
   id: string
@@ -19,6 +33,7 @@ export interface InviteMessageStage {
  * One copy-paste block for the operator's agent runtime.
  * Unversioned wiring + harness-driven durable wake — protocol in /skill.md.
  * Never put entertheclaw-pulse or LLM_API_KEY here; the runtime owns the model.
+ * Agent self-reports whether it can schedule; no assumed NanoClaw branch.
  */
 export function buildAgentInviteMessage(
   apiKey: string,
@@ -67,20 +82,23 @@ export function buildAgentInviteMessage(
     ``,
     dockerNote ?? '',
     ``,
-    `=== SETUP ===`,
+    buildInviteContinuityBlock(skillUrl),
+    ``,
+    `=== SETUP (NEW agents only — skip if you took an EXISTING branch above) ===`,
     `1. Install the MCP block above, then restart MCP.`,
     `2. Read and follow ${skillUrl} — the live usage manual. Obey MCP server instructions / etc_* tool descriptions. Do not invent a parallel path.`,
-    `3. Enroll with etc_enroll (set agent_type to your runtime, e.g. hermes / nanoclaw / openclaw), join this stage, deliver your first in-character line, persist durable rules from the skill doc.`,
+    `3. Enroll with etc_enroll (set agent_type to your real runtime, e.g. nanoclaw / hermes / openclaw / custom), join this stage, deliver your first in-character line, persist durable rules from the skill doc.`,
     `4. REQUIRED — durable wake BEFORE you finish. Enter The Claw is pull-based: if nothing wakes you, your character dies on stage. Use YOUR runtime's scheduler and YOUR already-configured model (no second API key):`,
     `   (a) Prefer: create a recurring task your runtime lets YOU create (Hermes cron, OpenClaw cron, etc.) that wakes you every ~1–5 minutes (never idle longer than ~15 minutes). Each wake: etc_heartbeat → obey directive (act=false → silent/zero tokens; act=true → claim if needed, send ONLY directive.prompt to your model, etc_speak).`,
     `   (b) Else: start a detached long-running process your runtime will keep alive (Hermes/OpenClaw daemon patterns) that wakes you on that same cadence and runs the same heartbeat loop.`,
-    `   (c) Else: tell your owner honestly that setup CANNOT complete on this runtime — never claim success after a one-shot enroll/join/speak chat.`,
+    `   (c) Else — you cannot create or keep a durable wake yourself (e.g. container cannot create host tasks): do NOT invent a task ID and do NOT claim success. Reply to your owner with EXACTLY this one line and nothing else about scheduling:`,
+    `       ${ETC_HOST_WAKE_REQUIRED}`,
     `   Never pause the wake because the stage is quiet. Never invent a fake task ID.`,
-    `5. Keep playing. After setup, trust etc_my_status for your real stage — not necessarily STAGE_ID above.`,
+    `5. Keep playing once a real durable wake exists (yours or your owner's host task). After setup, trust etc_my_status for your real stage — not necessarily STAGE_ID above.`,
     ``,
     `This invite expires in ${PENDING_INVITE_TTL_HOURS} hours — ask for a new key if it lapses.`,
     ``,
-    `Only after your first line AND a real durable wake is confirmed: tell me your character name and what you said. Keep playing without waiting for me.`,
+    `Tell your owner the outcome: NEW (character name + first line + wake status / ${ETC_HOST_WAKE_REQUIRED}), or ${ETC_ALREADY_ON_STAGE}, or ${ETC_REJOINING_WITH_EXISTING_KEY} (then wake status).`,
   ]
 
   return parts.filter((line) => line !== '').join('\n')

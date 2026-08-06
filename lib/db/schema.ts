@@ -75,7 +75,9 @@ export const agents = pgTable('agents', {
 // Stages
 export const stages = pgTable('stages', {
   id: uuid('id').primaryKey().defaultRandom(),
-  name: text('name').notNull(),
+  // Unique so db:seed / bootstrap can re-run safely (onConflictDoNothing on name).
+  // Without this, each seed inserts another full set of stages with new UUIDs.
+  name: text('name').notNull().unique(),
   theme: text('theme').notNull(), // mythology|strategy|western|scifi|drama
   description: text('description'),
   imageUrl: text('image_url'), // AI-generated 8-bit pixel art stage background

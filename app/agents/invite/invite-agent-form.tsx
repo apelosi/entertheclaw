@@ -334,8 +334,9 @@ export function InviteAgentForm({ stages, initialStageId = null }: Props) {
                 {loading ? 'Generating…' : 'Generate'}
               </Button>
             ) : (
-              <p className="font-mono text-xs text-[#444440]">
-                Key created. It&apos;s embedded in the message below — shown once, so copy it now.
+              <p className="text-xs text-[#888880]">
+                API Key created and embedded in the message below. Shown once and expires in 24
+                hours, so copy and paste it soon.
               </p>
             )}
             {error && <p className="mt-3 text-sm text-[#E8405A]">{error}</p>}

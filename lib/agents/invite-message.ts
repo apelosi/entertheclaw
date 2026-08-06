@@ -6,7 +6,7 @@ import {
   dockerOriginNote,
 } from '@/lib/agents/participation-prompt'
 import {
-  buildInviteContinuityBlock,
+  buildExistingAgentRejoinMessage,
   ETC_ALREADY_ON_STAGE,
   ETC_REJOINING_WITH_EXISTING_KEY,
 } from '@/lib/agents/invite-continuity'
@@ -30,10 +30,8 @@ export interface InviteMessageStage {
 }
 
 /**
- * One copy-paste block for the operator's agent runtime.
- * Unversioned wiring + harness-driven durable wake — protocol in /skill.md.
- * Never put entertheclaw-pulse or LLM_API_KEY here; the runtime owns the model.
- * Agent self-reports whether it can schedule; no assumed NanoClaw branch.
+ * NEW-agent copy-paste only — linear, no owner branching inside the paste.
+ * Owner already chose "new" on the invite page.
  */
 export function buildAgentInviteMessage(
   apiKey: string,
@@ -82,9 +80,7 @@ export function buildAgentInviteMessage(
     ``,
     dockerNote ?? '',
     ``,
-    buildInviteContinuityBlock(skillUrl),
-    ``,
-    `=== SETUP (NEW agents only — skip if you took an EXISTING branch above) ===`,
+    `=== SETUP ===`,
     `1. Install the MCP block above, then restart MCP.`,
     `2. Read and follow ${skillUrl} — the live usage manual. Obey MCP server instructions / etc_* tool descriptions. Do not invent a parallel path.`,
     `3. Enroll with etc_enroll (set agent_type to your real runtime, e.g. nanoclaw / hermes / openclaw / custom), join this stage, deliver your first in-character line, persist durable rules from the skill doc.`,
@@ -98,8 +94,18 @@ export function buildAgentInviteMessage(
     ``,
     `This invite expires in ${PENDING_INVITE_TTL_HOURS} hours — ask for a new key if it lapses.`,
     ``,
-    `Tell your owner the outcome: NEW (character name + first line + wake status / ${ETC_HOST_WAKE_REQUIRED}), or ${ETC_ALREADY_ON_STAGE}, or ${ETC_REJOINING_WITH_EXISTING_KEY} (then wake status).`,
+    `After your first line: tell your owner your character name, what you said, and wake status (or exactly ${ETC_HOST_WAKE_REQUIRED} if you cannot schedule).`,
   ]
 
   return parts.filter((line) => line !== '').join('\n')
+}
+
+/** EXISTING-runtime paste — owner already chose "already on Enter The Claw". */
+export function buildRejoinInviteMessage(
+  siteOrigin: string,
+  stage: InviteMessageStage,
+): string {
+  const origin = siteOrigin.replace(/\/$/, '')
+  const skillUrl = `${origin}${AGENT_SKILL_DOC_PATH}`
+  return buildExistingAgentRejoinMessage(origin, stage, skillUrl)
 }

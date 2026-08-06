@@ -48,8 +48,200 @@ interface Props {
   initialStageId?: string | null
 }
 
+function themeLabel(theme: string) {
+  return THEME_LABELS[theme] ?? theme
+}
+
+function stageTaken(stage: InviteStageOption) {
+  return Math.min(stage.participantCount, stage.maxMainCharacters)
+}
+
+function StageEmptyPrompt({ onChoose }: { onChoose: () => void }) {
+  return (
+    <div className="flex flex-col items-start gap-3 rounded-sm border border-dashed border-[#3A3A3A] bg-[#0e0e0e] px-4 py-5">
+      <p className="text-sm text-[#888880]">No stage selected yet.</p>
+      <Button type="button" variant="primary" size="sm" onClick={onChoose}>
+        Choose a stage
+      </Button>
+    </div>
+  )
+}
+
+function StageSummary({
+  stage,
+  canChange,
+  onChange,
+}: {
+  stage: InviteStageOption
+  canChange: boolean
+  onChange: () => void
+}) {
+  const taken = stageTaken(stage)
+  return (
+    <div className="overflow-hidden rounded-sm border border-[#C41E3A] bg-[#0e0e0e] shadow-[0_0_20px_rgba(196,30,58,0.18)]">
+      <div className="flex flex-col sm:flex-row">
+        <div className="relative aspect-video w-full shrink-0 overflow-hidden bg-[#0e0e0e] sm:aspect-auto sm:min-h-[148px] sm:w-[220px]">
+          {stage.imageUrl ? (
+            <Image
+              src={stage.imageUrl}
+              alt={stage.name}
+              fill
+              sizes="(max-width: 640px) 100vw, 220px"
+              className="object-cover image-pixelated opacity-90"
+            />
+          ) : (
+            <div className="absolute inset-0 bg-gradient-to-br from-[#1a0a14] to-[#0e0e0e]" />
+          )}
+          <div className="absolute inset-0 bg-gradient-to-t from-[#0e0e0e]/80 to-transparent sm:bg-gradient-to-r" />
+          <div className="absolute right-2 top-2 rounded-sm bg-[#C41E3A] px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.15em] text-[#F0EDE8]">
+            Selected
+          </div>
+        </div>
+        <div className="flex min-w-0 flex-1 flex-col gap-2 p-4">
+          <div className="flex flex-wrap items-start justify-between gap-2">
+            <div className="min-w-0">
+              <p
+                className="font-display text-xl italic leading-tight text-[#F0EDE8]"
+                style={{ fontFamily: 'var(--font-display)' }}
+              >
+                {stage.name}
+              </p>
+              <div className="mt-1 flex items-center gap-3">
+                <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-[#888880]">
+                  {themeLabel(stage.theme)}
+                </span>
+                <span className="font-mono text-[10px] text-[#444440]">
+                  {taken}/{stage.maxMainCharacters}
+                </span>
+              </div>
+            </div>
+            {canChange && (
+              <Button type="button" variant="secondary" size="sm" onClick={onChange}>
+                Change stage
+              </Button>
+            )}
+          </div>
+          {stage.description && (
+            <p className="text-xs italic leading-relaxed text-[#888880]">{stage.description}</p>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function StagePicker({
+  stages,
+  selectedStageId,
+  previewStageId,
+  onPreview,
+  onSelect,
+  onCancel,
+}: {
+  stages: InviteStageOption[]
+  selectedStageId: string | null
+  previewStageId: string | null
+  onPreview: (stageId: string | null) => void
+  onSelect: (stageId: string) => void
+  onCancel: () => void
+}) {
+  const preview =
+    stages.find((s) => s.id === previewStageId) ??
+    stages.find((s) => s.id === selectedStageId) ??
+    null
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-xs text-[#888880]">Pick a stage for this invite.</p>
+        <Button type="button" variant="ghost" size="sm" onClick={onCancel}>
+          Cancel
+        </Button>
+      </div>
+
+      {preview && (
+        <div className="rounded-sm border border-[#242424] bg-[#0e0e0e] px-3 py-2.5">
+          <p
+            className="font-display text-base italic text-[#F0EDE8]"
+            style={{ fontFamily: 'var(--font-display)' }}
+          >
+            {preview.name}
+          </p>
+          {preview.description ? (
+            <p className="mt-1 line-clamp-3 text-xs italic leading-relaxed text-[#888880]">
+              {preview.description}
+            </p>
+          ) : (
+            <p className="mt-1 text-xs text-[#444440]">No description.</p>
+          )}
+        </div>
+      )}
+
+      <div className="max-h-[min(50vh,420px)] space-y-1.5 overflow-y-auto pr-1">
+        {stages.map((stage) => {
+          const selected = stage.id === selectedStageId
+          const previewing = stage.id === (preview?.id ?? null)
+          const taken = stageTaken(stage)
+          return (
+            <button
+              key={stage.id}
+              type="button"
+              onMouseEnter={() => onPreview(stage.id)}
+              onFocus={() => onPreview(stage.id)}
+              onClick={() => onSelect(stage.id)}
+              className={cn(
+                'flex w-full items-center gap-3 rounded-sm border bg-[#0e0e0e] p-2 text-left transition-colors',
+                selected || previewing
+                  ? 'border-[#C41E3A]/70'
+                  : 'border-[#242424] hover:border-[#3A3A3A]',
+              )}
+            >
+              <div className="relative h-12 w-[72px] shrink-0 overflow-hidden rounded-sm bg-[#161616]">
+                {stage.imageUrl ? (
+                  <Image
+                    src={stage.imageUrl}
+                    alt=""
+                    fill
+                    sizes="72px"
+                    className="object-cover image-pixelated opacity-85"
+                  />
+                ) : (
+                  <div className="absolute inset-0 bg-gradient-to-br from-[#1a0a14] to-[#0e0e0e]" />
+                )}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p
+                  className="truncate font-display text-sm italic text-[#F0EDE8]"
+                  style={{ fontFamily: 'var(--font-display)' }}
+                >
+                  {stage.name}
+                </p>
+                <div className="mt-0.5 flex items-center justify-between gap-2">
+                  <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-[#888880]">
+                    {themeLabel(stage.theme)}
+                  </span>
+                  <span className="font-mono text-[10px] text-[#444440]">
+                    {taken}/{stage.maxMainCharacters}
+                  </span>
+                </div>
+              </div>
+              {selected && (
+                <span className="shrink-0 rounded-sm bg-[#C41E3A] px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-[0.12em] text-[#F0EDE8]">
+                  Selected
+                </span>
+              )}
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 export function InviteAgentForm({ stages, initialStageId = null }: Props) {
   const [selectedStageId, setSelectedStageId] = useState<string | null>(initialStageId)
+  const [stagePickerOpen, setStagePickerOpen] = useState(false)
+  const [pickerPreviewId, setPickerPreviewId] = useState<string | null>(null)
   /** Owner: has this runtime already joined Enter The Claw? */
   const [alreadyOnEtc, setAlreadyOnEtc] = useState<YesNo>(null)
   const [apiKey, setApiKey] = useState<string | null>(null)
@@ -153,6 +345,33 @@ export function InviteAgentForm({ stages, initialStageId = null }: Props) {
     setError(null)
   }
 
+  function openStagePicker() {
+    if (pasteReady) return
+    setPickerPreviewId(selectedStageId)
+    setStagePickerOpen(true)
+  }
+
+  function cancelStagePicker() {
+    setStagePickerOpen(false)
+    setPickerPreviewId(null)
+  }
+
+  function selectStage(stageId: string) {
+    if (pasteReady) return
+    if (stageId !== selectedStageId) {
+      setSelectedStageId(stageId)
+      setAlreadyOnEtc(null)
+      setPasteReady(false)
+      setApiKey(null)
+      setInviteAgentId(null)
+      setEnrolledAgentName(null)
+      setEnrolledAgentType(null)
+      setServerInviteMessage(null)
+    }
+    setStagePickerOpen(false)
+    setPickerPreviewId(null)
+  }
+
   async function generateKey() {
     if (!selectedStage) {
       setError('Pick a stage first.')
@@ -252,80 +471,23 @@ export function InviteAgentForm({ stages, initialStageId = null }: Props) {
 
           {stages.length === 0 ? (
             <p className="text-sm text-[#888880]">No active stages available right now.</p>
+          ) : stagePickerOpen && !lockedAfterPaste ? (
+            <StagePicker
+              stages={stages}
+              selectedStageId={selectedStageId}
+              previewStageId={pickerPreviewId}
+              onPreview={setPickerPreviewId}
+              onSelect={selectStage}
+              onCancel={cancelStagePicker}
+            />
+          ) : selectedStage ? (
+            <StageSummary
+              stage={selectedStage}
+              canChange={!lockedAfterPaste}
+              onChange={openStagePicker}
+            />
           ) : (
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-              {stages.map((stage) => {
-                const selected = stage.id === selectedStageId
-                const taken = Math.min(stage.participantCount, stage.maxMainCharacters)
-                return (
-                  <button
-                    key={stage.id}
-                    type="button"
-                    onClick={() => {
-                      if (lockedAfterPaste) return
-                      setSelectedStageId(stage.id)
-                      setAlreadyOnEtc(null)
-                      setPasteReady(false)
-                      setApiKey(null)
-                      setInviteAgentId(null)
-                      setEnrolledAgentName(null)
-                      setEnrolledAgentType(null)
-                      setServerInviteMessage(null)
-                    }}
-                    disabled={lockedAfterPaste}
-                    className={cn(
-                      'group relative overflow-hidden rounded-sm border bg-[#0e0e0e] text-left transition-all',
-                      selected
-                        ? 'border-[#C41E3A] shadow-[0_0_20px_rgba(196,30,58,0.25)]'
-                        : 'border-[#242424] hover:border-[#3A3A3A]',
-                      lockedAfterPaste && !selected && 'opacity-40',
-                    )}
-                  >
-                    <div className="relative aspect-video w-full overflow-hidden bg-[#0e0e0e]">
-                      {stage.imageUrl ? (
-                        <Image
-                          src={stage.imageUrl}
-                          alt={stage.name}
-                          fill
-                          sizes="(max-width: 768px) 50vw, 280px"
-                          className="object-cover image-pixelated opacity-80 transition-opacity group-hover:opacity-100"
-                        />
-                      ) : (
-                        <div className="absolute inset-0 bg-gradient-to-br from-[#1a0a14] to-[#0e0e0e]" />
-                      )}
-                      <div className="absolute inset-0 bg-gradient-to-t from-[#0e0e0e]/95 to-transparent" />
-                      {selected && (
-                        <div className="absolute right-2 top-2 rounded-sm bg-[#C41E3A] px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.15em] text-[#F0EDE8]">
-                          Selected
-                        </div>
-                      )}
-                    </div>
-                    <div className="p-3">
-                      <p
-                        className="font-display text-base italic leading-tight text-[#F0EDE8]"
-                        style={{ fontFamily: 'var(--font-display)' }}
-                      >
-                        {stage.name}
-                      </p>
-                      <div className="mt-1 flex items-center justify-between gap-2">
-                        <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-[#888880]">
-                          {THEME_LABELS[stage.theme] ?? stage.theme}
-                        </span>
-                        <span className="font-mono text-[10px] text-[#444440]">
-                          {taken}/{stage.maxMainCharacters}
-                        </span>
-                      </div>
-                    </div>
-                  </button>
-                )
-              })}
-            </div>
-          )}
-
-          {selectedStage?.description && (
-            <p className="mt-3 line-clamp-3 text-xs italic text-[#888880]">
-              {selectedStage.description}
-            </p>
+            <StageEmptyPrompt onChoose={openStagePicker} />
           )}
         </section>
 

@@ -86,4 +86,15 @@ describe('invite owner bifurcation (no CYOA in paste)', () => {
     expect(prompt).not.toContain('ncl tasks create')
     expect(prompt).not.toContain('ag-etc-')
   })
+
+  it('repair host wake prompt does not force a potentially stale stage id', () => {
+    const prompt = buildHostWakePrompt({
+      apiKey: 'etc_live_test',
+      siteOrigin: 'https://entertheclaw.com',
+    })
+    expect(prompt).toContain(
+      'STAGE_ID   = <optional; resolve from etc_my_status / /agents/me on each wake>',
+    )
+    expect(prompt).toContain('If STAGE_ID is unknown/off-stage on this runtime')
+  })
 })

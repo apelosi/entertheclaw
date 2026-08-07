@@ -53,8 +53,6 @@ const COPY = {
   agentPage: 'agent page',
   hostControlInterface: 'host control interface',
   hostWakePrompt: 'host wake prompt',
-  stageMove:
-    'Use Pull from stage / Assign to a stage on the agent page for stage moves — not a re-invite.',
   chooseStageFirst: 'Choose a stage first.',
   chooseStageForInvite: 'Choose a stage for this invite.',
   pasteAgentMessageTitle: 'Paste into your agent channel',
@@ -63,10 +61,7 @@ const COPY = {
   copyHostWakePrompt: 'Copy host wake prompt',
 } as const
 
-function StageMoveInstruction({ emphasizeActions = false }: { emphasizeActions?: boolean }) {
-  if (!emphasizeActions) {
-    return <>{COPY.stageMove}</>
-  }
+function StageMoveInstruction() {
   return (
     <>
       Use <span className="text-[#F0EDE8]">Pull from stage</span> /{' '}
@@ -602,7 +597,7 @@ export function InviteAgentForm({ stages, initialStageId = null }: Props) {
             <p className="mb-4 text-xs text-[#888880]">
               No new API key. The message tells the agent to keep its existing API key, refresh
               protocol / wake if broken, and report status — it will not join, leave, or switch
-              stages. <StageMoveInstruction emphasizeActions />
+              stages. <StageMoveInstruction />
             </p>
             <Button variant="primary" onClick={prepareRepairPaste}>
               Show repair message

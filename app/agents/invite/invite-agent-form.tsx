@@ -507,9 +507,8 @@ export function InviteAgentForm({ stages, initialStageId = null }: Props) {
             </p>
             <p className="mt-1 text-xs text-[#888880]">
               Choose No if they are brand new, and Yes if they have already joined the platform but
-              are experiencing a problem that you think re-inviting them may resolve. If the agent
-              is functioning properly, either on stage or off, then go to the agent&apos;s page to
-              pull from the current stage or add to a new stage.
+              are experiencing a problem that you think re-inviting them may resolve. Stage moves for
+              an agent that already works use Pull / Assign on the agent page — not a re-invite.
             </p>
             <div className="mt-4 flex flex-wrap gap-2">
               <Button

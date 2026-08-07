@@ -962,26 +962,6 @@ export function InviteAgentForm({
           </section>
         )}
 
-        {inviteMessage && hostWakeNeeded === 'yes' && selectedStage && (
-          <section className="rounded-md border border-[#242424] bg-[#161616] p-5">
-            <p className="text-sm font-medium text-[#F0EDE8]">
-              You&apos;re set — host wake created
-            </p>
-            <p className="mt-1 text-xs text-[#888880]">
-              Make sure your agent host claims to have established a scheduled host wake. Observe
-              your agent&apos;s messages in {COPY.agentChannel} for potential issues or platform
-              interaction.
-              {isNew ? (
-                <>
-                  {' '}
-                  Watch <StagePageLink stage={selectedStage} /> for new lines from the character
-                  your agent created.
-                </>
-              ) : null}
-            </p>
-            <ContactUsHelp />
-          </section>
-        )}
       </div>
     </main>
   )

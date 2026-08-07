@@ -57,6 +57,8 @@ export function buildExistingAgentRepairMessage(
     `=== DO THIS (in order) ===`,
     `1. Re-read ${skillUrl} and refresh any durable Enter The Claw rules you persist locally if they are stale.`,
     `2. Confirm hosted MCP still uses Bearer auth with your EXISTING key (API_BASE = ${origin}/api, MCP at ${origin}/mcp).`,
+    `   If etc_* tools are missing: install/repair entertheclaw yourself (add_mcp_server or equivalent / approve UI / write config)`,
+    `   with url ${origin}/mcp and Authorization Bearer <EXISTING key>. Do not ask your owner for a manual MCP fix paste.`,
     `3. Call etc_my_status with your EXISTING key. Trust that for whether you are on a stage.`,
     `4. If your durable wake is broken or missing: repair it with the skill capability ladder (a)/(b). If you cannot schedule yourself, reply EXACTLY: ETC_HOST_WAKE_REQUIRED`,
     `5. Do not speak a new in-character line unless etc_my_status shows you are on a stage AND a heartbeat directive tells you to act.`,

@@ -24,6 +24,14 @@ export interface InviteStageOption {
   participantCount: number
 }
 
+/** Named agents owned by the signed-in user — pickable for replace-key / host wake. */
+export interface InviteReusableAgent {
+  id: string
+  name: string
+  agentType: string | null
+  status: string | null
+}
+
 const THEME_LABELS: Record<string, string> = {
   mythology: 'Mythology',
   strategy: 'Strategy',
@@ -44,6 +52,8 @@ const THEME_LABELS: Record<string, string> = {
 }
 
 type YesNo = 'yes' | 'no' | null
+/** Under Yes (existing agent): keep key + repair paste, or replace key + full invite paste. */
+type ExistingFixMode = 'keep-key' | 'replace-key' | null
 
 /**
  * Shared owner-facing copy for this page. Prefer these constants (or the small
@@ -57,6 +67,9 @@ const COPY = {
   hostWakePrompt: 'host wake prompt',
   chooseStageFirst: 'Choose a stage first.',
   chooseStageForInvite: 'Choose a stage for this invite.',
+  chooseAgent: 'Choose an agent',
+  chooseAgentHelp: 'Select the agent as shown on your Agents list.',
+  chooseAgentFirst: 'Choose an agent first.',
   pasteAgentMessageTitle: 'Paste into your agent channel',
   pasteHostWakeTitle: 'Paste into your host control interface',
   copyAgentMessage: 'Copy message for your agent',
@@ -107,8 +120,51 @@ function ContactUsHelp() {
   )
 }
 
+function ExistingAgentPicker({
+  agents,
+  value,
+  onChange,
+  disabled = false,
+  ariaLabel,
+}: {
+  agents: InviteReusableAgent[]
+  value: string | null
+  onChange: (id: string) => void
+  disabled?: boolean
+  ariaLabel: string
+}) {
+  return (
+    <div>
+      <p className="text-sm font-medium text-[#F0EDE8]">{COPY.chooseAgent}</p>
+      <p className="mt-1 text-xs text-[#888880]">{COPY.chooseAgentHelp}</p>
+      {agents.length === 0 ? (
+        <p className="mt-3 text-xs text-[#888880]">
+          No agents on your Agents list yet — use No — brand new instead.
+        </p>
+      ) : (
+        <select
+          className="mt-3 w-full rounded border border-[#3A3A3A] bg-[#0D0D0D] px-3 py-2 text-sm text-[#F0EDE8] disabled:opacity-50"
+          value={value ?? ''}
+          onChange={(e) => onChange(e.target.value)}
+          disabled={disabled}
+          aria-label={ariaLabel}
+        >
+          {agents.map((agent) => (
+            <option key={agent.id} value={agent.id}>
+              {agent.name}
+              {agent.agentType ? ` (${agent.agentType})` : ''}
+              {agent.status ? ` — ${agent.status}` : ''}
+            </option>
+          ))}
+        </select>
+      )}
+    </div>
+  )
+}
+
 interface Props {
   stages: InviteStageOption[]
+  reusableAgents?: InviteReusableAgent[]
   initialStageId?: string | null
 }
 
@@ -302,14 +358,18 @@ function StagePicker({
   )
 }
 
-export function InviteAgentForm({ stages, initialStageId = null }: Props) {
+export function InviteAgentForm({
+  stages,
+  reusableAgents = [],
+  initialStageId = null,
+}: Props) {
   const [selectedStageId, setSelectedStageId] = useState<string | null>(initialStageId)
   const [stagePickerOpen, setStagePickerOpen] = useState(false)
   const [pickerPreviewId, setPickerPreviewId] = useState<string | null>(null)
   /** Owner: has this runtime already joined Enter The Claw? */
   const [alreadyOnEtc, setAlreadyOnEtc] = useState<YesNo>(null)
   const [apiKey, setApiKey] = useState<string | null>(null)
-  /** Pending/enrolled agent row from POST /agents/keys (NEW path). */
+  /** Agent row from POST /agents/keys (brand-new or replace-key). */
   const [inviteAgentId, setInviteAgentId] = useState<string | null>(null)
   const [enrolledAgentName, setEnrolledAgentName] = useState<string | null>(null)
   const [enrolledAgentType, setEnrolledAgentType] = useState<string | null>(null)
@@ -318,9 +378,10 @@ export function InviteAgentForm({ stages, initialStageId = null }: Props) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [hostWakeNeeded, setHostWakeNeeded] = useState<YesNo>(null)
-  /** EXISTING path: owner types the agent name from the agent profile page. */
-  const [existingAgentName, setExistingAgentName] = useState('')
   const [pasteReady, setPasteReady] = useState(false)
+  const [existingFixMode, setExistingFixMode] = useState<ExistingFixMode>(null)
+  /** Existing agent chosen for replace-key and/or keep-key host wake targeting. */
+  const [existingAgentId, setExistingAgentId] = useState<string | null>(null)
 
   useEffect(() => {
     setSiteOrigin(window.location.origin)
@@ -360,15 +421,30 @@ export function InviteAgentForm({ stages, initialStageId = null }: Props) {
     [stages, selectedStageId],
   )
 
+  const selectedExistingAgent = useMemo(
+    () => reusableAgents.find((a) => a.id === existingAgentId) ?? null,
+    [reusableAgents, existingAgentId],
+  )
+
   const isNew = alreadyOnEtc === 'no'
   const isExisting = alreadyOnEtc === 'yes'
+  const isReplaceKey = isExisting && existingFixMode === 'replace-key'
+  const isKeepKey = isExisting && existingFixMode === 'keep-key'
+  /** Full NEW invite paste (brand-new row or replace-key on an existing row). */
+  const usesNewInvitePaste = isNew || isReplaceKey
+
+  useEffect(() => {
+    if (!isKeepKey || hostWakeNeeded !== 'yes') return
+    if (existingAgentId || reusableAgents.length === 0) return
+    setExistingAgentId(reusableAgents[0].id)
+  }, [isKeepKey, hostWakeNeeded, existingAgentId, reusableAgents])
 
   const inviteMessage = useMemo(() => {
     if (!selectedStage || !pasteReady) return null
-    if (isExisting) {
+    if (isKeepKey) {
       return buildRepairInviteMessage(siteOrigin || 'https://entertheclaw.com')
     }
-    if (isNew) {
+    if (usesNewInvitePaste) {
       if (serverInviteMessage) return serverInviteMessage
       return apiKey ? buildAgentInviteMessage(apiKey, siteOrigin, selectedStage) : null
     }
@@ -376,15 +452,19 @@ export function InviteAgentForm({ stages, initialStageId = null }: Props) {
   }, [
     selectedStage,
     pasteReady,
-    isExisting,
-    isNew,
+    isKeepKey,
+    usesNewInvitePaste,
     serverInviteMessage,
     apiKey,
     siteOrigin,
   ])
 
-  const hostAgentName = isNew ? enrolledAgentName : existingAgentName.trim() || null
-  const hostAgentType = isNew ? enrolledAgentType : null
+  const hostAgentName = usesNewInvitePaste
+    ? enrolledAgentName
+    : selectedExistingAgent?.name ?? null
+  const hostAgentType = usesNewInvitePaste
+    ? enrolledAgentType
+    : selectedExistingAgent?.agentType ?? null
   const hostWakePrompt = useMemo(() => {
     if (!selectedStage || hostWakeNeeded !== 'yes') return null
     return buildHostWakePrompt({
@@ -396,8 +476,7 @@ export function InviteAgentForm({ stages, initialStageId = null }: Props) {
     })
   }, [selectedStage, hostWakeNeeded, siteOrigin, hostAgentName, hostAgentType])
 
-  function pickAlreadyOnEtc(answer: 'yes' | 'no') {
-    setAlreadyOnEtc(answer)
+  function resetPasteState() {
     setApiKey(null)
     setInviteAgentId(null)
     setEnrolledAgentName(null)
@@ -405,8 +484,14 @@ export function InviteAgentForm({ stages, initialStageId = null }: Props) {
     setServerInviteMessage(null)
     setPasteReady(false)
     setHostWakeNeeded(null)
-    setExistingAgentName('')
+    setExistingAgentId(null)
+    setExistingFixMode(null)
     setError(null)
+  }
+
+  function pickAlreadyOnEtc(answer: 'yes' | 'no') {
+    setAlreadyOnEtc(answer)
+    resetPasteState()
   }
 
   function openStagePicker() {
@@ -425,29 +510,31 @@ export function InviteAgentForm({ stages, initialStageId = null }: Props) {
     if (stageId !== selectedStageId) {
       setSelectedStageId(stageId)
       setAlreadyOnEtc(null)
-      setPasteReady(false)
-      setApiKey(null)
-      setInviteAgentId(null)
-      setEnrolledAgentName(null)
-      setEnrolledAgentType(null)
-      setServerInviteMessage(null)
+      resetPasteState()
     }
     setStagePickerOpen(false)
     setPickerPreviewId(null)
   }
 
-  async function generateKey() {
+  async function generateKey(opts?: { reuseAgentId?: string }) {
     if (!selectedStage) {
       setError(COPY.chooseStageFirst)
       return
     }
+    const reuseId = opts?.reuseAgentId ?? null
+    const reuseAgent = reuseId
+      ? (reusableAgents.find((a) => a.id === reuseId) ?? null)
+      : null
     setLoading(true)
     setError(null)
     try {
       const res = await fetch('/api/v1/agents/keys', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ targetStageId: selectedStage.id }),
+        body: JSON.stringify({
+          targetStageId: selectedStage.id,
+          ...(reuseId ? { reuseAgentId: reuseId } : {}),
+        }),
       })
       if (res.status === 401) {
         window.location.href = `/auth?callbackUrl=${encodeURIComponent('/agents/invite')}`
@@ -461,11 +548,17 @@ export function InviteAgentForm({ stages, initialStageId = null }: Props) {
         apiKey: string
         agentId?: string
         inviteMessage?: string
+        reusedExistingAgent?: boolean
       }
       setApiKey(body.apiKey)
       setInviteAgentId(typeof body.agentId === 'string' ? body.agentId : null)
-      setEnrolledAgentName(null)
-      setEnrolledAgentType(null)
+      if (body.reusedExistingAgent === true && reuseAgent) {
+        setEnrolledAgentName(reuseAgent.name)
+        setEnrolledAgentType(reuseAgent.agentType)
+      } else {
+        setEnrolledAgentName(null)
+        setEnrolledAgentType(null)
+      }
       setServerInviteMessage(
         typeof body.inviteMessage === 'string' && body.inviteMessage.trim()
           ? body.inviteMessage
@@ -485,9 +578,19 @@ export function InviteAgentForm({ stages, initialStageId = null }: Props) {
       setError(COPY.chooseStageFirst)
       return
     }
+    setExistingFixMode('keep-key')
     setError(null)
     setPasteReady(true)
     setHostWakeNeeded(null)
+  }
+
+  async function prepareReplaceKeyPaste() {
+    if (!existingAgentId) {
+      setError(COPY.chooseAgentFirst)
+      return
+    }
+    setExistingFixMode('replace-key')
+    await generateKey({ reuseAgentId: existingAgentId })
   }
 
   const lockedAfterPaste = pasteReady
@@ -499,7 +602,11 @@ export function InviteAgentForm({ stages, initialStageId = null }: Props) {
       : !pasteReady
         ? isNew
           ? 'Generate an API key to unlock the new-agent message.'
-          : 'Confirm to unlock the repair message (keeps the existing API key; no stage move).'
+          : existingFixMode === null
+            ? 'Keep the current API key (repair) or replace it and re-send the invite message.'
+            : existingFixMode === 'replace-key'
+              ? 'Choose an agent, then generate a new API key for that same listing.'
+              : 'Confirm to unlock the repair message (keeps the existing API key; no stage move).'
         : hostWakeNeeded === null
           ? `Paste the message into ${COPY.agentChannel}, then answer one question about scheduling.`
           : hostWakeNeeded === 'no'
@@ -569,9 +676,8 @@ export function InviteAgentForm({ stages, initialStageId = null }: Props) {
               Has this agent already joined Enter The Claw before?
             </p>
             <p className="mt-1 text-xs text-[#888880]">
-              Choose No if this is a brand-new agent, and Yes if this is an existing agent you are
-              trying to fix (already on the platform, but a re-invite may help).{' '}
-              <StageMoveInstruction />
+              Choose No if this is a brand-new agent, and Yes if this is an existing agent on your
+              Agents list that you are trying to fix. <StageMoveInstruction />
             </p>
             <div className="mt-4 flex flex-wrap gap-2">
               <Button
@@ -586,7 +692,7 @@ export function InviteAgentForm({ stages, initialStageId = null }: Props) {
                 disabled={lockedAfterPaste}
                 onClick={() => pickAlreadyOnEtc('yes')}
               >
-                Yes — fix existing agent
+                Yes — existing agent
               </Button>
             </div>
           </section>
@@ -602,7 +708,7 @@ export function InviteAgentForm({ stages, initialStageId = null }: Props) {
               Generate a new API key and message to send to your agent.
             </p>
             {!apiKey ? (
-              <Button variant="primary" onClick={generateKey} disabled={loading}>
+              <Button variant="primary" onClick={() => void generateKey()} disabled={loading}>
                 {loading ? 'Generating…' : 'Generate'}
               </Button>
             ) : (
@@ -620,16 +726,95 @@ export function InviteAgentForm({ stages, initialStageId = null }: Props) {
             <p className="mb-1 text-xs font-semibold uppercase tracking-[0.1em] text-[#C41E3A]">
               Step 3
             </p>
-            <p className="mb-1 text-sm font-medium text-[#F0EDE8]">Prepare repair message</p>
+            <p className="mb-1 text-sm font-medium text-[#F0EDE8]">What kind of fix?</p>
             <p className="mb-4 text-xs text-[#888880]">
-              No new API key. The message tells the agent to keep its existing API key, refresh
-              protocol / wake if broken, and report status — it will not join, leave, or switch
-              stages. <StageMoveInstruction />
+              Keep the API key if the agent still has credentials and only needs protocol/wake
+              repair. Replace the API key if it was leaked, lost (e.g. after a wipe/reinstall), or
+              you want the old key to stop working — same agent on your Agents list, new invite
+              message. <StageMoveInstruction />
             </p>
-            <Button variant="primary" onClick={prepareRepairPaste}>
-              Show repair message
-            </Button>
+            <div className="flex flex-col gap-3">
+              <label className="flex cursor-pointer items-start gap-2 text-sm text-[#F0EDE8]">
+                <input
+                  type="radio"
+                  name="existing-fix-mode"
+                  className="mt-1"
+                  checked={existingFixMode === 'keep-key'}
+                  onChange={() => {
+                    setExistingFixMode('keep-key')
+                    setError(null)
+                  }}
+                />
+                <span>
+                  Keep current API key
+                  <span className="mt-0.5 block text-xs font-normal text-[#888880]">
+                    Repair message only — no enroll with a new key; no stage join/leave.
+                  </span>
+                </span>
+              </label>
+              <label className="flex cursor-pointer items-start gap-2 text-sm text-[#F0EDE8]">
+                <input
+                  type="radio"
+                  name="existing-fix-mode"
+                  className="mt-1"
+                  checked={existingFixMode === 'replace-key'}
+                  onChange={() => {
+                    setExistingFixMode('replace-key')
+                    setExistingAgentId((id) => id ?? reusableAgents[0]?.id ?? null)
+                    setError(null)
+                  }}
+                  disabled={reusableAgents.length === 0}
+                />
+                <span>
+                  Replace API key
+                  <span className="mt-0.5 block text-xs font-normal text-[#888880]">
+                    {reusableAgents.length === 0
+                      ? 'No agents on your Agents list yet — use No — brand new instead.'
+                      : 'Issues a new API key for the agent you choose; old key stops working. Then paste the full invite so the runtime installs it.'}
+                  </span>
+                </span>
+              </label>
+            </div>
+            {existingFixMode === 'replace-key' && (
+              <div className="mt-4">
+                <ExistingAgentPicker
+                  agents={reusableAgents}
+                  value={existingAgentId}
+                  onChange={setExistingAgentId}
+                  ariaLabel="Agent whose API key to replace"
+                />
+              </div>
+            )}
+            <div className="mt-4">
+              {existingFixMode === 'keep-key' && (
+                <Button variant="primary" onClick={prepareRepairPaste}>
+                  Show repair message
+                </Button>
+              )}
+              {existingFixMode === 'replace-key' && (
+                <Button
+                  variant="primary"
+                  onClick={() => void prepareReplaceKeyPaste()}
+                  disabled={loading || !existingAgentId || reusableAgents.length === 0}
+                >
+                  {loading ? 'Generating…' : 'Generate new key & invite'}
+                </Button>
+              )}
+            </div>
             {error && <p className="mt-3 text-sm text-[#E8405A]">{error}</p>}
+          </section>
+        )}
+
+        {selectedStage && isReplaceKey && apiKey && (
+          <section className="rounded-md border border-[#242424] bg-[#161616] p-5">
+            <p className="text-xs text-[#888880]">
+              New API key issued for{' '}
+              <span className="font-mono text-[#F0EDE8]">
+                {enrolledAgentName ?? selectedExistingAgent?.name ?? 'this agent'}
+              </span>
+              . Same agent on your Agents list — the previous key no longer works. Shown once in the
+              message below.
+            </p>
           </section>
         )}
 
@@ -645,7 +830,7 @@ export function InviteAgentForm({ stages, initialStageId = null }: Props) {
                   {COPY.pasteAgentMessageTitle}
                 </p>
                 <p className="mt-1 text-xs text-[#888880]">
-                  <PasteToAgentChannelHelp includeMcpNote={isNew} />
+                  <PasteToAgentChannelHelp includeMcpNote={usesNewInvitePaste} />
                 </p>
               </div>
               <CopyButton text={inviteMessage} label={COPY.copyAgentMessage} />
@@ -714,30 +899,27 @@ export function InviteAgentForm({ stages, initialStageId = null }: Props) {
               Step 6 — host wake
             </p>
 
-            {isExisting && (
+            {isKeepKey && (
               <div className="mt-4">
-                <p className="text-sm font-medium text-[#F0EDE8]">Specify agent name</p>
-                <p className="mt-1 text-xs text-[#888880]">
-                  Specify the agent name as shown on their agent profile page.
-                </p>
-                <input
-                  type="text"
-                  autoComplete="off"
-                  value={existingAgentName}
-                  onChange={(e) => setExistingAgentName(e.target.value)}
-                  className="mt-3 w-full max-w-md rounded border border-[#3A3A3A] bg-[#0D0D0D] px-3 py-2 font-mono text-sm text-[#F0EDE8]"
+                <ExistingAgentPicker
+                  agents={reusableAgents}
+                  value={existingAgentId}
+                  onChange={(id) => {
+                    setExistingAgentId(id)
+                  }}
+                  ariaLabel="Agent to target with the host wake prompt"
                 />
               </div>
             )}
 
-            {isNew && inviteAgentId && !enrolledAgentName && (
+            {usesNewInvitePaste && inviteAgentId && !enrolledAgentName && (
               <p className="mt-4 text-xs text-[#888880]">
                 Waiting for the agent to enroll and set a name so this {COPY.hostWakePrompt} can
                 target the right host group…
               </p>
             )}
 
-            {isNew && enrolledAgentName && (
+            {usesNewInvitePaste && enrolledAgentName && (
               <p className="mt-4 text-xs text-[#888880]">
                 Targeting agent{' '}
                 <span className="font-mono text-[#F0EDE8]">{enrolledAgentName}</span>

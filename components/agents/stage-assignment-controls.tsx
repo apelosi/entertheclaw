@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
+import { useSession } from '@/lib/auth-client'
 import { cn } from '@/lib/utils'
 
 export interface StageAssignmentOption {
@@ -17,6 +18,13 @@ export interface StageAssignmentOption {
 
 interface Props {
   agentId: string
+  /** Auth user id that owns this agent — used for client-side ownership check. */
+  ownerUserId: string
+  /**
+   * Server-rendered ownership hint. Client `useSession` can still reveal the
+   * controls if RSC session was missing/stale but the browser session is valid.
+   */
+  serverIsOwner?: boolean
   currentStageId: string | null
   currentStageName: string | null
   availableStages: StageAssignmentOption[]
@@ -37,6 +45,8 @@ type Selection = typeof SIDELINE | string
 
 export function StageAssignmentControls({
   agentId,
+  ownerUserId,
+  serverIsOwner = false,
   currentStageId,
   currentStageName,
   availableStages,
@@ -44,6 +54,12 @@ export function StageAssignmentControls({
   className,
 }: Props) {
   const router = useRouter()
+  const { data: session, isPending } = useSession()
+  const clientIsOwner = Boolean(
+    session?.user?.id && session.user.id === ownerUserId,
+  )
+  const isOwner = serverIsOwner || clientIsOwner
+
   const [step, setStep] = useState<Step>('idle')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -78,6 +94,18 @@ export function StageAssignmentControls({
     setStep('idle')
     setSelection(null)
     setError(null)
+  }
+
+  function beginPullConfirm() {
+    setError(null)
+    setSelection(SIDELINE)
+    setStep('confirming')
+  }
+
+  function beginMoveOrAssign() {
+    setError(null)
+    setSelection(null)
+    setStep('picking')
   }
 
   async function commit() {
@@ -115,6 +143,13 @@ export function StageAssignmentControls({
       setBusy(false)
       setError(err instanceof Error ? err.message : 'Unknown error')
     }
+  }
+
+  // Non-owners never see stage management. While client session is still
+  // loading and the server did not already affirm ownership, render nothing.
+  if (!isOwner) {
+    if (isPending && !serverIsOwner) return null
+    return null
   }
 
   // ─── Step 3: confirm ────────────────────────────────────────────────
@@ -160,7 +195,11 @@ export function StageAssignmentControls({
             disabled={busy}
             onClick={() => {
               setError(null)
-              setStep('picking')
+              if (onStage && selection === SIDELINE) {
+                reset()
+              } else {
+                setStep('picking')
+              }
             }}
           >
             Back
@@ -175,7 +214,7 @@ export function StageAssignmentControls({
     return (
       <div className={cn('space-y-3 rounded-md border border-[#242424] bg-[#0E0E0E] p-4', className)}>
         <p className="text-xs font-semibold uppercase tracking-[0.1em] text-[#888880]">
-          {onStage ? 'Pull and reassign to…' : 'Assign to a stage'}
+          {onStage ? 'Move to another stage' : 'Assign to a stage'}
         </p>
         <ul className="max-h-72 space-y-1 overflow-y-auto">
           {onStage && (
@@ -262,16 +301,24 @@ export function StageAssignmentControls({
     )
   }
 
-  // ─── Step 1: entry button ───────────────────────────────────────────
+  // ─── Step 1: entry buttons ──────────────────────────────────────────
+  // On stage: Pull is a direct confirm (not buried in the move picker).
   return (
     <div className={cn('flex flex-wrap gap-2', className)}>
-      <Button
-        size="sm"
-        variant={onStage ? 'primary' : 'secondary'}
-        onClick={() => setStep('picking')}
-      >
-        {onStage ? 'Pull from stage' : 'Assign to a stage'}
-      </Button>
+      {onStage ? (
+        <>
+          <Button size="sm" variant="primary" onClick={beginPullConfirm}>
+            Pull from stage
+          </Button>
+          <Button size="sm" variant="secondary" onClick={beginMoveOrAssign}>
+            Move to another stage
+          </Button>
+        </>
+      ) : (
+        <Button size="sm" variant="secondary" onClick={beginMoveOrAssign}>
+          Assign to a stage
+        </Button>
+      )}
       {error && <span className="self-center text-xs text-[#C41E3A]">{error}</span>}
     </div>
   )

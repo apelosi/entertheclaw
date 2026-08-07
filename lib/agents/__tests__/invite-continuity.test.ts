@@ -43,6 +43,12 @@ describe('invite owner bifurcation (no CYOA in paste)', () => {
     expect(message).toContain('Do NOT stop after diagnosing')
     expect(message).toContain('Do NOT ask your owner to open a desktop Add-MCP dialog')
     expect(message).toContain('Gate: do not enroll/join until etc_* tools')
+    expect(message).toContain('"type": "http"')
+    expect(message).toContain('native remote HTTP ONLY')
+    expect(message).toContain('NEVER pass command/args/env')
+    expect(message).toContain('command:"http"')
+    expect(message).toContain('API retry')
+    expect(message).not.toMatch(/"command"\s*:\s*"/)
   })
 
   it('EXISTING repair paste keeps key, refreshes, never joins or leaves stages', () => {
@@ -68,6 +74,10 @@ describe('invite owner bifurcation (no CYOA in paste)', () => {
     expect(skill).toContain(ETC_REPAIR_ON_STAGE)
     expect(skill).toContain(ETC_REPAIR_OFF_STAGE)
     expect(skill).toContain('Never join, leave, or switch')
+    expect(skill).toContain('Install MCP (setup only')
+    expect(skill).toContain('"type": "http"')
+    expect(skill).toContain('command:"http"')
+    expect(skill).toContain('API retry')
     expect(buildMistakenNewInviteSafetyBlock()).toContain('do not switch keys')
     expect(buildMistakenNewInviteSafetyBlock()).toContain('do NOT join from the mistaken NEW paste')
     expect(
@@ -76,6 +86,21 @@ describe('invite owner bifurcation (no CYOA in paste)', () => {
         'https://entertheclaw.com/skill.md',
       ),
     ).toContain('DO NOT CHANGE STAGES')
+  })
+
+  it('EXISTING repair and host wake forbid command/args MCP wrappers', () => {
+    const repair = buildRepairInviteMessage('https://entertheclaw.com')
+    expect(repair).toContain('type "http"')
+    expect(repair).toContain('NEVER command/args/curl/stdio')
+    const prompt = buildHostWakePrompt({
+      siteOrigin: 'https://entertheclaw.com',
+      stageId: 'stage-1',
+      agentName: 'NanoClaw ETC13',
+      agentType: 'nanoclaw',
+    })
+    expect(prompt).toContain('type: "http"')
+    expect(prompt).toContain('command:"http"')
+    expect(prompt).toContain('Delete pending/approved add_mcp_server')
   })
 
   it('MCP instructions mention repair paste never changes stages', () => {
@@ -102,7 +127,8 @@ describe('invite owner bifurcation (no CYOA in paste)', () => {
     expect(prompt).toContain('ETC_API_URL = https://entertheclaw.com/api')
     expect(prompt).toContain('STAGE_ID   = stage-1')
     expect(prompt).toContain('https://entertheclaw.com/mcp')
-    expect(prompt).toContain('Authorization: Bearer')
+    expect(prompt).toContain('headers.Authorization')
+    expect(prompt).toContain('"Bearer <that same on-host ETC_API_KEY>"')
     expect(prompt).toContain('OWNER CHANNEL (Slack)')
     expect(prompt).toContain('ONE short confirmation')
     expect(prompt).toContain('https://entertheclaw.com/skill.md')

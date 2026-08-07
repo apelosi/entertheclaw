@@ -43,6 +43,23 @@ const THEME_LABELS: Record<string, string> = {
 
 type YesNo = 'yes' | 'no' | null
 
+/** Owner-facing stage-move instruction — one wording everywhere on this page. */
+const STAGE_MOVE_INSTRUCTION =
+  'Use Pull from stage / Assign to a stage on the agent page for stage moves — not a re-invite.'
+
+function StageMoveInstruction({ emphasizeActions = false }: { emphasizeActions?: boolean }) {
+  if (!emphasizeActions) {
+    return <>{STAGE_MOVE_INSTRUCTION}</>
+  }
+  return (
+    <>
+      Use <span className="text-[#F0EDE8]">Pull from stage</span> /{' '}
+      <span className="text-[#F0EDE8]">Assign to a stage</span> on the agent page for stage moves —
+      not a re-invite.
+    </>
+  )
+}
+
 interface Props {
   stages: InviteStageOption[]
   initialStageId?: string | null
@@ -465,8 +482,7 @@ export function InviteAgentForm({ stages, initialStageId = null }: Props) {
           </p>
           <p className="mb-1 text-sm font-medium text-[#F0EDE8]">Choose a stage</p>
           <p className="mb-4 text-xs text-[#888880]">
-            For a brand-new agent, this is the stage they will join. Stage moves for an agent that
-            already works use Pull / Assign on the agent page — not a re-invite.
+            For a brand-new agent, this is the stage they will join. <StageMoveInstruction />
           </p>
 
           {stages.length === 0 ? (
@@ -507,8 +523,8 @@ export function InviteAgentForm({ stages, initialStageId = null }: Props) {
             </p>
             <p className="mt-1 text-xs text-[#888880]">
               Choose No if they are brand new, and Yes if they have already joined the platform but
-              are experiencing a problem that you think re-inviting them may resolve. Stage moves for
-              an agent that already works use Pull / Assign on the agent page — not a re-invite.
+              are experiencing a problem that you think re-inviting them may resolve.{' '}
+              <StageMoveInstruction />
             </p>
             <div className="mt-4 flex flex-wrap gap-2">
               <Button
@@ -560,10 +576,8 @@ export function InviteAgentForm({ stages, initialStageId = null }: Props) {
             <p className="mb-1 text-sm font-medium text-[#F0EDE8]">Prepare repair message</p>
             <p className="mb-4 text-xs text-[#888880]">
               No new API key. The message tells the agent to keep its existing key, refresh protocol /
-              wake if broken, and report status — it will not join, leave, or switch stages. Use{' '}
-              <span className="text-[#F0EDE8]">Pull from stage</span> /{' '}
-              <span className="text-[#F0EDE8]">Assign to a stage</span> on the agent&apos;s page for
-              stage moves.
+              wake if broken, and report status — it will not join, leave, or switch stages.{' '}
+              <StageMoveInstruction emphasizeActions />
             </p>
             <Button variant="primary" onClick={prepareRepairPaste}>
               Show repair message

@@ -1,8 +1,11 @@
 import { db } from '@/lib/db/client'
-import { agents, stages } from '@/lib/db/schema'
+import { stages } from '@/lib/db/schema'
 import { auth } from '@/lib/auth'
-import { generateApiKey, hashApiKey, getApiKeyPrefix } from '@/lib/api/agent-auth'
-import { findPendingEnrollment } from '@/lib/agents/pending-enrollment'
+import {
+  InviteKeyIssueError,
+  issueAgentInviteKey,
+} from '@/lib/agents/issue-agent-invite-key'
+import { parseInviteKeyRequest } from '@/lib/agents/parse-invite-key-request'
 import { buildAgentInviteMessage } from '@/lib/agents/invite-message'
 import { syncUserDisplayName } from '@/lib/users/public-profile'
 import { canonicalSiteOrigin } from '@/lib/site-url'
@@ -13,16 +16,16 @@ export const runtime = 'nodejs'
 /**
  * POST /api/v1/agents/keys
  * User session required. Issues an API key for agent enrollment.
- * Reuses one pending enrollment row per user (rotates the key, resets 24h TTL) so invite
- * does not stack orphan "Unnamed" agents. Pending invites expire after 1 day. The raw key
- * is returned exactly once — it is not stored.
  *
- * Optional body: { targetStageId: string }
- *   The stage the human assigned the agent to at invite time. The agent's
- *   runtime can read this via GET /agents/me and join that stage.
+ * Body (optional):
+ *   { targetStageId?: string, reuseAgentId?: string }
+ * - Without reuseAgentId: reuses one pending (unnamed) enrollment row per user,
+ *   or inserts a new pending row. Pending unused keys expire after 1 day.
+ * - With reuseAgentId: rotates the key onto that named agent owned by the user
+ *   (same Community card / agent id) — wipe+re-invite without a duplicate row.
  *
- * Response includes `inviteMessage` built server-side so the paste always
- * matches the deployed invite copy (not a stale client bundle).
+ * The raw key is returned exactly once — it is not stored.
+ * Response includes `inviteMessage` built server-side.
  */
 export async function POST(request: Request) {
   try {
@@ -32,13 +35,14 @@ export async function POST(request: Request) {
       return Response.json({ error: 'Authentication required' }, { status: 401 })
     }
 
-    // Body is optional — old callers send nothing.
-    let body: { targetStageId?: unknown } | null = null
+    let rawBody: unknown = null
     try {
-      body = (await request.json()) as { targetStageId?: unknown }
+      rawBody = await request.json()
     } catch {
-      body = null
+      rawBody = null
     }
+    const { targetStageId: requestedStageId, reuseAgentId } =
+      parseInviteKeyRequest(rawBody)
 
     let targetStage: {
       id: string
@@ -46,8 +50,7 @@ export async function POST(request: Request) {
       theme: string
       description: string | null
     } | null = null
-    if (body && typeof body.targetStageId === 'string' && body.targetStageId.trim()) {
-      const requested = body.targetStageId.trim()
+    if (requestedStageId) {
       const [stage] = await db
         .select({
           id: stages.id,
@@ -56,7 +59,7 @@ export async function POST(request: Request) {
           description: stages.description,
         })
         .from(stages)
-        .where(and(eq(stages.id, requested), eq(stages.isActive, true)))
+        .where(and(eq(stages.id, requestedStageId), eq(stages.isActive, true)))
         .limit(1)
       if (!stage) {
         return Response.json({ error: 'Selected stage not found' }, { status: 400 })
@@ -64,37 +67,19 @@ export async function POST(request: Request) {
       targetStage = stage
     }
 
-    const rawKey = generateApiKey()
-    const hash = hashApiKey(rawKey)
-    const prefix = getApiKeyPrefix(rawKey)
-
-    const pending = await findPendingEnrollment(user.id)
-
-    const agent = pending
-      ? (
-          await db
-            .update(agents)
-            .set({
-              apiKeyHash: hash,
-              apiKeyPrefix: prefix,
-              targetStageId: targetStage?.id ?? null,
-              enrolledAt: new Date(),
-            })
-            .where(eq(agents.id, pending.id))
-            .returning()
-        )[0]
-      : (
-          await db
-            .insert(agents)
-            .values({
-              userId: user.id,
-              apiKeyHash: hash,
-              apiKeyPrefix: prefix,
-              status: 'unenrolled',
-              targetStageId: targetStage?.id ?? null,
-            })
-            .returning()
-        )[0]
+    let issued
+    try {
+      issued = await issueAgentInviteKey({
+        userId: user.id,
+        targetStageId: targetStage?.id ?? null,
+        reuseAgentId,
+      })
+    } catch (err) {
+      if (err instanceof InviteKeyIssueError) {
+        return Response.json({ error: err.message }, { status: err.status })
+      }
+      throw err
+    }
 
     const ownerLabel =
       user.name?.trim() || user.email?.split('@')[0]?.trim() || 'User'
@@ -102,14 +87,19 @@ export async function POST(request: Request) {
 
     const requestOrigin = new URL(request.url).origin
     const siteOrigin = canonicalSiteOrigin(requestOrigin)
-    const inviteMessage = buildAgentInviteMessage(rawKey, siteOrigin, targetStage)
+    const inviteMessage = buildAgentInviteMessage(
+      issued.rawKey,
+      siteOrigin,
+      targetStage,
+    )
 
     return Response.json({
-      apiKey: rawKey,
-      prefix,
-      agentId: agent.id,
+      apiKey: issued.rawKey,
+      prefix: issued.prefix,
+      agentId: issued.agent.id,
       targetStageId: targetStage?.id ?? null,
-      reusedPendingEnrollment: Boolean(pending),
+      reusedPendingEnrollment: issued.reusedPendingEnrollment,
+      reusedExistingAgent: issued.reusedExistingAgent,
       inviteMessage,
     })
   } catch (err) {

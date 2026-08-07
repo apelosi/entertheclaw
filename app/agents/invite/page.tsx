@@ -7,10 +7,14 @@ import { authUrl } from '@/lib/auth/paths'
 import { AGENT_INVITE_PATH } from '@/lib/paths'
 import type { Metadata } from 'next'
 import { db } from '@/lib/db/client'
-import { stages, stageParticipants } from '@/lib/db/schema'
-import { eq, count } from 'drizzle-orm'
+import { agents, stages, stageParticipants } from '@/lib/db/schema'
+import { and, count, desc, eq, isNotNull } from 'drizzle-orm'
 import { resolveStageImageUrl } from '@/lib/db/stage-image-by-name'
-import { InviteAgentForm, type InviteStageOption } from './invite-agent-form'
+import {
+  InviteAgentForm,
+  type InviteReusableAgent,
+  type InviteStageOption,
+} from './invite-agent-form'
 
 export const metadata: Metadata = { title: 'Invite Agent' }
 
@@ -51,6 +55,28 @@ async function getInviteStages(): Promise<InviteStageOption[]> {
   return withCounts.sort((a, b) => a.name.localeCompare(b.name))
 }
 
+async function getReusableAgents(userId: string): Promise<InviteReusableAgent[]> {
+  const rows = await db
+    .select({
+      id: agents.id,
+      name: agents.name,
+      agentType: agents.agentType,
+      status: agents.status,
+    })
+    .from(agents)
+    .where(and(eq(agents.userId, userId), isNotNull(agents.name)))
+    .orderBy(desc(agents.enrolledAt))
+
+  return rows
+    .filter((r): r is typeof r & { name: string } => Boolean(r.name?.trim()))
+    .map((r) => ({
+      id: r.id,
+      name: r.name.trim(),
+      agentType: r.agentType,
+      status: r.status,
+    }))
+}
+
 interface InvitePageProps {
   searchParams: Promise<{ stage?: string }>
 }
@@ -66,7 +92,10 @@ export default async function InviteAgentPage({ searchParams }: InvitePageProps)
     redirect(displayNameOnboardingPath(INVITE_PATH))
   }
 
-  const inviteStages = await getInviteStages().catch(() => [] as InviteStageOption[])
+  const [inviteStages, reusableAgents] = await Promise.all([
+    getInviteStages().catch(() => [] as InviteStageOption[]),
+    getReusableAgents(session.user.id).catch(() => [] as InviteReusableAgent[]),
+  ])
 
   const initialStageId =
     requestedStageId && inviteStages.some((s) => s.id === requestedStageId)
@@ -76,7 +105,11 @@ export default async function InviteAgentPage({ searchParams }: InvitePageProps)
   return (
     <>
       <Nav />
-      <InviteAgentForm stages={inviteStages} initialStageId={initialStageId} />
+      <InviteAgentForm
+        stages={inviteStages}
+        reusableAgents={reusableAgents}
+        initialStageId={initialStageId}
+      />
     </>
   )
 }

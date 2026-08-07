@@ -16,6 +16,7 @@ import {
 import { parseArchivedCharacterData } from '@/lib/characters/archived-snapshot'
 import { AgentCharacterPanel } from '@/components/agents/agent-character-panel'
 import { StageAssignmentControls } from '@/components/agents/stage-assignment-controls'
+import { resolveAgentCurrentStage } from '@/lib/agents/resolve-agent-current-stage'
 import { listStageAssignmentOptions } from '@/lib/stages/available-stages'
 import { StageCardThumbnail } from '@/components/stage/stage-card-thumbnail'
 import { userProfilePath } from '@/lib/paths'
@@ -25,6 +26,8 @@ import { and, desc, eq, ne } from 'drizzle-orm'
 import Image from 'next/image'
 import Link from 'next/link'
 import type { Metadata } from 'next'
+
+export const dynamic = 'force-dynamic'
 
 const THEME_GRADIENT: Record<string, string> = {
   mythology: 'from-amber-900 to-purple-900',
@@ -67,17 +70,39 @@ export default async function AgentDetailPage({ params }: Props) {
     .orderBy(desc(stageParticipants.joinedAt))
     .limit(1)
 
-  const activeStageId = currentParticipant?.stageId ?? null
+  // Live character on any stage — used as membership fallback when a participant
+  // row is missing (so owners can still Pull), and as the Active Character panel.
+  const [liveCharacterRow] = await db
+    .select({
+      character: characters,
+      stageId: stages.id,
+      stageName: stages.name,
+      stageTheme: stages.theme,
+      stageImageUrl: stages.imageUrl,
+    })
+    .from(characters)
+    .innerJoin(stages, eq(stages.id, characters.stageId))
+    .where(eq(characters.agentId, agent.id))
+    .orderBy(desc(characters.createdAt))
+    .limit(1)
 
-  const [activeCharacter] = activeStageId
-    ? await db
-        .select()
-        .from(characters)
-        .where(
-          and(eq(characters.agentId, agent.id), eq(characters.stageId, activeStageId)),
-        )
-        .limit(1)
-    : []
+  const currentStage = resolveAgentCurrentStage({
+    participant: currentParticipant ?? null,
+    characterStage: liveCharacterRow
+      ? {
+          stageId: liveCharacterRow.stageId,
+          stageName: liveCharacterRow.stageName,
+          stageTheme: liveCharacterRow.stageTheme,
+          stageImageUrl: liveCharacterRow.stageImageUrl,
+        }
+      : null,
+  })
+
+  const activeStageId = currentStage?.stageId ?? null
+  const activeCharacter =
+    liveCharacterRow && liveCharacterRow.stageId === activeStageId
+      ? liveCharacterRow.character
+      : null
 
   const pastCharacters =
     activeStageId != null
@@ -163,9 +188,11 @@ export default async function AgentDetailPage({ params }: Props) {
   }
 
   const stageGradient =
-    THEME_GRADIENT[currentParticipant?.stageTheme ?? ''] ?? 'from-zinc-800 to-zinc-950'
+    THEME_GRADIENT[currentStage?.stageTheme ?? ''] ?? 'from-zinc-800 to-zinc-950'
 
-  const assignmentOptions = isOwner ? await listStageAssignmentOptions() : []
+  // Always load picker options so a client-side ownership recovery still has data
+  // if RSC session missed the owner on first paint.
+  const assignmentOptions = await listStageAssignmentOptions()
 
   const hdrs = await headers()
   const host = hdrs.get('x-forwarded-host') ?? hdrs.get('host') ?? 'localhost:3000'
@@ -232,6 +259,12 @@ export default async function AgentDetailPage({ params }: Props) {
                   </p>
                 </div>
                 <div>
+                  <p className="text-xs text-[#444440]">Stage membership</p>
+                  <p className="mt-1 text-sm text-[#F0EDE8]">
+                    {currentStage?.stageName ?? 'Not on a stage'}
+                  </p>
+                </div>
+                <div>
                   <p className="text-xs text-[#444440]">Agent Type</p>
                   <p className="mt-1 font-mono text-sm text-[#F0EDE8]">
                     {agent.agentType ?? 'custom'}
@@ -261,42 +294,41 @@ export default async function AgentDetailPage({ params }: Props) {
                 <h2 className="shrink-0 text-xs font-semibold uppercase tracking-[0.1em] text-[#888880]">
                   Current Stage
                 </h2>
-                {currentParticipant && (
+                {currentStage && (
                   <Link
-                    href={`/stage/${currentParticipant.stageId}`}
+                    href={`/stage/${currentStage.stageId}`}
                     className={`inline-block min-w-0 max-w-full truncate text-right font-display text-lg font-semibold tracking-[-0.02em] ${detailPageLinkClass}`}
                     style={{ fontFamily: 'var(--font-display)' }}
                   >
-                    {currentParticipant.stageName ?? currentParticipant.stageId}
+                    {currentStage.stageName ?? currentStage.stageId}
                   </Link>
                 )}
               </div>
-              {currentParticipant ? (
+              {currentStage ? (
                 <>
                   <StageCardThumbnail
                     imageUrl={
                       resolveStageImageUrl({
-                        name: currentParticipant.stageName ?? '',
-                        imageUrl: currentParticipant.stageImageUrl,
+                        name: currentStage.stageName ?? '',
+                        imageUrl: currentStage.stageImageUrl,
                       }) ?? undefined
                     }
-                    name={currentParticipant.stageName ?? 'Stage'}
+                    name={currentStage.stageName ?? 'Stage'}
                     gradient={stageGradient}
                   />
                 </>
               ) : (
                 <p className="p-5 text-sm text-[#888880]">Not currently on a stage.</p>
               )}
-              {isOwner && (
-                <div className="border-t border-[#242424] px-5 py-4">
-                  <StageAssignmentControls
-                    agentId={agent.id}
-                    currentStageId={currentParticipant?.stageId ?? null}
-                    currentStageName={currentParticipant?.stageName ?? null}
-                    availableStages={assignmentOptions}
-                  />
-                </div>
-              )}
+              <StageAssignmentControls
+                agentId={agent.id}
+                ownerUserId={agent.userId}
+                serverIsOwner={isOwner}
+                currentStageId={currentStage?.stageId ?? null}
+                currentStageName={currentStage?.stageName ?? null}
+                availableStages={assignmentOptions}
+                className="border-t border-[#242424] px-5 py-4"
+              />
             </section>
           </div>
 
@@ -314,11 +346,11 @@ export default async function AgentDetailPage({ params }: Props) {
                   spriteUrl={activeCharacter.spriteUrl}
                   imageUrl={activeCharacter.imageUrl}
                   createdAt={activeCharacter.createdAt}
-                  stageName={currentParticipant?.stageName ?? null}
+                  stageName={currentStage?.stageName ?? null}
                 />
               ) : (
                 <p className="text-sm text-[#888880]">
-                  {currentParticipant
+                  {currentStage
                     ? 'No character on this stage yet.'
                     : 'No active character.'}
                 </p>

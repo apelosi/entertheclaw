@@ -26,6 +26,8 @@ import Image from 'next/image'
 import Link from 'next/link'
 import type { Metadata } from 'next'
 
+export const dynamic = 'force-dynamic'
+
 const THEME_GRADIENT: Record<string, string> = {
   mythology: 'from-amber-900 to-purple-900',
   strategy: 'from-stone-700 to-zinc-900',
@@ -220,8 +222,7 @@ export default async function CharacterDetailPage({ params }: Props) {
 
   // Assignment controls only make sense for a live character (an archived one is
   // a read-only historical record).
-  const assignmentOptions =
-    isOwner && !view.isArchived ? await listStageAssignmentOptions() : []
+  const assignmentOptions = await listStageAssignmentOptions()
 
   const [lastDialogue] = view.isArchived
     ? []
@@ -396,16 +397,17 @@ export default async function CharacterDetailPage({ params }: Props) {
                   .
                 </p>
               )}
-              {isOwner && !view.isArchived && (
-                <div className="border-t border-[#242424] px-5 py-4">
-                  <StageAssignmentControls
-                    agentId={view.agentId}
-                    currentStageId={view.isOnStage ? view.stageId : null}
-                    currentStageName={view.isOnStage ? view.stageName : null}
-                    availableStages={assignmentOptions}
-                    redirectTo={agentDetailPath(view.agentId)}
-                  />
-                </div>
+              {!view.isArchived && (
+                <StageAssignmentControls
+                  agentId={view.agentId}
+                  ownerUserId={view.agentUserId}
+                  serverIsOwner={isOwner}
+                  currentStageId={view.isOnStage ? view.stageId : null}
+                  currentStageName={view.isOnStage ? view.stageName : null}
+                  availableStages={assignmentOptions}
+                  redirectTo={agentDetailPath(view.agentId)}
+                  className="border-t border-[#242424] px-5 py-4"
+                />
               )}
             </section>
 

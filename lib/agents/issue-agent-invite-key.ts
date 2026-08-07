@@ -32,6 +32,9 @@ export async function issueAgentInviteKey(input: {
     apiKeyHash: hash,
     apiKeyPrefix: prefix,
     targetStageId: input.targetStageId,
+  }
+  const pendingKeyFields = {
+    ...keyFields,
     enrolledAt: new Date(),
   }
 
@@ -77,7 +80,7 @@ export async function issueAgentInviteKey(input: {
     ? (
         await db
           .update(agents)
-          .set(keyFields)
+          .set(pendingKeyFields)
           .where(eq(agents.id, pending.id))
           .returning()
       )[0]

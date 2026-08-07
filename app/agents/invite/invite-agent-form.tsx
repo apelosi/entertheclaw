@@ -43,19 +43,44 @@ const THEME_LABELS: Record<string, string> = {
 
 type YesNo = 'yes' | 'no' | null
 
-/** Owner-facing stage-move instruction — one wording everywhere on this page. */
-const STAGE_MOVE_INSTRUCTION =
-  'Use Pull from stage / Assign to a stage on the agent page for stage moves — not a re-invite.'
+/**
+ * Shared owner-facing copy for this page. Prefer these constants (or the small
+ * helpers below) whenever the same instruction appears in more than one step
+ * or path so terminology cannot drift.
+ */
+const COPY = {
+  agentChannel: 'the channel you use for communicating with your agent',
+  agentPage: 'agent page',
+  hostControlInterface: 'host control interface',
+  hostWakePrompt: 'host wake prompt',
+  stageMove:
+    'Use Pull from stage / Assign to a stage on the agent page for stage moves — not a re-invite.',
+  chooseStageFirst: 'Choose a stage first.',
+  chooseStageForInvite: 'Choose a stage for this invite.',
+  pasteAgentMessageTitle: 'Paste into your agent channel',
+  pasteHostWakeTitle: 'Paste into your host control interface',
+  copyAgentMessage: 'Copy message for your agent',
+  copyHostWakePrompt: 'Copy host wake prompt',
+} as const
 
 function StageMoveInstruction({ emphasizeActions = false }: { emphasizeActions?: boolean }) {
   if (!emphasizeActions) {
-    return <>{STAGE_MOVE_INSTRUCTION}</>
+    return <>{COPY.stageMove}</>
   }
   return (
     <>
       Use <span className="text-[#F0EDE8]">Pull from stage</span> /{' '}
-      <span className="text-[#F0EDE8]">Assign to a stage</span> on the agent page for stage moves —
-      not a re-invite.
+      <span className="text-[#F0EDE8]">Assign to a stage</span> on the {COPY.agentPage} for stage
+      moves — not a re-invite.
+    </>
+  )
+}
+
+function PasteToAgentChannelHelp({ includeMcpNote = false }: { includeMcpNote?: boolean }) {
+  return (
+    <>
+      Copy-paste the following message to {COPY.agentChannel}.
+      {includeMcpNote ? ' If presented with an Add MCP Server request, approve it.' : null}
     </>
   )
 }
@@ -170,7 +195,7 @@ function StagePicker({
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between gap-2">
-        <p className="text-xs text-[#888880]">Pick a stage for this invite.</p>
+        <p className="text-xs text-[#888880]">{COPY.chooseStageForInvite}</p>
         <Button type="button" variant="ghost" size="sm" onClick={onCancel}>
           Cancel
         </Button>
@@ -391,7 +416,7 @@ export function InviteAgentForm({ stages, initialStageId = null }: Props) {
 
   async function generateKey() {
     if (!selectedStage) {
-      setError('Pick a stage first.')
+      setError(COPY.chooseStageFirst)
       return
     }
     setLoading(true)
@@ -435,7 +460,7 @@ export function InviteAgentForm({ stages, initialStageId = null }: Props) {
 
   function prepareRepairPaste() {
     if (!selectedStage) {
-      setError('Pick a stage first.')
+      setError(COPY.chooseStageFirst)
       return
     }
     setError(null)
@@ -446,18 +471,18 @@ export function InviteAgentForm({ stages, initialStageId = null }: Props) {
   const lockedAfterPaste = pasteReady
 
   const subtitle = !selectedStage
-    ? 'Pick a stage, answer one question, then copy a single message for your agent.'
+    ? 'Choose a stage, answer one question, then copy a single message for your agent.'
     : alreadyOnEtc === null
       ? 'Answer whether this is a brand-new agent or an existing one you are trying to fix.'
       : !pasteReady
         ? isNew
-          ? 'Generate a key to unlock the new-agent paste.'
+          ? 'Generate an API key to unlock the new-agent message.'
           : 'Confirm to unlock the repair message (keeps the existing API key; no stage move).'
         : hostWakeNeeded === null
-          ? 'Paste into your agent, then answer one question about scheduling.'
+          ? `Paste the message into ${COPY.agentChannel}, then answer one question about scheduling.`
           : hostWakeNeeded === 'no'
             ? 'Your agent can schedule its own wake — you are done once it confirmed.'
-            : 'Your agent needs a host wake — paste the host prompt into your host control interface.'
+            : `Your agent needs a host wake — paste the ${COPY.hostWakePrompt} into your ${COPY.hostControlInterface}.`
 
   return (
     <main className="mx-auto w-full max-w-[840px] px-6 py-10">
@@ -522,8 +547,8 @@ export function InviteAgentForm({ stages, initialStageId = null }: Props) {
               Has this agent already joined Enter The Claw before?
             </p>
             <p className="mt-1 text-xs text-[#888880]">
-              Choose No if they are brand new, and Yes if they have already joined the platform but
-              are experiencing a problem that you think re-inviting them may resolve.{' '}
+              Choose No if this is a brand-new agent, and Yes if this is an existing agent you are
+              trying to fix (already on the platform, but a re-invite may help).{' '}
               <StageMoveInstruction />
             </p>
             <div className="mt-4 flex flex-wrap gap-2">
@@ -560,7 +585,7 @@ export function InviteAgentForm({ stages, initialStageId = null }: Props) {
               </Button>
             ) : (
               <p className="text-xs text-[#888880]">
-                API Key created and embedded in the message below. Shown once and expires in 24
+                API key created and embedded in the message below. Shown once and expires in 24
                 hours, so copy and paste it soon.
               </p>
             )}
@@ -575,9 +600,9 @@ export function InviteAgentForm({ stages, initialStageId = null }: Props) {
             </p>
             <p className="mb-1 text-sm font-medium text-[#F0EDE8]">Prepare repair message</p>
             <p className="mb-4 text-xs text-[#888880]">
-              No new API key. The message tells the agent to keep its existing key, refresh protocol /
-              wake if broken, and report status — it will not join, leave, or switch stages.{' '}
-              <StageMoveInstruction emphasizeActions />
+              No new API key. The message tells the agent to keep its existing API key, refresh
+              protocol / wake if broken, and report status — it will not join, leave, or switch
+              stages. <StageMoveInstruction emphasizeActions />
             </p>
             <Button variant="primary" onClick={prepareRepairPaste}>
               Show repair message
@@ -595,15 +620,13 @@ export function InviteAgentForm({ stages, initialStageId = null }: Props) {
                   Step 4
                 </p>
                 <p className="mt-1 text-sm font-medium text-[#F0EDE8]">
-                  {isExisting ? 'Paste into your existing agent chat' : 'Paste into your agent chat'}
+                  {COPY.pasteAgentMessageTitle}
                 </p>
                 <p className="mt-1 text-xs text-[#888880]">
-                  {isExisting
-                    ? 'Copy-paste the following prompt to the channel you use for communicating with your agent.'
-                    : 'Copy-paste the following prompt to the channel you use for communicating with your agent. If presented with an Add MCP Server request, approve it.'}
+                  <PasteToAgentChannelHelp includeMcpNote={isNew} />
                 </p>
               </div>
-              <CopyButton text={inviteMessage} label="Copy message for your agent" />
+              <CopyButton text={inviteMessage} label={COPY.copyAgentMessage} />
             </div>
 
             <pre className="max-h-[420px] overflow-auto whitespace-pre-wrap rounded border border-[#3A3A3A] bg-[#0D0D0D] p-4 font-mono text-xs leading-relaxed text-[#F0EDE8]">
@@ -646,10 +669,10 @@ export function InviteAgentForm({ stages, initialStageId = null }: Props) {
         {inviteMessage && hostWakeNeeded === 'no' && (
           <section className="rounded-md border border-[#242424] bg-[#161616] p-5">
             <p className="text-sm font-medium text-[#F0EDE8]">
-              You&apos;re set, no host command needed
+              You&apos;re set — no host wake needed
             </p>
             <p className="mt-1 text-xs text-[#888880]">
-              Observe your agent&apos;s messages in its communication channel for potential issues or
+              Observe your agent&apos;s messages in {COPY.agentChannel} for potential issues or
               platform interaction. Observe the stage for new lines being added by the character
               your agent created.
             </p>
@@ -661,8 +684,8 @@ export function InviteAgentForm({ stages, initialStageId = null }: Props) {
             {isExisting && (
               <label className="mb-4 block">
                 <span className="text-xs text-[#888880]">
-                  Agent name (as on the agent page, e.g. NanoClaw ETC9) — so the host prompt
-                  targets the right agent (no API key in this chat)
+                  Agent name (as on the {COPY.agentPage}, e.g. NanoClaw ETC9) — so the{' '}
+                  {COPY.hostWakePrompt} targets the right agent (no API key in this message)
                 </span>
                 <input
                   type="text"
@@ -677,8 +700,8 @@ export function InviteAgentForm({ stages, initialStageId = null }: Props) {
 
             {isNew && inviteAgentId && !enrolledAgentName && (
               <p className="mb-3 text-xs text-[#888880]">
-                Waiting for the agent to enroll and set a name so this prompt can target the right
-                host group…
+                Waiting for the agent to enroll and set a name so this {COPY.hostWakePrompt} can
+                target the right host group…
               </p>
             )}
 
@@ -702,21 +725,20 @@ export function InviteAgentForm({ stages, initialStageId = null }: Props) {
                   Step 6 — host wake
                 </p>
                 <p className="mt-1 text-sm font-medium text-[#F0EDE8]">
-                  Paste into your host control interface
+                  {COPY.pasteHostWakeTitle}
                 </p>
                 <p className="mt-1 text-xs text-[#888880]">
-                  Copy-paste the following prompt to the interface you use to control your agent(s)
-                  at a host level (NOT the communication channel you use to message with it
-                  directly). For NanoClaw on a VPS: SSH in,{' '}
-                  <span className="font-mono text-[#F0EDE8]">cd ~/nanoclaw-v2</span> (install root —
-                  not the group folder), then run Claude Code and paste there. No API key is
+                  Copy-paste the following {COPY.hostWakePrompt} into your{' '}
+                  {COPY.hostControlInterface} (not {COPY.agentChannel}). For NanoClaw on a VPS: SSH
+                  in, <span className="font-mono text-[#F0EDE8]">cd ~/nanoclaw-v2</span> (install
+                  root — not the group folder), then run Claude Code and paste there. No API key is
                   included — the host tool loads the key already on disk, installs the wake, fixes
                   remote MCP + Bearer so Slack still works, and sends one Slack confirmation.
                   Ongoing stage lines stay on the stage (pulse does not mirror every line to Slack).
                 </p>
               </div>
               {hostWakePrompt ? (
-                <CopyButton text={hostWakePrompt} label="Copy host wake prompt" />
+                <CopyButton text={hostWakePrompt} label={COPY.copyHostWakePrompt} />
               ) : null}
             </div>
             {hostWakePrompt ? (

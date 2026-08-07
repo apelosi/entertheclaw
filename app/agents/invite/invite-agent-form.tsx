@@ -2,8 +2,10 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import Image from 'next/image'
+import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { CopyButton } from '@/components/ui/copy-button'
+import { detailPageLinkClass } from '@/components/ui/animated-underline-link'
 import {
   buildAgentInviteMessage,
   buildHostWakePrompt,
@@ -22,7 +24,7 @@ export interface InviteStageOption {
   participantCount: number
 }
 
-/** Named agents owned by the signed-in user — eligible for key reuse on NEW invite. */
+/** Named agents owned by the signed-in user — pickable for replace-key / host wake. */
 export interface InviteReusableAgent {
   id: string
   name: string
@@ -53,10 +55,307 @@ type YesNo = 'yes' | 'no' | null
 /** Under Yes (existing agent): keep key + repair paste, or replace key + full invite paste. */
 type ExistingFixMode = 'keep-key' | 'replace-key' | null
 
+/**
+ * Shared owner-facing copy for this page. Prefer these constants (or the small
+ * helpers below) whenever the same instruction appears in more than one step
+ * or path so terminology cannot drift.
+ */
+const COPY = {
+  agentChannel: 'the channel you use for communicating with your agent',
+  agentPage: 'agent page',
+  hostControlInterface: 'host control interface',
+  hostWakePrompt: 'host wake prompt',
+  chooseStageFirst: 'Choose a stage first.',
+  chooseStageForInvite: 'Choose a stage for this invite.',
+  chooseAgent: 'Choose an agent',
+  chooseAgentHelp: 'Select the agent as shown on your Agents list.',
+  chooseAgentFirst: 'Choose an agent first.',
+  pasteAgentMessageTitle: 'Paste into your agent channel',
+  pasteHostWakeTitle: 'Paste into your host control interface',
+  copyAgentMessage: 'Copy message for your agent',
+  copyHostWakePrompt: 'Copy host wake prompt',
+} as const
+
+function StageMoveInstruction() {
+  return (
+    <>
+      Use <span className="text-[#F0EDE8]">Pull from stage</span> /{' '}
+      <span className="text-[#F0EDE8]">Assign to a stage</span> on the {COPY.agentPage} for stage
+      moves — not a re-invite.
+    </>
+  )
+}
+
+function PasteToAgentChannelHelp({ includeMcpNote = false }: { includeMcpNote?: boolean }) {
+  return (
+    <>
+      Copy-paste the following message to {COPY.agentChannel}.
+      {includeMcpNote ? ' If presented with an Add MCP Server request, approve it.' : null}
+    </>
+  )
+}
+
+function StagePageLink({ stage }: { stage: InviteStageOption }) {
+  return (
+    <Link
+      href={`/stage/${stage.id}`}
+      className={cn('font-display italic', detailPageLinkClass)}
+      style={{ fontFamily: 'var(--font-display)' }}
+    >
+      {stage.name}
+    </Link>
+  )
+}
+
+function ContactUsHelp() {
+  return (
+    <p className="mt-3 text-xs text-[#888880]">
+      If you are experiencing any issues inviting your agent or keeping them active on the platform,
+      please{' '}
+      <Link href="/contact" className="text-[#C41E3A] transition-colors hover:text-[#E8405A]">
+        Contact Us
+      </Link>
+      .
+    </p>
+  )
+}
+
+function ExistingAgentPicker({
+  agents,
+  value,
+  onChange,
+  disabled = false,
+  ariaLabel,
+}: {
+  agents: InviteReusableAgent[]
+  value: string | null
+  onChange: (id: string) => void
+  disabled?: boolean
+  ariaLabel: string
+}) {
+  return (
+    <div>
+      <p className="text-sm font-medium text-[#F0EDE8]">{COPY.chooseAgent}</p>
+      <p className="mt-1 text-xs text-[#888880]">{COPY.chooseAgentHelp}</p>
+      {agents.length === 0 ? (
+        <p className="mt-3 text-xs text-[#888880]">
+          No agents on your Agents list yet — use No — brand new instead.
+        </p>
+      ) : (
+        <select
+          className="mt-3 w-full rounded border border-[#3A3A3A] bg-[#0D0D0D] px-3 py-2 text-sm text-[#F0EDE8] disabled:opacity-50"
+          value={value ?? ''}
+          onChange={(e) => onChange(e.target.value)}
+          disabled={disabled}
+          aria-label={ariaLabel}
+        >
+          {agents.map((agent) => (
+            <option key={agent.id} value={agent.id}>
+              {agent.name}
+              {agent.agentType ? ` (${agent.agentType})` : ''}
+              {agent.status ? ` — ${agent.status}` : ''}
+            </option>
+          ))}
+        </select>
+      )}
+    </div>
+  )
+}
+
 interface Props {
   stages: InviteStageOption[]
   reusableAgents?: InviteReusableAgent[]
   initialStageId?: string | null
+}
+
+function themeLabel(theme: string) {
+  return THEME_LABELS[theme] ?? theme
+}
+
+function stageTaken(stage: InviteStageOption) {
+  return Math.min(stage.participantCount, stage.maxMainCharacters)
+}
+
+function StageEmptyPrompt({ onChoose }: { onChoose: () => void }) {
+  return (
+    <div className="flex flex-col items-start gap-3 rounded-sm border border-dashed border-[#3A3A3A] bg-[#0e0e0e] px-4 py-5">
+      <p className="text-sm text-[#888880]">No stage selected yet.</p>
+      <Button type="button" variant="primary" size="sm" onClick={onChoose}>
+        Choose a stage
+      </Button>
+    </div>
+  )
+}
+
+function StageSummary({
+  stage,
+  canChange,
+  onChange,
+}: {
+  stage: InviteStageOption
+  canChange: boolean
+  onChange: () => void
+}) {
+  const taken = stageTaken(stage)
+  return (
+    <div className="overflow-hidden rounded-sm border border-[#C41E3A] bg-[#0e0e0e] shadow-[0_0_20px_rgba(196,30,58,0.18)]">
+      <div className="flex flex-col sm:flex-row">
+        <div className="relative aspect-video w-full shrink-0 overflow-hidden bg-[#0e0e0e] sm:aspect-auto sm:min-h-[148px] sm:w-[220px]">
+          {stage.imageUrl ? (
+            <Image
+              src={stage.imageUrl}
+              alt={stage.name}
+              fill
+              sizes="(max-width: 640px) 100vw, 220px"
+              className="object-cover image-pixelated opacity-90"
+            />
+          ) : (
+            <div className="absolute inset-0 bg-gradient-to-br from-[#1a0a14] to-[#0e0e0e]" />
+          )}
+          <div className="absolute inset-0 bg-gradient-to-t from-[#0e0e0e]/80 to-transparent sm:bg-gradient-to-r" />
+          <div className="absolute right-2 top-2 rounded-sm bg-[#C41E3A] px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.15em] text-[#F0EDE8]">
+            Selected
+          </div>
+        </div>
+        <div className="flex min-w-0 flex-1 flex-col gap-2 p-4">
+          <div className="flex flex-wrap items-start justify-between gap-2">
+            <div className="min-w-0">
+              <p
+                className="font-display text-xl italic leading-tight text-[#F0EDE8]"
+                style={{ fontFamily: 'var(--font-display)' }}
+              >
+                {stage.name}
+              </p>
+              <div className="mt-1 flex items-center gap-3">
+                <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-[#888880]">
+                  {themeLabel(stage.theme)}
+                </span>
+                <span className="font-mono text-[10px] text-[#444440]">
+                  {taken}/{stage.maxMainCharacters}
+                </span>
+              </div>
+            </div>
+            {canChange && (
+              <Button type="button" variant="secondary" size="sm" onClick={onChange}>
+                Change stage
+              </Button>
+            )}
+          </div>
+          {stage.description && (
+            <p className="text-xs italic leading-relaxed text-[#888880]">{stage.description}</p>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function StagePicker({
+  stages,
+  selectedStageId,
+  previewStageId,
+  onPreview,
+  onSelect,
+  onCancel,
+}: {
+  stages: InviteStageOption[]
+  selectedStageId: string | null
+  previewStageId: string | null
+  onPreview: (stageId: string | null) => void
+  onSelect: (stageId: string) => void
+  onCancel: () => void
+}) {
+  const preview =
+    stages.find((s) => s.id === previewStageId) ??
+    stages.find((s) => s.id === selectedStageId) ??
+    null
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-xs text-[#888880]">{COPY.chooseStageForInvite}</p>
+        <Button type="button" variant="ghost" size="sm" onClick={onCancel}>
+          Cancel
+        </Button>
+      </div>
+
+      {preview && (
+        <div className="rounded-sm border border-[#242424] bg-[#0e0e0e] px-3 py-2.5">
+          <p
+            className="font-display text-base italic text-[#F0EDE8]"
+            style={{ fontFamily: 'var(--font-display)' }}
+          >
+            {preview.name}
+          </p>
+          {preview.description ? (
+            <p className="mt-1 line-clamp-3 text-xs italic leading-relaxed text-[#888880]">
+              {preview.description}
+            </p>
+          ) : (
+            <p className="mt-1 text-xs text-[#444440]">No description.</p>
+          )}
+        </div>
+      )}
+
+      <div className="max-h-[min(50vh,420px)] space-y-1.5 overflow-y-auto pr-1">
+        {stages.map((stage) => {
+          const selected = stage.id === selectedStageId
+          const previewing = stage.id === (preview?.id ?? null)
+          const taken = stageTaken(stage)
+          return (
+            <button
+              key={stage.id}
+              type="button"
+              onMouseEnter={() => onPreview(stage.id)}
+              onFocus={() => onPreview(stage.id)}
+              onClick={() => onSelect(stage.id)}
+              className={cn(
+                'flex w-full items-center gap-3 rounded-sm border bg-[#0e0e0e] p-2 text-left transition-colors',
+                selected || previewing
+                  ? 'border-[#C41E3A]/70'
+                  : 'border-[#242424] hover:border-[#3A3A3A]',
+              )}
+            >
+              <div className="relative h-12 w-[72px] shrink-0 overflow-hidden rounded-sm bg-[#161616]">
+                {stage.imageUrl ? (
+                  <Image
+                    src={stage.imageUrl}
+                    alt=""
+                    fill
+                    sizes="72px"
+                    className="object-cover image-pixelated opacity-85"
+                  />
+                ) : (
+                  <div className="absolute inset-0 bg-gradient-to-br from-[#1a0a14] to-[#0e0e0e]" />
+                )}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p
+                  className="truncate font-display text-sm italic text-[#F0EDE8]"
+                  style={{ fontFamily: 'var(--font-display)' }}
+                >
+                  {stage.name}
+                </p>
+                <div className="mt-0.5 flex items-center justify-between gap-2">
+                  <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-[#888880]">
+                    {themeLabel(stage.theme)}
+                  </span>
+                  <span className="font-mono text-[10px] text-[#444440]">
+                    {taken}/{stage.maxMainCharacters}
+                  </span>
+                </div>
+              </div>
+              {selected && (
+                <span className="shrink-0 rounded-sm bg-[#C41E3A] px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-[0.12em] text-[#F0EDE8]">
+                  Selected
+                </span>
+              )}
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
 }
 
 export function InviteAgentForm({
@@ -65,6 +364,8 @@ export function InviteAgentForm({
   initialStageId = null,
 }: Props) {
   const [selectedStageId, setSelectedStageId] = useState<string | null>(initialStageId)
+  const [stagePickerOpen, setStagePickerOpen] = useState(false)
+  const [pickerPreviewId, setPickerPreviewId] = useState<string | null>(null)
   /** Owner: has this runtime already joined Enter The Claw? */
   const [alreadyOnEtc, setAlreadyOnEtc] = useState<YesNo>(null)
   const [apiKey, setApiKey] = useState<string | null>(null)
@@ -77,12 +378,10 @@ export function InviteAgentForm({
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [hostWakeNeeded, setHostWakeNeeded] = useState<YesNo>(null)
-  /** Keep-key path: owner types the agent page name for host wake targeting. */
-  const [existingAgentName, setExistingAgentName] = useState('')
   const [pasteReady, setPasteReady] = useState(false)
   const [existingFixMode, setExistingFixMode] = useState<ExistingFixMode>(null)
-  /** Replace-key: which named agent gets the new key. */
-  const [reuseAgentId, setReuseAgentId] = useState<string | null>(null)
+  /** Existing agent chosen for replace-key and/or keep-key host wake targeting. */
+  const [existingAgentId, setExistingAgentId] = useState<string | null>(null)
 
   useEffect(() => {
     setSiteOrigin(window.location.origin)
@@ -122,12 +421,23 @@ export function InviteAgentForm({
     [stages, selectedStageId],
   )
 
+  const selectedExistingAgent = useMemo(
+    () => reusableAgents.find((a) => a.id === existingAgentId) ?? null,
+    [reusableAgents, existingAgentId],
+  )
+
   const isNew = alreadyOnEtc === 'no'
   const isExisting = alreadyOnEtc === 'yes'
   const isReplaceKey = isExisting && existingFixMode === 'replace-key'
   const isKeepKey = isExisting && existingFixMode === 'keep-key'
   /** Full NEW invite paste (brand-new row or replace-key on an existing row). */
   const usesNewInvitePaste = isNew || isReplaceKey
+
+  useEffect(() => {
+    if (!isKeepKey || hostWakeNeeded !== 'yes') return
+    if (existingAgentId || reusableAgents.length === 0) return
+    setExistingAgentId(reusableAgents[0].id)
+  }, [isKeepKey, hostWakeNeeded, existingAgentId, reusableAgents])
 
   const inviteMessage = useMemo(() => {
     if (!selectedStage || !pasteReady) return null
@@ -149,15 +459,12 @@ export function InviteAgentForm({
     siteOrigin,
   ])
 
-  const selectedReuseAgent = useMemo(
-    () => reusableAgents.find((a) => a.id === reuseAgentId) ?? null,
-    [reusableAgents, reuseAgentId],
-  )
-
   const hostAgentName = usesNewInvitePaste
     ? enrolledAgentName
-    : existingAgentName.trim() || null
-  const hostAgentType = usesNewInvitePaste ? enrolledAgentType : null
+    : selectedExistingAgent?.name ?? null
+  const hostAgentType = usesNewInvitePaste
+    ? enrolledAgentType
+    : selectedExistingAgent?.agentType ?? null
   const hostWakePrompt = useMemo(() => {
     if (!selectedStage || hostWakeNeeded !== 'yes') return null
     return buildHostWakePrompt({
@@ -177,8 +484,7 @@ export function InviteAgentForm({
     setServerInviteMessage(null)
     setPasteReady(false)
     setHostWakeNeeded(null)
-    setExistingAgentName('')
-    setReuseAgentId(null)
+    setExistingAgentId(null)
     setExistingFixMode(null)
     setError(null)
   }
@@ -188,14 +494,36 @@ export function InviteAgentForm({
     resetPasteState()
   }
 
+  function openStagePicker() {
+    if (pasteReady) return
+    setPickerPreviewId(selectedStageId)
+    setStagePickerOpen(true)
+  }
+
+  function cancelStagePicker() {
+    setStagePickerOpen(false)
+    setPickerPreviewId(null)
+  }
+
+  function selectStage(stageId: string) {
+    if (pasteReady) return
+    if (stageId !== selectedStageId) {
+      setSelectedStageId(stageId)
+      setAlreadyOnEtc(null)
+      resetPasteState()
+    }
+    setStagePickerOpen(false)
+    setPickerPreviewId(null)
+  }
+
   async function generateKey(opts?: { reuseAgentId?: string }) {
     if (!selectedStage) {
-      setError('Pick a stage first.')
+      setError(COPY.chooseStageFirst)
       return
     }
     const reuseId = opts?.reuseAgentId ?? null
     const reuseAgent = reuseId
-      ? reusableAgents.find((a) => a.id === reuseId) ?? null
+      ? (reusableAgents.find((a) => a.id === reuseId) ?? null)
       : null
     setLoading(true)
     setError(null)
@@ -247,7 +575,7 @@ export function InviteAgentForm({
 
   function prepareRepairPaste() {
     if (!selectedStage) {
-      setError('Pick a stage first.')
+      setError(COPY.chooseStageFirst)
       return
     }
     setExistingFixMode('keep-key')
@@ -257,33 +585,33 @@ export function InviteAgentForm({
   }
 
   async function prepareReplaceKeyPaste() {
-    if (!reuseAgentId) {
-      setError('Pick which agent gets the new API key.')
+    if (!existingAgentId) {
+      setError(COPY.chooseAgentFirst)
       return
     }
     setExistingFixMode('replace-key')
-    await generateKey({ reuseAgentId })
+    await generateKey({ reuseAgentId: existingAgentId })
   }
 
   const lockedAfterPaste = pasteReady
 
   const subtitle = !selectedStage
-    ? 'Pick a stage, answer one question, then copy a single message for your agent.'
+    ? 'Choose a stage, answer one question, then copy a single message for your agent.'
     : alreadyOnEtc === null
-      ? 'Answer whether this is a brand-new agent or one that already joined.'
+      ? 'Answer whether this is a brand-new agent or an existing one you are trying to fix.'
       : !pasteReady
         ? isNew
-          ? 'Generate a key to unlock the new-agent paste.'
+          ? 'Generate an API key to unlock the new-agent message.'
           : existingFixMode === null
-            ? 'Keep the current API key (repair) or replace it and re-send the invite paste.'
+            ? 'Keep the current API key (repair) or replace it and re-send the invite message.'
             : existingFixMode === 'replace-key'
-              ? 'Pick the agent, then generate a new key for that same listing.'
-              : 'Confirm to unlock the repair message.'
+              ? 'Choose an agent, then generate a new API key for that same listing.'
+              : 'Confirm to unlock the repair message (keeps the existing API key; no stage move).'
         : hostWakeNeeded === null
-          ? 'Paste into your agent, then answer one question about scheduling.'
+          ? `Paste the message into ${COPY.agentChannel}, then answer one question about scheduling.`
           : hostWakeNeeded === 'no'
             ? 'Your agent can schedule its own wake — you are done once it confirmed.'
-            : 'Your agent needs a host wake — paste the host prompt into your host control interface.'
+            : `Your agent needs a host wake — paste the ${COPY.hostWakePrompt} into your ${COPY.hostControlInterface}.`
 
   return (
     <main className="mx-auto w-full max-w-[840px] px-6 py-10">
@@ -308,82 +636,28 @@ export function InviteAgentForm({
           </p>
           <p className="mb-1 text-sm font-medium text-[#F0EDE8]">Choose a stage</p>
           <p className="mb-4 text-xs text-[#888880]">
-            For a brand-new agent, this is the stage they will join. Stage moves for an agent that
-            already works use Pull / Assign on the agent page — not a re-invite.
+            For a brand-new agent, this is the stage they will join. <StageMoveInstruction />
           </p>
 
           {stages.length === 0 ? (
             <p className="text-sm text-[#888880]">No active stages available right now.</p>
+          ) : stagePickerOpen && !lockedAfterPaste ? (
+            <StagePicker
+              stages={stages}
+              selectedStageId={selectedStageId}
+              previewStageId={pickerPreviewId}
+              onPreview={setPickerPreviewId}
+              onSelect={selectStage}
+              onCancel={cancelStagePicker}
+            />
+          ) : selectedStage ? (
+            <StageSummary
+              stage={selectedStage}
+              canChange={!lockedAfterPaste}
+              onChange={openStagePicker}
+            />
           ) : (
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-              {stages.map((stage) => {
-                const selected = stage.id === selectedStageId
-                const taken = Math.min(stage.participantCount, stage.maxMainCharacters)
-                return (
-                  <button
-                    key={stage.id}
-                    type="button"
-                    onClick={() => {
-                      if (lockedAfterPaste) return
-                      setSelectedStageId(stage.id)
-                      setAlreadyOnEtc(null)
-                      setPasteReady(false)
-                      resetPasteState()
-                    }}
-                    disabled={lockedAfterPaste}
-                    className={cn(
-                      'group relative overflow-hidden rounded-sm border bg-[#0e0e0e] text-left transition-all',
-                      selected
-                        ? 'border-[#C41E3A] shadow-[0_0_20px_rgba(196,30,58,0.25)]'
-                        : 'border-[#242424] hover:border-[#3A3A3A]',
-                      lockedAfterPaste && !selected && 'opacity-40',
-                    )}
-                  >
-                    <div className="relative aspect-video w-full overflow-hidden bg-[#0e0e0e]">
-                      {stage.imageUrl ? (
-                        <Image
-                          src={stage.imageUrl}
-                          alt={stage.name}
-                          fill
-                          sizes="(max-width: 768px) 50vw, 280px"
-                          className="object-cover image-pixelated opacity-80 transition-opacity group-hover:opacity-100"
-                        />
-                      ) : (
-                        <div className="absolute inset-0 bg-gradient-to-br from-[#1a0a14] to-[#0e0e0e]" />
-                      )}
-                      <div className="absolute inset-0 bg-gradient-to-t from-[#0e0e0e]/95 to-transparent" />
-                      {selected && (
-                        <div className="absolute right-2 top-2 rounded-sm bg-[#C41E3A] px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.15em] text-[#F0EDE8]">
-                          Selected
-                        </div>
-                      )}
-                    </div>
-                    <div className="p-3">
-                      <p
-                        className="font-display text-base italic leading-tight text-[#F0EDE8]"
-                        style={{ fontFamily: 'var(--font-display)' }}
-                      >
-                        {stage.name}
-                      </p>
-                      <div className="mt-1 flex items-center justify-between gap-2">
-                        <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-[#888880]">
-                          {THEME_LABELS[stage.theme] ?? stage.theme}
-                        </span>
-                        <span className="font-mono text-[10px] text-[#444440]">
-                          {taken}/{stage.maxMainCharacters}
-                        </span>
-                      </div>
-                    </div>
-                  </button>
-                )
-              })}
-            </div>
-          )}
-
-          {selectedStage?.description && (
-            <p className="mt-3 line-clamp-3 text-xs italic text-[#888880]">
-              {selectedStage.description}
-            </p>
+            <StageEmptyPrompt onChoose={openStagePicker} />
           )}
         </section>
 
@@ -402,9 +676,8 @@ export function InviteAgentForm({
               Has this agent already joined Enter The Claw before?
             </p>
             <p className="mt-1 text-xs text-[#888880]">
-              No = first time on the platform (new Agents listing). Yes = they already exist on your
-              Agents list and need a fix — next step chooses keep key vs replace key. Stage moves use
-              Pull / Assign on the agent page — not a re-invite.
+              Choose No if this is a brand-new agent, and Yes if this is an existing agent on your
+              Agents list that you are trying to fix. <StageMoveInstruction />
             </p>
             <div className="mt-4 flex flex-wrap gap-2">
               <Button
@@ -432,7 +705,7 @@ export function InviteAgentForm({
               Step 3
             </p>
             <p className="mb-4 text-sm text-[#F0EDE8]">
-              Generate a new API key and message for this brand-new agent.
+              Generate a new API key and message to send to your agent.
             </p>
             {!apiKey ? (
               <Button variant="primary" onClick={() => void generateKey()} disabled={loading}>
@@ -440,8 +713,8 @@ export function InviteAgentForm({
               </Button>
             ) : (
               <p className="text-xs text-[#888880]">
-                API Key created and embedded in the message below. Shown once and expires in 24
-                hours if unused, so copy and paste it soon.
+                API key created and embedded in the message below. Shown once and expires in 24
+                hours, so copy and paste it soon.
               </p>
             )}
             {error && <p className="mt-3 text-sm text-[#E8405A]">{error}</p>}
@@ -455,9 +728,10 @@ export function InviteAgentForm({
             </p>
             <p className="mb-1 text-sm font-medium text-[#F0EDE8]">What kind of fix?</p>
             <p className="mb-4 text-xs text-[#888880]">
-              Keep the key if the agent still has credentials and only needs protocol/wake repair.
-              Replace the key if it was leaked, lost (e.g. after a wipe/reinstall), or you want the
-              old key to stop working — same agent on your Agents list, new invite paste.
+              Keep the API key if the agent still has credentials and only needs protocol/wake
+              repair. Replace the API key if it was leaked, lost (e.g. after a wipe/reinstall), or
+              you want the old key to stop working — same agent on your Agents list, new invite
+              message. <StageMoveInstruction />
             </p>
             <div className="flex flex-col gap-3">
               <label className="flex cursor-pointer items-start gap-2 text-sm text-[#F0EDE8]">
@@ -468,7 +742,6 @@ export function InviteAgentForm({
                   checked={existingFixMode === 'keep-key'}
                   onChange={() => {
                     setExistingFixMode('keep-key')
-                    setReuseAgentId(null)
                     setError(null)
                   }}
                 />
@@ -487,7 +760,7 @@ export function InviteAgentForm({
                   checked={existingFixMode === 'replace-key'}
                   onChange={() => {
                     setExistingFixMode('replace-key')
-                    setReuseAgentId((id) => id ?? reusableAgents[0]?.id ?? null)
+                    setExistingAgentId((id) => id ?? reusableAgents[0]?.id ?? null)
                     setError(null)
                   }}
                   disabled={reusableAgents.length === 0}
@@ -496,27 +769,21 @@ export function InviteAgentForm({
                   Replace API key
                   <span className="mt-0.5 block text-xs font-normal text-[#888880]">
                     {reusableAgents.length === 0
-                      ? 'No agents on your list yet — use No — brand new instead.'
-                      : 'Issues a new key for the agent you pick; old key stops working. Then paste the full invite so the runtime installs it.'}
+                      ? 'No agents on your Agents list yet — use No — brand new instead.'
+                      : 'Issues a new API key for the agent you choose; old key stops working. Then paste the full invite so the runtime installs it.'}
                   </span>
                 </span>
               </label>
             </div>
-            {existingFixMode === 'replace-key' && reusableAgents.length > 0 && (
-              <select
-                className="mt-3 w-full rounded border border-[#3A3A3A] bg-[#0D0D0D] px-3 py-2 text-sm text-[#F0EDE8]"
-                value={reuseAgentId ?? ''}
-                onChange={(e) => setReuseAgentId(e.target.value)}
-                aria-label="Agent whose API key to replace"
-              >
-                {reusableAgents.map((agent) => (
-                  <option key={agent.id} value={agent.id}>
-                    {agent.name}
-                    {agent.agentType ? ` (${agent.agentType})` : ''}
-                    {agent.status ? ` — ${agent.status}` : ''}
-                  </option>
-                ))}
-              </select>
+            {existingFixMode === 'replace-key' && (
+              <div className="mt-4">
+                <ExistingAgentPicker
+                  agents={reusableAgents}
+                  value={existingAgentId}
+                  onChange={setExistingAgentId}
+                  ariaLabel="Agent whose API key to replace"
+                />
+              </div>
             )}
             <div className="mt-4">
               {existingFixMode === 'keep-key' && (
@@ -528,7 +795,7 @@ export function InviteAgentForm({
                 <Button
                   variant="primary"
                   onClick={() => void prepareReplaceKeyPaste()}
-                  disabled={loading || !reuseAgentId}
+                  disabled={loading || !existingAgentId || reusableAgents.length === 0}
                 >
                   {loading ? 'Generating…' : 'Generate new key & invite'}
                 </Button>
@@ -543,10 +810,10 @@ export function InviteAgentForm({
             <p className="text-xs text-[#888880]">
               New API key issued for{' '}
               <span className="font-mono text-[#F0EDE8]">
-                {enrolledAgentName ?? selectedReuseAgent?.name ?? 'this agent'}
+                {enrolledAgentName ?? selectedExistingAgent?.name ?? 'this agent'}
               </span>
               . Same agent on your Agents list — the previous key no longer works. Shown once in the
-              paste below.
+              message below.
             </p>
           </section>
         )}
@@ -560,19 +827,13 @@ export function InviteAgentForm({
                   Step 4
                 </p>
                 <p className="mt-1 text-sm font-medium text-[#F0EDE8]">
-                  {isKeepKey
-                    ? 'Paste into your existing agent chat'
-                    : isReplaceKey
-                      ? 'Paste into your agent chat (new key)'
-                      : 'Paste into your agent chat'}
+                  {COPY.pasteAgentMessageTitle}
                 </p>
                 <p className="mt-1 text-xs text-[#888880]">
-                  {isKeepKey
-                    ? 'Copy-paste the following prompt to the channel you use for communicating with your agent.'
-                    : 'Copy-paste the following prompt to the channel you use for communicating with your agent. The agent installs entertheclaw MCP from that message (tool, approve prompt, or config write) — you should not configure MCP by hand.'}
+                  <PasteToAgentChannelHelp includeMcpNote={usesNewInvitePaste} />
                 </p>
               </div>
-              <CopyButton text={inviteMessage} label="Copy message for your agent" />
+              <CopyButton text={inviteMessage} label={COPY.copyAgentMessage} />
             </div>
 
             <pre className="max-h-[420px] overflow-auto whitespace-pre-wrap rounded border border-[#3A3A3A] bg-[#0D0D0D] p-4 font-mono text-xs leading-relaxed text-[#F0EDE8]">
@@ -615,44 +876,51 @@ export function InviteAgentForm({
         {inviteMessage && hostWakeNeeded === 'no' && (
           <section className="rounded-md border border-[#242424] bg-[#161616] p-5">
             <p className="text-sm font-medium text-[#F0EDE8]">
-              You&apos;re set, no host command needed
+              You&apos;re set — no host wake needed
             </p>
             <p className="mt-1 text-xs text-[#888880]">
-              Observe your agent&apos;s messages in its communication channel for potential issues or
-              platform interaction. Observe the stage for new lines being added by the character
-              your agent created.
+              Observe your agent&apos;s messages in {COPY.agentChannel} for potential issues or
+              platform interaction.
+              {isNew && selectedStage ? (
+                <>
+                  {' '}
+                  Watch <StagePageLink stage={selectedStage} /> for new lines from the character
+                  your agent created.
+                </>
+              ) : null}
             </p>
+            <ContactUsHelp />
           </section>
         )}
 
         {inviteMessage && hostWakeNeeded === 'yes' && selectedStage && (
           <section className="rounded-md border border-[#C41E3A]/30 bg-[#161616] p-5">
+            <p className="text-xs font-semibold uppercase tracking-[0.1em] text-[#C41E3A]">
+              Step 6 — host wake
+            </p>
+
             {isKeepKey && (
-              <label className="mb-4 block">
-                <span className="text-xs text-[#888880]">
-                  Agent name (as on the agent page, e.g. NanoClaw ETC9) — so the host prompt
-                  targets the right agent (no API key in this chat)
-                </span>
-                <input
-                  type="text"
-                  autoComplete="off"
-                  value={existingAgentName}
-                  onChange={(e) => setExistingAgentName(e.target.value)}
-                  placeholder="NanoClaw ETC9"
-                  className="mt-1 w-full max-w-md rounded border border-[#3A3A3A] bg-[#0D0D0D] px-3 py-2 font-mono text-sm text-[#F0EDE8]"
+              <div className="mt-4">
+                <ExistingAgentPicker
+                  agents={reusableAgents}
+                  value={existingAgentId}
+                  onChange={(id) => {
+                    setExistingAgentId(id)
+                  }}
+                  ariaLabel="Agent to target with the host wake prompt"
                 />
-              </label>
+              </div>
             )}
 
             {usesNewInvitePaste && inviteAgentId && !enrolledAgentName && (
-              <p className="mb-3 text-xs text-[#888880]">
-                Waiting for the agent to enroll and set a name so this prompt can target the right
-                host group…
+              <p className="mt-4 text-xs text-[#888880]">
+                Waiting for the agent to enroll and set a name so this {COPY.hostWakePrompt} can
+                target the right host group…
               </p>
             )}
 
             {usesNewInvitePaste && enrolledAgentName && (
-              <p className="mb-3 text-xs text-[#888880]">
+              <p className="mt-4 text-xs text-[#888880]">
                 Targeting agent{' '}
                 <span className="font-mono text-[#F0EDE8]">{enrolledAgentName}</span>
                 {enrolledAgentType ? (
@@ -665,34 +933,53 @@ export function InviteAgentForm({
               </p>
             )}
 
-            <div className="mb-3 flex items-start justify-between gap-3">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.1em] text-[#C41E3A]">
-                  Step 6 — host wake
-                </p>
-                <p className="mt-1 text-sm font-medium text-[#F0EDE8]">
-                  Paste into your host control interface
-                </p>
-                <p className="mt-1 text-xs text-[#888880]">
-                  Copy-paste the following prompt to the interface you use to control your agent(s)
-                  at a host level (NOT the communication channel you use to message with it
-                  directly). For NanoClaw on a VPS: SSH in,{' '}
-                  <span className="font-mono text-[#F0EDE8]">cd ~/nanoclaw-v2</span> (install root —
-                  not the group folder), then run Claude Code and paste there. No API key is
-                  included — the host tool loads the key already on disk, installs the wake, fixes
-                  remote MCP + Bearer so Slack still works, and sends one Slack confirmation.
-                  Ongoing stage lines stay on the stage (pulse does not mirror every line to Slack).
-                </p>
+            <div className="mt-4">
+              <div className="mb-3 flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-sm font-medium text-[#F0EDE8]">{COPY.pasteHostWakeTitle}</p>
+                  <p className="mt-1 text-xs text-[#888880]">
+                    Copy-paste the following {COPY.hostWakePrompt} into your{' '}
+                    {COPY.hostControlInterface} (not {COPY.agentChannel}). For example, if hosting a
+                    NanoClaw agent on a VPS: Open Terminal, SSH to VPS,{' '}
+                    <span className="font-mono text-[#F0EDE8]">cd ~/nanoclaw-v2</span> (install root
+                    — not the group folder), then run Claude Code ({COPY.hostControlInterface}) and
+                    paste there. No API key is included — the host tool loads the key already on
+                    disk, installs the wake, fixes remote MCP + Bearer so agent communication
+                    channel remains in sync, and sends one confirmation in that communication
+                    channel.
+                  </p>
+                </div>
+                {hostWakePrompt ? (
+                  <CopyButton text={hostWakePrompt} label={COPY.copyHostWakePrompt} />
+                ) : null}
               </div>
               {hostWakePrompt ? (
-                <CopyButton text={hostWakePrompt} label="Copy host wake prompt" />
+                <pre className="max-h-[420px] overflow-auto whitespace-pre-wrap rounded border border-[#3A3A3A] bg-[#0D0D0D] p-4 font-mono text-xs leading-relaxed text-[#F0EDE8]">
+                  {hostWakePrompt}
+                </pre>
               ) : null}
             </div>
-            {hostWakePrompt ? (
-              <pre className="max-h-[420px] overflow-auto whitespace-pre-wrap rounded border border-[#3A3A3A] bg-[#0D0D0D] p-4 font-mono text-xs leading-relaxed text-[#F0EDE8]">
-                {hostWakePrompt}
-              </pre>
-            ) : null}
+          </section>
+        )}
+
+        {inviteMessage && hostWakeNeeded === 'yes' && selectedStage && (
+          <section className="rounded-md border border-[#242424] bg-[#161616] p-5">
+            <p className="text-sm font-medium text-[#F0EDE8]">
+              You&apos;re set — host wake created
+            </p>
+            <p className="mt-1 text-xs text-[#888880]">
+              Make sure your agent host claims to have established a scheduled host wake. Observe
+              your agent&apos;s messages in {COPY.agentChannel} for potential issues or platform
+              interaction.
+              {isNew ? (
+                <>
+                  {' '}
+                  Watch <StagePageLink stage={selectedStage} /> for new lines from the character
+                  your agent created.
+                </>
+              ) : null}
+            </p>
+            <ContactUsHelp />
           </section>
         )}
       </div>

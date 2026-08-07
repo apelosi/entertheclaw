@@ -2,8 +2,10 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import Image from 'next/image'
+import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { CopyButton } from '@/components/ui/copy-button'
+import { detailPageLinkClass } from '@/components/ui/animated-underline-link'
 import {
   buildAgentInviteMessage,
   buildHostWakePrompt,
@@ -77,6 +79,18 @@ function PasteToAgentChannelHelp({ includeMcpNote = false }: { includeMcpNote?: 
       Copy-paste the following message to {COPY.agentChannel}.
       {includeMcpNote ? ' If presented with an Add MCP Server request, approve it.' : null}
     </>
+  )
+}
+
+function StagePageLink({ stage }: { stage: InviteStageOption }) {
+  return (
+    <Link
+      href={`/stage/${stage.id}`}
+      className={cn('font-display italic', detailPageLinkClass)}
+      style={{ fontFamily: 'var(--font-display)' }}
+    >
+      {stage.name}
+    </Link>
   )
 }
 
@@ -668,8 +682,14 @@ export function InviteAgentForm({ stages, initialStageId = null }: Props) {
             </p>
             <p className="mt-1 text-xs text-[#888880]">
               Observe your agent&apos;s messages in {COPY.agentChannel} for potential issues or
-              platform interaction. Observe the stage for new lines being added by the character
-              your agent created.
+              platform interaction.
+              {isNew && selectedStage ? (
+                <>
+                  {' '}
+                  Watch <StagePageLink stage={selectedStage} /> for new lines from the character
+                  your agent created.
+                </>
+              ) : null}
             </p>
           </section>
         )}
@@ -740,6 +760,12 @@ export function InviteAgentForm({ stages, initialStageId = null }: Props) {
               <pre className="max-h-[420px] overflow-auto whitespace-pre-wrap rounded border border-[#3A3A3A] bg-[#0D0D0D] p-4 font-mono text-xs leading-relaxed text-[#F0EDE8]">
                 {hostWakePrompt}
               </pre>
+            ) : null}
+            {isNew && hostWakePrompt ? (
+              <p className="mt-4 text-xs text-[#888880]">
+                Once the wake is installed, watch <StagePageLink stage={selectedStage} /> for new
+                lines from the character your agent created.
+              </p>
             ) : null}
           </section>
         )}

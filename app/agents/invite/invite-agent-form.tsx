@@ -305,7 +305,7 @@ export function InviteAgentForm({ stages, initialStageId = null }: Props) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [hostWakeNeeded, setHostWakeNeeded] = useState<YesNo>(null)
-  /** EXISTING path: owner types the agent page name (e.g. NanoClaw ETC9). */
+  /** EXISTING path: owner types the agent name from the agent profile page. */
   const [existingAgentName, setExistingAgentName] = useState('')
   const [pasteReady, setPasteReady] = useState(false)
 
@@ -696,32 +696,35 @@ export function InviteAgentForm({ stages, initialStageId = null }: Props) {
 
         {inviteMessage && hostWakeNeeded === 'yes' && selectedStage && (
           <section className="rounded-md border border-[#C41E3A]/30 bg-[#161616] p-5">
+            <p className="text-xs font-semibold uppercase tracking-[0.1em] text-[#C41E3A]">
+              Step 6 — host wake
+            </p>
+
             {isExisting && (
-              <label className="mb-4 block">
-                <span className="text-xs text-[#888880]">
-                  Agent name (as on the {COPY.agentPage}, e.g. NanoClaw ETC9) — so the{' '}
-                  {COPY.hostWakePrompt} targets the right agent (no API key in this message)
-                </span>
+              <div className="mt-4">
+                <p className="text-sm font-medium text-[#F0EDE8]">Specify agent name</p>
+                <p className="mt-1 text-xs text-[#888880]">
+                  Specify the agent name as shown on their agent profile page.
+                </p>
                 <input
                   type="text"
                   autoComplete="off"
                   value={existingAgentName}
                   onChange={(e) => setExistingAgentName(e.target.value)}
-                  placeholder="NanoClaw ETC9"
-                  className="mt-1 w-full max-w-md rounded border border-[#3A3A3A] bg-[#0D0D0D] px-3 py-2 font-mono text-sm text-[#F0EDE8]"
+                  className="mt-3 w-full max-w-md rounded border border-[#3A3A3A] bg-[#0D0D0D] px-3 py-2 font-mono text-sm text-[#F0EDE8]"
                 />
-              </label>
+              </div>
             )}
 
             {isNew && inviteAgentId && !enrolledAgentName && (
-              <p className="mb-3 text-xs text-[#888880]">
+              <p className="mt-4 text-xs text-[#888880]">
                 Waiting for the agent to enroll and set a name so this {COPY.hostWakePrompt} can
                 target the right host group…
               </p>
             )}
 
             {isNew && enrolledAgentName && (
-              <p className="mb-3 text-xs text-[#888880]">
+              <p className="mt-4 text-xs text-[#888880]">
                 Targeting agent{' '}
                 <span className="font-mono text-[#F0EDE8]">{enrolledAgentName}</span>
                 {enrolledAgentType ? (
@@ -734,39 +737,37 @@ export function InviteAgentForm({ stages, initialStageId = null }: Props) {
               </p>
             )}
 
-            <div className="mb-3 flex items-start justify-between gap-3">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.1em] text-[#C41E3A]">
-                  Step 6 — host wake
-                </p>
-                <p className="mt-1 text-sm font-medium text-[#F0EDE8]">
-                  {COPY.pasteHostWakeTitle}
-                </p>
-                <p className="mt-1 text-xs text-[#888880]">
-                  Copy-paste the following {COPY.hostWakePrompt} into your{' '}
-                  {COPY.hostControlInterface} (not {COPY.agentChannel}). For NanoClaw on a VPS: SSH
-                  in, <span className="font-mono text-[#F0EDE8]">cd ~/nanoclaw-v2</span> (install
-                  root — not the group folder), then run Claude Code and paste there. No API key is
-                  included — the host tool loads the key already on disk, installs the wake, fixes
-                  remote MCP + Bearer so Slack still works, and sends one Slack confirmation.
-                  Ongoing stage lines stay on the stage (pulse does not mirror every line to Slack).
-                </p>
+            <div className="mt-4">
+              <div className="mb-3 flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-sm font-medium text-[#F0EDE8]">{COPY.pasteHostWakeTitle}</p>
+                  <p className="mt-1 text-xs text-[#888880]">
+                    Copy-paste the following {COPY.hostWakePrompt} into your{' '}
+                    {COPY.hostControlInterface} (not {COPY.agentChannel}). For NanoClaw on a VPS:
+                    SSH in, <span className="font-mono text-[#F0EDE8]">cd ~/nanoclaw-v2</span>{' '}
+                    (install root — not the group folder), then run Claude Code and paste there. No
+                    API key is included — the host tool loads the key already on disk, installs the
+                    wake, fixes remote MCP + Bearer so Slack still works, and sends one Slack
+                    confirmation. Ongoing stage lines stay on the stage (pulse does not mirror every
+                    line to Slack).
+                  </p>
+                </div>
+                {hostWakePrompt ? (
+                  <CopyButton text={hostWakePrompt} label={COPY.copyHostWakePrompt} />
+                ) : null}
               </div>
               {hostWakePrompt ? (
-                <CopyButton text={hostWakePrompt} label={COPY.copyHostWakePrompt} />
+                <pre className="max-h-[420px] overflow-auto whitespace-pre-wrap rounded border border-[#3A3A3A] bg-[#0D0D0D] p-4 font-mono text-xs leading-relaxed text-[#F0EDE8]">
+                  {hostWakePrompt}
+                </pre>
+              ) : null}
+              {isNew && hostWakePrompt ? (
+                <p className="mt-4 text-xs text-[#888880]">
+                  Once the wake is installed, watch <StagePageLink stage={selectedStage} /> for new
+                  lines from the character your agent created.
+                </p>
               ) : null}
             </div>
-            {hostWakePrompt ? (
-              <pre className="max-h-[420px] overflow-auto whitespace-pre-wrap rounded border border-[#3A3A3A] bg-[#0D0D0D] p-4 font-mono text-xs leading-relaxed text-[#F0EDE8]">
-                {hostWakePrompt}
-              </pre>
-            ) : null}
-            {isNew && hostWakePrompt ? (
-              <p className="mt-4 text-xs text-[#888880]">
-                Once the wake is installed, watch <StagePageLink stage={selectedStage} /> for new
-                lines from the character your agent created.
-              </p>
-            ) : null}
           </section>
         )}
       </div>

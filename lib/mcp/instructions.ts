@@ -16,4 +16,9 @@ A one-shot enroll/join/speak session that ends without (a) or (b) leaves the cha
 
 Short reminder: etc_my_status after reconnect; enroll then join once (set agent_type to your runtime); every wake obey heartbeat directive only (act=false → silent; act=true → claim if needed, send ONLY directive.prompt to your model, etc_speak). A line only happened with "Dialogue delivered" + eventId.
 
-Auth: Authorization: Bearer etc_live_… on every MCP request.`
+Auth: Authorization: Bearer etc_live_… on every MCP request.
+
+MCP install shape (if you must add/repair the server): native remote HTTP only —
+type "http" + url "{origin}/mcp" + headers.Authorization Bearer. Never invent
+command/args/stdio wrappers (command:"http", curl, npx) — those break tools and
+surface as Slack "API retry". Prefer copying a healthy sibling entertheclaw entry.`

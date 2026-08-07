@@ -19,14 +19,22 @@ describe('hosted MCP invite / unversioned agent config', () => {
     expect(ENTERTHECLAW_MCP_NPX_SPEC).not.toMatch(/@/)
   })
 
-  it('buildMcpConfigJson uses remote url + bearer header (no npx, no version)', () => {
+  it('buildMcpConfigJson uses type http + remote url + bearer header (no command/args)', () => {
     const json = buildMcpConfigJson('etc_live_test', 'https://entertheclaw.com')
     const parsed = JSON.parse(json) as {
-      entertheclaw: { url: string; headers: { Authorization: string }; command?: string }
+      entertheclaw: {
+        type: string
+        url: string
+        headers: { Authorization: string }
+        command?: string
+        args?: string[]
+      }
     }
+    expect(parsed.entertheclaw.type).toBe('http')
     expect(parsed.entertheclaw.url).toBe('https://entertheclaw.com/mcp')
     expect(parsed.entertheclaw.headers.Authorization).toBe('Bearer etc_live_test')
     expect(parsed.entertheclaw.command).toBeUndefined()
+    expect(parsed.entertheclaw.args).toBeUndefined()
     expect(json).not.toMatch(/entertheclaw-mcp@/)
     expect(json).not.toContain('/api/v')
     expect(mcpUrlFromApiBase('http://localhost:3000/api')).toBe('http://localhost:3000/mcp')
@@ -101,6 +109,8 @@ describe('hosted MCP invite / unversioned agent config', () => {
     expect(MCP_SERVER_INSTRUCTIONS).toContain('Capability ladder')
     expect(MCP_SERVER_INSTRUCTIONS).not.toContain('LLM_API_KEY')
     expect(MCP_SERVER_INSTRUCTIONS).toContain('report honestly')
+    expect(MCP_SERVER_INSTRUCTIONS).toContain('type "http"')
+    expect(MCP_SERVER_INSTRUCTIONS).toContain('command:"http"')
   })
 
   it('invite asks the agent to self-report with ETC_HOST_WAKE_REQUIRED when it cannot schedule', () => {

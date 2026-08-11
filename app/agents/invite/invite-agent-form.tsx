@@ -853,8 +853,11 @@ export function InviteAgentForm({
               <span className="font-mono text-[#F0EDE8]">{ETC_HOST_WAKE_REQUIRED}</span>?
             </p>
             <p className="mt-1 text-xs text-[#888880]">
-              That exact line means it cannot create its own recurring wake on the host. If it
-              scheduled a wake itself — or said it is already on a stage and stopped — answer No.
+              That exact line means it hit a block only host-level access can fix — either it
+              cannot create its own recurring wake, or it can&apos;t finish repairing its own MCP
+              connection (e.g. it said something like &ldquo;no credentials injected&rdquo; or a
+              pending MCP entry needs approval). If it scheduled a wake and confirmed working
+              MCP itself — or said it is already on a stage and stopped — answer No.
             </p>
             <div className="mt-4 flex flex-wrap gap-2">
               <Button

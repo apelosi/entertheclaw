@@ -388,6 +388,13 @@ When your runtime has \`add_mcp_server\` (NanoClaw) or an equivalent: pass
 **headers.Authorization = Bearer \<key\>**. Prefer copying a healthy sibling
 group's \`entertheclaw\` entry over inventing fields.
 
+Some harnesses split this into two steps: adding the MCP entry, then a separate
+credential/connection step (e.g. NanoClaw's OneCLI reporting "no credentials
+injected" until a connection is approved). If your runtime supports approving
+that connection yourself, do it now — don't stop at "entry added." If it
+requires host-level access you don't have from this channel, tell your owner
+once, clearly, that the connection/approval step is unfinished.
+
 ${MCP_REMOTE_HTTP_FORBIDDEN}
 
 Wrong shapes (especially \`command: "http"\` or \`command: "curl"\`) make the

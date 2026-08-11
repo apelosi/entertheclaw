@@ -12,6 +12,11 @@ import {
   buildRepairInviteMessage,
   ETC_HOST_WAKE_REQUIRED,
 } from '@/lib/agents/invite-message'
+import {
+  canProceedExistingFix,
+  defaultExistingAgentId,
+  showEarlyExistingAgentPicker,
+} from '@/lib/agents/invite-existing-agent-selection'
 import { cn } from '@/lib/utils'
 
 export interface InviteStageOption {
@@ -380,7 +385,7 @@ export function InviteAgentForm({
   const [hostWakeNeeded, setHostWakeNeeded] = useState<YesNo>(null)
   const [pasteReady, setPasteReady] = useState(false)
   const [existingFixMode, setExistingFixMode] = useState<ExistingFixMode>(null)
-  /** Existing agent chosen for replace-key and/or keep-key host wake targeting. */
+  /** Existing agent chosen early on Yes — reused for Keep/Replace and host wake. */
   const [existingAgentId, setExistingAgentId] = useState<string | null>(null)
 
   useEffect(() => {
@@ -432,12 +437,6 @@ export function InviteAgentForm({
   const isKeepKey = isExisting && existingFixMode === 'keep-key'
   /** Full NEW invite paste (brand-new row or replace-key on an existing row). */
   const usesNewInvitePaste = isNew || isReplaceKey
-
-  useEffect(() => {
-    if (!isKeepKey || hostWakeNeeded !== 'yes') return
-    if (existingAgentId || reusableAgents.length === 0) return
-    setExistingAgentId(reusableAgents[0].id)
-  }, [isKeepKey, hostWakeNeeded, existingAgentId, reusableAgents])
 
   const inviteMessage = useMemo(() => {
     if (!selectedStage || !pasteReady) return null
@@ -492,6 +491,8 @@ export function InviteAgentForm({
   function pickAlreadyOnEtc(answer: 'yes' | 'no') {
     setAlreadyOnEtc(answer)
     resetPasteState()
+    // Early Choose agent: visible as soon as Yes is selected.
+    setExistingAgentId(answer === 'yes' ? defaultExistingAgentId(reusableAgents) : null)
   }
 
   function openStagePicker() {
@@ -578,6 +579,10 @@ export function InviteAgentForm({
       setError(COPY.chooseStageFirst)
       return
     }
+    if (!canProceedExistingFix(existingAgentId)) {
+      setError(COPY.chooseAgentFirst)
+      return
+    }
     setExistingFixMode('keep-key')
     setError(null)
     setPasteReady(true)
@@ -603,9 +608,9 @@ export function InviteAgentForm({
         ? isNew
           ? 'Generate an API key to unlock the new-agent message.'
           : existingFixMode === null
-            ? 'Keep the current API key (repair) or replace it and re-send the invite message.'
+            ? 'Choose which agent to fix, then keep the current API key (repair) or replace it.'
             : existingFixMode === 'replace-key'
-              ? 'Choose an agent, then generate a new API key for that same listing.'
+              ? 'Generate a new API key for the selected agent (same listing; old key stops working).'
               : 'Confirm to unlock the repair message (keeps the existing API key; no stage move).'
         : hostWakeNeeded === null
           ? `Paste the message into ${COPY.agentChannel}, then answer one question about scheduling.`
@@ -721,11 +726,21 @@ export function InviteAgentForm({
           </section>
         )}
 
-        {selectedStage && isExisting && !pasteReady && (
+        {selectedStage &&
+          showEarlyExistingAgentPicker({ alreadyOnEtc, pasteReady }) && (
           <section className="rounded-md border border-[#C41E3A]/30 bg-[#161616] p-5">
             <p className="mb-1 text-xs font-semibold uppercase tracking-[0.1em] text-[#C41E3A]">
               Step 3
             </p>
+            <div className="mb-5">
+              <ExistingAgentPicker
+                agents={reusableAgents}
+                value={existingAgentId}
+                onChange={setExistingAgentId}
+                disabled={lockedAfterPaste}
+                ariaLabel="Existing agent to repair or re-key"
+              />
+            </div>
             <p className="mb-1 text-sm font-medium text-[#F0EDE8]">What kind of fix?</p>
             <p className="mb-4 text-xs text-[#888880]">
               Keep the API key if the agent still has credentials and only needs protocol/wake
@@ -744,6 +759,7 @@ export function InviteAgentForm({
                     setExistingFixMode('keep-key')
                     setError(null)
                   }}
+                  disabled={!canProceedExistingFix(existingAgentId)}
                 />
                 <span>
                   Keep current API key
@@ -760,34 +776,27 @@ export function InviteAgentForm({
                   checked={existingFixMode === 'replace-key'}
                   onChange={() => {
                     setExistingFixMode('replace-key')
-                    setExistingAgentId((id) => id ?? reusableAgents[0]?.id ?? null)
                     setError(null)
                   }}
-                  disabled={reusableAgents.length === 0}
+                  disabled={!canProceedExistingFix(existingAgentId)}
                 />
                 <span>
                   Replace API key
                   <span className="mt-0.5 block text-xs font-normal text-[#888880]">
                     {reusableAgents.length === 0
                       ? 'No agents on your Agents list yet — use No — brand new instead.'
-                      : 'Issues a new API key for the agent you choose; old key stops working. Then paste the full invite so the runtime installs it.'}
+                      : 'Issues a new API key for the selected agent; old key stops working. Then paste the full invite so the runtime installs it.'}
                   </span>
                 </span>
               </label>
             </div>
-            {existingFixMode === 'replace-key' && (
-              <div className="mt-4">
-                <ExistingAgentPicker
-                  agents={reusableAgents}
-                  value={existingAgentId}
-                  onChange={setExistingAgentId}
-                  ariaLabel="Agent whose API key to replace"
-                />
-              </div>
-            )}
             <div className="mt-4">
               {existingFixMode === 'keep-key' && (
-                <Button variant="primary" onClick={prepareRepairPaste}>
+                <Button
+                  variant="primary"
+                  onClick={prepareRepairPaste}
+                  disabled={!canProceedExistingFix(existingAgentId)}
+                >
                   Show repair message
                 </Button>
               )}
@@ -795,7 +804,11 @@ export function InviteAgentForm({
                 <Button
                   variant="primary"
                   onClick={() => void prepareReplaceKeyPaste()}
-                  disabled={loading || !existingAgentId || reusableAgents.length === 0}
+                  disabled={
+                    loading ||
+                    !canProceedExistingFix(existingAgentId) ||
+                    reusableAgents.length === 0
+                  }
                 >
                   {loading ? 'Generating…' : 'Generate new key & invite'}
                 </Button>
@@ -899,17 +912,19 @@ export function InviteAgentForm({
               Step 6 — host wake
             </p>
 
-            {isKeepKey && (
-              <div className="mt-4">
-                <ExistingAgentPicker
-                  agents={reusableAgents}
-                  value={existingAgentId}
-                  onChange={(id) => {
-                    setExistingAgentId(id)
-                  }}
-                  ariaLabel="Agent to target with the host wake prompt"
-                />
-              </div>
+            {isKeepKey && selectedExistingAgent && (
+              <p className="mt-4 text-xs text-[#888880]">
+                Targeting agent{' '}
+                <span className="font-mono text-[#F0EDE8]">{selectedExistingAgent.name}</span>
+                {selectedExistingAgent.agentType ? (
+                  <>
+                    {' '}
+                    (<span className="font-mono text-[#F0EDE8]">{selectedExistingAgent.agentType}</span>
+                    )
+                  </>
+                ) : null}
+                .
+              </p>
             )}
 
             {usesNewInvitePaste && inviteAgentId && !enrolledAgentName && (

@@ -1,19 +1,5 @@
 # Enter The Claw — Project Instructions
 
-## Workflow: Linear issue + PR, upfront not retroactive
-
-Before making any code change (not after): either create a new Linear issue in
-the **Enter the Claw v2** project (team **Vibez Ventures**), or attach to an
-existing not-done issue if one already covers the work. Same for the branch —
-either open a new short-lived feature branch off `main` with a PR, or push
-onto an existing not-yet-merged PR/branch that covers the same work. No
-standing dev branch; PRs always target `main`.
-
-This applies even to small copy/text fixes. If a change turns out to need more
-than initially scoped (e.g. a fix doesn't fully resolve the issue on first
-try), keep using the *same* Linear issue and the *same* PR — update the
-description / push more commits — rather than opening new ones per iteration.
-
 ## Resume work (new chat)
 
 If continuing from a prior session, read **`docs/SESSION-HANDOFF.md`** first, then **`docs/PRD-implementation-gap-plan.md`**. Phase 0–1 shipped (auth at **`/auth`**, `scripts/smoke-agent.sh`, `scripts/loop-agent.ts`, directive heartbeat). **Hosted MCP** is at `{origin}/mcp` (Streamable HTTP / MCP 2026-07-28). Live agent copy: thin invite (credentials + remote MCP) + **`/skill.md`** protocol from `lib/agents/participation-prompt.ts`. Never put package versions or `@latest` in agent-facing copy (`lib/agents/mcp-package-version.ts`). Follow `~/.cursor/skills/global-operating-standards/SKILL.md`.

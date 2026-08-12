@@ -16,6 +16,7 @@ import {
 import { parseArchivedCharacterData } from '@/lib/characters/archived-snapshot'
 import { AgentCharacterPanel } from '@/components/agents/agent-character-panel'
 import { StageAssignmentControls } from '@/components/agents/stage-assignment-controls'
+import { ReinviteAgentControl } from '@/components/agents/reinvite-agent-control'
 import { resolveAgentCurrentStage } from '@/lib/agents/resolve-agent-current-stage'
 import { listStageAssignmentOptions } from '@/lib/stages/available-stages'
 import { StageCardThumbnail } from '@/components/stage/stage-card-thumbnail'
@@ -243,50 +244,60 @@ export default async function AgentDetailPage({ params }: Props) {
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           <div className="space-y-6">
-            <section className="rounded-md border border-[#242424] bg-[#161616] p-5">
-              <h2 className="mb-4 text-xs font-semibold uppercase tracking-[0.1em] text-[#888880]">
-                Details
-              </h2>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-xs text-[#444440]">Status</p>
-                  <p
-                    className={`mt-1 font-mono text-sm uppercase tracking-[0.05em] ${
-                      agent.status === 'active' ? 'text-[#C41E3A]' : 'text-[#888880]'
-                    }`}
-                  >
-                    {agent.status}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs text-[#444440]">Stage membership</p>
-                  <p className="mt-1 text-sm text-[#F0EDE8]">
-                    {currentStage?.stageName ?? 'Not on a stage'}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs text-[#444440]">Agent Type</p>
-                  <p className="mt-1 font-mono text-sm text-[#F0EDE8]">
-                    {agent.agentType ?? 'custom'}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs text-[#444440]">Enrolled</p>
-                  <p className="mt-1 text-sm text-[#888880]">
-                    {agent.enrolledAt
-                      ? new Date(agent.enrolledAt).toLocaleDateString()
-                      : '—'}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs text-[#444440]">Last Heartbeat</p>
-                  <p className="mt-1 text-sm text-[#888880]">
-                    {agent.lastHeartbeatAt
-                      ? new Date(agent.lastHeartbeatAt).toLocaleString()
-                      : 'Never'}
-                  </p>
+            <section className="overflow-hidden rounded-md border border-[#242424] bg-[#161616]">
+              <div className="p-5">
+                <h2 className="mb-4 text-xs font-semibold uppercase tracking-[0.1em] text-[#888880]">
+                  Details
+                </h2>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-xs text-[#444440]">Status</p>
+                    <p
+                      className={`mt-1 font-mono text-sm uppercase tracking-[0.05em] ${
+                        agent.status === 'active' ? 'text-[#C41E3A]' : 'text-[#888880]'
+                      }`}
+                    >
+                      {agent.status}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-[#444440]">Stage membership</p>
+                    <p className="mt-1 text-sm text-[#F0EDE8]">
+                      {currentStage?.stageName ?? 'Not on a stage'}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-[#444440]">Agent Type</p>
+                    <p className="mt-1 font-mono text-sm text-[#F0EDE8]">
+                      {agent.agentType ?? 'custom'}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-[#444440]">Enrolled</p>
+                    <p className="mt-1 text-sm text-[#888880]">
+                      {agent.enrolledAt
+                        ? new Date(agent.enrolledAt).toLocaleDateString()
+                        : '—'}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-[#444440]">Last Heartbeat</p>
+                    <p className="mt-1 text-sm text-[#888880]">
+                      {agent.lastHeartbeatAt
+                        ? new Date(agent.lastHeartbeatAt).toLocaleString()
+                        : 'Never'}
+                    </p>
+                  </div>
                 </div>
               </div>
+              <ReinviteAgentControl
+                agentId={agent.id}
+                ownerUserId={agent.userId}
+                serverIsOwner={isOwner}
+                currentStageId={currentStage?.stageId ?? null}
+                agentStatus={agent.status}
+                className="border-t border-[#242424] px-5 py-4"
+              />
             </section>
 
             <section className="overflow-hidden rounded-md border border-[#242424] bg-[#161616]">

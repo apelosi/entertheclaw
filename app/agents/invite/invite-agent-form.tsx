@@ -171,6 +171,12 @@ interface Props {
   stages: InviteStageOption[]
   reusableAgents?: InviteReusableAgent[]
   initialStageId?: string | null
+  /** Deep-link: Yes — existing agent */
+  initialAlreadyOnEtc?: YesNo
+  /** Deep-link: pre-selected reusable agent id */
+  initialExistingAgentId?: string | null
+  /** Deep-link: keep-key | replace-key */
+  initialExistingFixMode?: ExistingFixMode
 }
 
 function themeLabel(theme: string) {
@@ -367,12 +373,15 @@ export function InviteAgentForm({
   stages,
   reusableAgents = [],
   initialStageId = null,
+  initialAlreadyOnEtc = null,
+  initialExistingAgentId = null,
+  initialExistingFixMode = null,
 }: Props) {
   const [selectedStageId, setSelectedStageId] = useState<string | null>(initialStageId)
   const [stagePickerOpen, setStagePickerOpen] = useState(false)
   const [pickerPreviewId, setPickerPreviewId] = useState<string | null>(null)
   /** Owner: has this runtime already joined Enter The Claw? */
-  const [alreadyOnEtc, setAlreadyOnEtc] = useState<YesNo>(null)
+  const [alreadyOnEtc, setAlreadyOnEtc] = useState<YesNo>(initialAlreadyOnEtc)
   const [apiKey, setApiKey] = useState<string | null>(null)
   /** Agent row from POST /agents/keys (brand-new or replace-key). */
   const [inviteAgentId, setInviteAgentId] = useState<string | null>(null)
@@ -384,9 +393,20 @@ export function InviteAgentForm({
   const [error, setError] = useState<string | null>(null)
   const [hostWakeNeeded, setHostWakeNeeded] = useState<YesNo>(null)
   const [pasteReady, setPasteReady] = useState(false)
-  const [existingFixMode, setExistingFixMode] = useState<ExistingFixMode>(null)
+  const [existingFixMode, setExistingFixMode] = useState<ExistingFixMode>(
+    initialAlreadyOnEtc === 'yes' ? initialExistingFixMode : null,
+  )
   /** Existing agent chosen early on Yes — reused for Keep/Replace and host wake. */
-  const [existingAgentId, setExistingAgentId] = useState<string | null>(null)
+  const [existingAgentId, setExistingAgentId] = useState<string | null>(() => {
+    if (initialAlreadyOnEtc !== 'yes') return null
+    if (
+      initialExistingAgentId &&
+      reusableAgents.some((a) => a.id === initialExistingAgentId)
+    ) {
+      return initialExistingAgentId
+    }
+    return defaultExistingAgentId(reusableAgents)
+  })
 
   useEffect(() => {
     setSiteOrigin(window.location.origin)

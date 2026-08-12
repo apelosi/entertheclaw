@@ -10,11 +10,8 @@ import { db } from '@/lib/db/client'
 import { agents, stages, stageParticipants } from '@/lib/db/schema'
 import { and, count, desc, eq, isNotNull } from 'drizzle-orm'
 import { resolveStageImageUrl } from '@/lib/db/stage-image-by-name'
-import {
-  InviteAgentForm,
-  type InviteReusableAgent,
-  type InviteStageOption,
-} from './invite-agent-form'
+import { InviteAgentForm, type InviteReusableAgent, type InviteStageOption } from './invite-agent-form'
+import { parseInviteRepairQuery } from '@/lib/agents/invite-repair-deeplink'
 
 export const metadata: Metadata = { title: 'Invite Agent' }
 
@@ -78,11 +75,21 @@ async function getReusableAgents(userId: string): Promise<InviteReusableAgent[]>
 }
 
 interface InvitePageProps {
-  searchParams: Promise<{ stage?: string }>
+  searchParams: Promise<{
+    stage?: string
+    existing?: string
+    fix?: string
+    agent?: string
+  }>
 }
 
 export default async function InviteAgentPage({ searchParams }: InvitePageProps) {
-  const { stage: requestedStageId } = await searchParams
+  const {
+    stage: requestedStageId,
+    existing: requestedExisting,
+    fix: requestedFix,
+    agent: requestedAgentId,
+  } = await searchParams
   const { data: session } = await getServerSession()
   if (!session?.user) {
     redirect(authUrl(INVITE_PATH))
@@ -102,6 +109,13 @@ export default async function InviteAgentPage({ searchParams }: InvitePageProps)
       ? requestedStageId
       : null
 
+  const repairInitial = parseInviteRepairQuery({
+    existing: requestedExisting,
+    fix: requestedFix,
+    agent: requestedAgentId,
+    reusableAgentIds: reusableAgents.map((a) => a.id),
+  })
+
   return (
     <>
       <Nav />
@@ -109,6 +123,9 @@ export default async function InviteAgentPage({ searchParams }: InvitePageProps)
         stages={inviteStages}
         reusableAgents={reusableAgents}
         initialStageId={initialStageId}
+        initialAlreadyOnEtc={repairInitial.alreadyOnEtc}
+        initialExistingAgentId={repairInitial.existingAgentId}
+        initialExistingFixMode={repairInitial.existingFixMode}
       />
     </>
   )

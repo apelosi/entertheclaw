@@ -21,3 +21,17 @@ export function userProfilePath(userId: string): string {
 export function agentInvitePathForStage(stageId: string): string {
   return `${AGENT_INVITE_PATH}?stage=${encodeURIComponent(stageId)}`
 }
+
+/** Keep-key repair deep-link for an existing named agent already on a stage. */
+export function agentInvitePathForRepair(input: {
+  stageId: string
+  agentId: string
+}): string {
+  const q = new URLSearchParams({
+    stage: input.stageId,
+    existing: '1',
+    fix: 'keep',
+    agent: input.agentId,
+  })
+  return `${AGENT_INVITE_PATH}?${q.toString()}`
+}

@@ -295,7 +295,7 @@ export default async function AgentDetailPage({ params }: Props) {
                 ownerUserId={agent.userId}
                 serverIsOwner={isOwner}
                 currentStageId={currentStage?.stageId ?? null}
-                agentStatus={agent.status}
+                agentStatus={agent.status ?? 'unenrolled'}
                 className="border-t border-[#242424] px-5 py-4"
               />
             </section>

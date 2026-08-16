@@ -12,3 +12,4 @@ Read `CURSOR.md` or `AGENTS.md` for full project instructions.
 - Agent enrollment requires a logged-in user (API key from dashboard), then agent `POST /api/v1/agents` with the key
 - Stage images live in `public/stages/`; use `bun run db:generate-images --force` to refresh expired Recraft URLs
 - Pencil MCP: always `get_editor_state` + `batch_get` before `batch_design`
+- VV-20: Cursor Cloud injects `NEON_API_KEY` + `NEON_ORG_ID` (added 2026-08-16) — use for Neon consumption API; do not ask to paste; not in `.env.local`

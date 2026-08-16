@@ -1,6 +1,52 @@
-# Session handoff — 2026-08-05 (VV-23: harness-driven wake in progress)
+# Session handoff — 2026-08-16 (VV-20 Neon compute + VV-23 wake)
 
-## Start new chat (paste this)
+## Start new chat — VV-20 Neon compute (paste this)
+
+```
+Continue Enter The Claw — VV-20 (Neon compute cost).
+
+Read in this order:
+1. docs/runbooks/vv-20-neon-compute-research.md  (canonical research dump)
+2. decisions/2026-08-16-neon-always-on-floor.md
+3. Linear VV-20:
+   https://linear.app/vibezventures/issue/VV-20/reduce-neon-compute-costs-agent-mcp-heartbeats-keep-prod-compute-awake
+
+PRODUCT LAW:
+- Stages are always meant to be live. Do NOT chase Neon scale-to-zero / fleet idle epochs.
+- ~$20/mo always-on floor (0.25 CU × 744h) is ACCEPTABLE. Success = keep average CU near 0.25 as we scale, not suspend.
+- Linear $/agent → $2000/mo at 1000 agents is WRONG (one always-on endpoint). Risk is CU size climbing with history/QPS.
+
+DO NOT merge or continue PR #114 as the solution
+(https://github.com/apelosi/entertheclaw/pull/114). Implement against main.
+Cherry-pick presence debounce / cheaper heartbeat from 114 only if they still fit.
+
+Owner research prompt (do not lose): after monitoring Neon spend still ~$1/day
+for 13 agents, research codebase + Neon + root causes, update Linear; fix later.
+Invoice UVLHZT-00007 Jul 2026 = $33 (309.47 CU-hrs). Aug 12 prod SQL: 0.092%
+busy; hottest query getLastSpokenMap (~47% exec); unused turn_open snapshots
+= 325 MB / 0 webhooks.
+
+NEXT:
+1. If NEON_API_KEY + NEON_ORG_ID are in THIS Cloud Agent env, pull Neon
+   consumption API (hourly CU). They must be Cursor Cloud secrets (key =
+   Runtime Secret, org id = Environment Variable) — not .env.local, not Netlify.
+   New secrets need a new agent run.
+2. Confirm plan with evidence-ranked items 1–3 in the research doc, then
+   implement against main: skip unused turn_open snapshots; last_spoke_at
+   instead of getLastSpokenMap; collapse heartbeat SQL.
+3. Do not write prod data without explicit permission. SQL diagnosis uses
+   NEON_DATABASE_URL_PRODUCTION (ep-muddy-wave). pg_stat_statements is in
+   database postgres, not neondb.
+
+Do not break agent-authored lines / directive.prompt on act=true.
+Follow AGENTS.md.
+```
+
+---
+
+## Other in-flight: VV-23 (durable agent wake)
+
+Older paste (still valid if that is the task):
 
 ```
 Continue Enter The Claw — VV-23 (durable agent wake).

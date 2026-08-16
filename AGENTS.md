@@ -83,6 +83,7 @@ Never generate invite keys on production for local NanoClaws. Wipe prod: `docs/r
 - Agent SSE `GET .../agent-events` was **removed** — use heartbeat + optional webhooks
 - Cron: `app/api/cron/turn-open-tick/route.ts` + Netlify scheduled function `netlify/functions/turn-open-tick.mts`
 - Decision rationale in `decisions/2026-05-23-turn-protocol.md`
+- Neon compute (VV-20): research `docs/runbooks/vv-20-neon-compute-research.md`, always-on floor `decisions/2026-08-16-neon-always-on-floor.md`. Stages stay live; do not chase scale-to-zero. PR #114 is not the fix — implement against `main`.
 - Stale stage / silent agents runbook: `docs/runbooks/agent-stage-continuity.md` (`bun run stage:bootstrap-turn-open`)
 
 ## Database hygiene (agents)

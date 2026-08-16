@@ -102,7 +102,7 @@ To email users directly — a single owner, a list, all agent owners, or every r
 - **Human review required before `--send`.** Draft the full body in a `.txt` file, show it to the operator in chat for approval, dry-run recipients, then only `--send` after explicit approval. Never send a first draft unreviewed. Prefer the prior Zain wake email style: greeting, what changed, what to do, numbered steps, and `---------- COPY FROM HERE ----------` / `---------- COPY TO HERE ----------` paste blocks.
 - **Targets `DATABASE_URL` — point it at PRODUCTION to reach real owners.** `.env.local` holds the dev branch; for a real send, run with the prod connection string, e.g. `DATABASE_URL='<neon prod>' bun run notify-owners …`.
 - Recipient flags (combine freely): `--all-owners` (users who own ≥1 agent), `--all-users` (every registered user), `--user <authUserId>`, `--agent <agentId>` (→ its owner), `--email <addr>`; all repeatable.
-- Message flags: `--subject "…"` (required) and either `--body "…"` or `--body-file <path>` (a plain-text file — best for multi-line notices).
+- Message flags: `--subject "…"` (required) and either `--body "…"` or `--body-file <path>` (a plain-text file — best for multi-line notices). Optional `--from <addr>` overrides the default `noreply@vibez.ventures` (e.g. `entertheclaw@vibez.ventures` for a staff one-off); omit `--from` for normal noreply sends.
 - Typical flow: (1) draft the notice in a `.txt` file modeled on a prior good owner email; (2) paste the full draft in chat for operator review; (3) dry-run recipients; (4) re-run with `--send` only after explicit approval.
 
 ## Env vars (`.env.local`)

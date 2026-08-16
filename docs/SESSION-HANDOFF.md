@@ -26,15 +26,20 @@ Invoice UVLHZT-00007 Jul 2026 = $33 (309.47 CU-hrs). Aug 12 prod SQL: 0.092%
 busy; hottest query getLastSpokenMap (~47% exec); unused turn_open snapshots
 = 325 MB / 0 webhooks.
 
+SECRETS (owner added 2026-08-16 — USE them, do not ask to paste):
+- NEON_API_KEY = Cursor Cloud Runtime Secret
+- NEON_ORG_ID = Cursor Cloud Environment Variable
+They are injected as process.env on NEW Cloud Agent runs. Not .env.local.
+Not needed in the Next.js app. Also have NEON_DATABASE_URL_PRODUCTION.
+
 NEXT:
-1. If NEON_API_KEY + NEON_ORG_ID are in THIS Cloud Agent env, pull Neon
-   consumption API (hourly CU). They must be Cursor Cloud secrets (key =
-   Runtime Secret, org id = Environment Variable) — not .env.local, not Netlify.
-   New secrets need a new agent run.
+1. On this new run, confirm NEON_API_KEY + NEON_ORG_ID are set, then pull
+   Neon consumption API (hourly CU) as the before-fix baseline.
 2. Confirm plan with evidence-ranked items 1–3 in the research doc, then
    implement against main: skip unused turn_open snapshots; last_spoke_at
    instead of getLastSpokenMap; collapse heartbeat SQL.
-3. Do not write prod data without explicit permission. SQL diagnosis uses
+3. After deploy, re-pull consumption API — success = average CU near 0.25.
+4. Do not write prod data without explicit permission. SQL diagnosis uses
    NEON_DATABASE_URL_PRODUCTION (ep-muddy-wave). pg_stat_statements is in
    database postgres, not neondb.
 

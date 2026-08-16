@@ -36,3 +36,5 @@ Evidence-ranked, against **`main`**, not PR 114:
 1. Skip `turn_open` snapshot persist unless a webhook target exists.
 2. Replace `getLastSpokenMap` with maintained `last_spoke_at`.
 3. Collapse heartbeat SQL (+ optional presence debounce cherry-pick from 114).
+
+**Measure with Cursor Cloud secrets** (owner added 2026-08-16): `NEON_API_KEY` (Runtime Secret) + `NEON_ORG_ID` (Environment Variable) on **new** agent runs. Pull consumption CU-hrs before and after deploy. Do not ask the owner to paste keys.

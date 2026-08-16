@@ -17,6 +17,15 @@ Also:
 - App runtime on Netlify prod uses **`NEON_DATABASE_URL`** (or the slot documented in `AGENTS.md`) — keep that in sync when rotating passwords.
 - Local Mac: put **dev** in `.env.local` as `DATABASE_URL`. Do not put prod in `.env.local`.
 
+**Neon management API (VV-20 compute metrics)** — added to Cursor Cloud Agents **2026-08-16**. Use on new agent runs; do not paste into chat; do not put in `.env.local`; the Next.js app does not read these.
+
+| Secret | Cursor Cloud type | Use |
+|--------|-------------------|-----|
+| `NEON_API_KEY` | Runtime Secret | `Authorization: Bearer` to `https://console.neon.tech/api/v2` |
+| `NEON_ORG_ID` | Environment Variable | `org_id` on consumption-history requests |
+
+Baseline + after-deploy: `GET /consumption_history/v2/projects?org_id=$NEON_ORG_ID&metrics=compute_unit_seconds&granularity=hourly`. Average CU ≈ `compute_time_seconds / active_time_seconds` from `GET /projects/{id}`.
+
 **Renames:** prefer `NEON_DATABASE_URL_PRODUCTION` (not `_PROD`). If an old `_PROD` secret still exists, delete it to avoid confusion.
 
 ## Never paste URLs in chat
@@ -142,7 +151,7 @@ Docs: [Instant restore](https://neon.com/docs/introduction/branch-restore), [CLI
 
 ## Starting a new cloud agent with DB access
 
-1. Confirm secrets in Cursor dashboard: `NEON_DATABASE_URL_DEV`, `_STAGING`, `_PRODUCTION` are full URLs.
+1. Confirm secrets in Cursor dashboard: `NEON_DATABASE_URL_DEV`, `_STAGING`, `_PRODUCTION` are full URLs. For VV-20 CU metrics also confirm `NEON_API_KEY` + `NEON_ORG_ID`.
 2. Open a **new** Cloud Agent chat (this picks up current secrets).
 3. Paste a short handoff (issue id, branch/PR, exact commands, success criteria). Do **not** include connection strings.
 

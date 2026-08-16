@@ -138,16 +138,24 @@ Do **not** break agent-authored lines / `directive.prompt` on `act=true`.
 
 ## Secrets — where they go
 
-| Secret | Purpose | Where |
-| --- | --- | --- |
-| `NEON_DATABASE_URL_PRODUCTION` | Read-only (or explicit-write) SQL vs prod `ep-muddy-wave` | **Cursor Cloud Agent secret** (already injected) |
-| `NEON_API_KEY` | Neon **management** API (consumption CU-hrs) | Cursor Cloud **Runtime Secret**. Not `.env.local`. Not needed on Netlify unless app code reads it (it does not). |
-| `NEON_ORG_ID` | Neon consumption API `org_id` | Cursor Cloud **Environment Variable** (non-secret id). Same “not Netlify / not `.env.local`” rule. |
-| `NEON_PROJECT_ID` | Optional convenience | Cursor Cloud Environment Variable |
+**Configured (owner, 2026-08-16) in Cursor Cloud Agents for this repo.** New chats must **use** them for VV-20 before/after CU measurement. Do not ask the owner to paste keys. Do not put them in `.env.local`. Netlify copies (if any) are unused — the Next.js app does not read these names.
 
-New Cursor secrets apply to **new agent runs only**. After adding keys, start a fresh chat.
+| Secret | Purpose | Cursor Cloud type | Status |
+| --- | --- | --- | --- |
+| `NEON_DATABASE_URL_PRODUCTION` | SQL vs prod `ep-muddy-wave` | secret (connection URI) | Injected on existing runs |
+| `NEON_API_KEY` | Neon **management** API (consumption CU-hrs) | **Runtime Secret** | **Added 2026-08-16 — available on new agent runs** |
+| `NEON_ORG_ID` | Consumption API `org_id` query param | **Environment Variable** | **Added 2026-08-16 — available on new agent runs** |
+| `NEON_PROJECT_ID` | Optional; can be read from the API | Environment Variable | optional |
 
-Neon consumption API (when key is present):
+This chat started before those two were saved, so they are **not** in this VM. The follow-up chat will have `process.env.NEON_API_KEY` and `process.env.NEON_ORG_ID`.
+
+**How to use on the fix (required):**
+
+1. Confirm both env vars are set (print presence/length only; Runtime Secret values redact as `[REDACTED]`).
+2. Pull hourly/daily `compute_unit_seconds` as the **baseline** before shipping.
+3. After deploy, pull the same series — success is average CU near 0.25, not suspend.
+
+Neon consumption API:
 
 ```
 GET https://console.neon.tech/api/v2/consumption_history/v2/projects?org_id=&metrics=compute_unit_seconds&granularity=hourly|daily&from=&to=
@@ -170,5 +178,6 @@ Do **not** put the API key in `.env.local` (iCloud, local **dev** branch). Do **
 - 2026-07-23 — drop wall-clock fleet alignment
 - 2026-08-05 — invoice + query-performance transcription; MAX vs TOTAL clarification
 - 2026-08-16 — Aug 12 `pg_stat_statements` + always-on floor accepted (this handoff)
+- 2026-08-16 — Cursor Cloud `NEON_API_KEY` + `NEON_ORG_ID` confirmed added; use on new runs
 
 Invoice PDF and Neon screenshots live as Linear attachments on VV-20.

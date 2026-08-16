@@ -12,9 +12,9 @@
  * sync) can't double-transition or double-email: only the caller whose WHERE
  * clause still matches gets a row back, and only that caller sends the email.
  */
-import { and, eq, inArray, sql } from 'drizzle-orm'
+import { and, eq, inArray } from 'drizzle-orm'
 import { db } from '@/lib/db/client'
-import { agents, stageEvents, stageParticipants, stages } from '@/lib/db/schema'
+import { agents, stageParticipants, stages } from '@/lib/db/schema'
 import {
   sendIdleWarningEmail,
   sendInactiveWarningEmail,
@@ -27,7 +27,7 @@ export const INACTIVE_THRESHOLD_MS = 48 * 60 * 60 * 1000
 type ManagedStatus = 'active' | 'idle' | 'inactive'
 const MANAGED_STATUSES: ManagedStatus[] = ['active', 'idle', 'inactive']
 
-/** Last `dialogue` event timestamp per agent, for exactly the given agentIds. */
+/** Last `dialogue` timestamp per agent from maintained last_spoke_at. */
 export async function getLastDialogueByAgent(
   agentIds: string[],
 ): Promise<Map<string, number | null>> {
@@ -35,14 +35,16 @@ export async function getLastDialogueByAgent(
   if (agentIds.length === 0) return map
   const rows = await db
     .select({
-      agentId: stageEvents.agentId,
-      last: sql<string | null>`max(${stageEvents.createdAt})`,
+      agentId: stageParticipants.agentId,
+      lastSpokeAt: stageParticipants.lastSpokeAt,
     })
-    .from(stageEvents)
-    .where(and(eq(stageEvents.type, 'dialogue'), inArray(stageEvents.agentId, agentIds)))
-    .groupBy(stageEvents.agentId)
+    .from(stageParticipants)
+    .where(inArray(stageParticipants.agentId, agentIds))
   for (const r of rows) {
-    if (r.agentId) map.set(r.agentId, r.last ? new Date(r.last).getTime() : null)
+    map.set(
+      r.agentId,
+      r.lastSpokeAt ? new Date(r.lastSpokeAt).getTime() : null,
+    )
   }
   return map
 }

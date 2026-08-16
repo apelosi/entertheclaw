@@ -1,6 +1,7 @@
 import { db } from '@/lib/db/client'
 import { stageEvents, stageParticipants } from '@/lib/db/schema'
-import { and, desc, eq, gte, max } from 'drizzle-orm'
+import { lastSpokenMapFromRows } from '@/lib/stage/last-spoke'
+import { and, desc, eq, gte } from 'drizzle-orm'
 
 // Tunable protocol constants. See docs/agents/turn-protocol.md.
 export const COLLECTION_WINDOW_MS = 1000
@@ -34,12 +35,55 @@ export interface GrantContent {
   expiresAt: string
 }
 
+export interface GrantScanEvent {
+  type: string
+  agentId: string | null
+  createdAt: Date | string | null
+  content: unknown
+}
+
+function eventTimeMs(createdAt: Date | string | null | undefined): number {
+  if (!createdAt) return 0
+  if (createdAt instanceof Date) return createdAt.getTime()
+  const ms = new Date(createdAt).getTime()
+  return Number.isNaN(ms) ? 0 : ms
+}
+
+/**
+ * Pure grant scan over already-loaded events (newest-first or any order).
+ * A grant is live if it is the latest turn_grant, expiresAt is in the future,
+ * and no dialogue from the granted agent occurred after the grant.
+ */
+export function findActiveGrantFromEvents(
+  rows: GrantScanEvent[],
+  nowMs: number = Date.now(),
+): ActiveGrant | null {
+  const lookbackMs = nowMs - GRANT_TTL_MS - 5000
+  const inWindow = rows.filter((r) => eventTimeMs(r.createdAt) >= lookbackMs)
+  const lastGrant = [...inWindow].sort(
+    (a, b) => eventTimeMs(b.createdAt) - eventTimeMs(a.createdAt),
+  ).find((r) => r.type === 'turn_grant')
+  if (!lastGrant) return null
+
+  const c = lastGrant.content as GrantContent | null
+  if (!c) return null
+  const expires = new Date(c.expiresAt).getTime()
+  if (Number.isNaN(expires) || expires <= nowMs) return null
+
+  const grantTimeMs = eventTimeMs(lastGrant.createdAt)
+  const consumed = inWindow.some(
+    (r) =>
+      r.type === 'dialogue' &&
+      r.agentId === c.agentId &&
+      eventTimeMs(r.createdAt) > grantTimeMs,
+  )
+  if (consumed) return null
+
+  return c
+}
+
 /**
  * Look at recent stage events and decide if a turn_grant is currently live.
- * A grant is live if:
- *  - it is the latest turn_grant within the look-back window
- *  - its expiresAt is in the future
- *  - no dialogue from the granted agent occurred AFTER the grant (consumed)
  */
 export async function getActiveGrant(stageId: string): Promise<ActiveGrant | null> {
   const lookback = new Date(Date.now() - GRANT_TTL_MS - 5000)
@@ -55,46 +99,24 @@ export async function getActiveGrant(stageId: string): Promise<ActiveGrant | nul
     .orderBy(desc(stageEvents.createdAt))
     .limit(50)
 
-  const lastGrant = rows.find((r) => r.type === 'turn_grant')
-  if (!lastGrant) return null
-
-  const c = lastGrant.content as GrantContent | null
-  if (!c) return null
-  const expires = new Date(c.expiresAt).getTime()
-  if (Number.isNaN(expires) || expires <= Date.now()) return null
-
-  const grantTimeMs = lastGrant.createdAt?.getTime() ?? 0
-  const consumed = rows.some(
-    (r) =>
-      r.type === 'dialogue' &&
-      r.agentId === c.agentId &&
-      (r.createdAt?.getTime() ?? 0) > grantTimeMs,
-  )
-  if (consumed) return null
-
-  return c
+  return findActiveGrantFromEvents(rows)
 }
 
 /**
- * Compute "last spoken at" per agent on this stage.
+ * Compute "last spoken at" per agent on this stage from maintained
+ * stage_participants.last_spoke_at (updated on dialogue insert).
  * Used as the LRU tiebreak when claims tie on stake.
  */
 export async function getLastSpokenMap(stageId: string): Promise<Map<string, number>> {
   const rows = await db
     .select({
-      agentId: stageEvents.agentId,
-      lastAt: max(stageEvents.createdAt),
+      agentId: stageParticipants.agentId,
+      lastSpokeAt: stageParticipants.lastSpokeAt,
     })
-    .from(stageEvents)
-    .where(and(eq(stageEvents.stageId, stageId), eq(stageEvents.type, 'dialogue')))
-    .groupBy(stageEvents.agentId)
+    .from(stageParticipants)
+    .where(eq(stageParticipants.stageId, stageId))
 
-  const map = new Map<string, number>()
-  for (const r of rows) {
-    if (!r.agentId) continue
-    map.set(r.agentId, r.lastAt ? new Date(r.lastAt).getTime() : 0)
-  }
-  return map
+  return lastSpokenMapFromRows(rows)
 }
 
 interface ClaimRow {
@@ -131,6 +153,20 @@ export function pickClaimWinner<T extends ClaimRow>(
  * AND has at least 2 participants whose lastActiveAt is within ACTIVE_PARTICIPANT_MS.
  * Otherwise idle.
  */
+export function classifyStageActivityFromSignals(opts: {
+  hasRecentActivity: boolean
+  activeParticipantCount: number
+}): 'active' | 'idle' {
+  if (!opts.hasRecentActivity) return 'idle'
+  if (opts.activeParticipantCount < 2) return 'idle'
+  return 'active'
+}
+
+/**
+ * Active = has a dialogue/twist event within ACTIVE_RECENT_EVENT_MS
+ * AND has at least 2 participants whose lastActiveAt is within ACTIVE_PARTICIPANT_MS.
+ * Otherwise idle.
+ */
 export async function classifyStageActivity(stageId: string): Promise<'active' | 'idle'> {
   const recentCutoff = new Date(Date.now() - ACTIVE_RECENT_EVENT_MS)
   const recentRows = await db
@@ -153,8 +189,10 @@ export async function classifyStageActivity(stageId: string): Promise<'active' |
         gte(stageParticipants.lastActiveAt, activeCutoff),
       ),
     )
-  if (activeParts.length < 2) return 'idle'
-  return 'active'
+  return classifyStageActivityFromSignals({
+    hasRecentActivity: true,
+    activeParticipantCount: activeParts.length,
+  })
 }
 
 /**

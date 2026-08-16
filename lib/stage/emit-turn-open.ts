@@ -17,11 +17,8 @@ import {
   getActiveGrant,
   getLastDialogueAt,
 } from './turn-state'
-import {
-  buildTurnOpenSnapshot,
-  type TurnOpenSnapshot,
-} from './build-turn-open-snapshot'
 import { deliverTurnWebhooks } from './deliver-turn-webhooks'
+import type { TurnOpenSnapshot } from './build-turn-open-snapshot'
 
 export const TURN_OPEN_DEDUPE_MS = 3_000
 /** Re-ping if no dialogue within this window after turn_open or turn_grant. */
@@ -37,8 +34,8 @@ export const AWAITING_RESPONSE_MS = 60_000
 export const SAFETY_NET_MAX_SILENCE_MS = 60 * 60 * 1000
 
 /**
- * Why a `turn_open` was emitted. Diagnostic only — agents act on the
- * snapshot regardless of reason.
+ * Why a `turn_open` was emitted. Diagnostic only — agents act on live
+ * heartbeat / GET /context, not the persisted event blob.
  */
 export type TurnOpenReason = 'dialogue' | 'twist' | 'safety_net' | 'wake'
 
@@ -47,7 +44,11 @@ export interface TurnOpenContent {
   emittedAt: string
   causedByEventId?: string
   sceneChanged?: boolean
-  snapshot: TurnOpenSnapshot
+  /**
+   * Built only for webhook delivery. Not persisted on the event row
+   * (VV-20: unused snapshots were ~325 MB / 0 webhooks).
+   */
+  snapshot?: TurnOpenSnapshot
 }
 
 export interface EmitTurnOpenOptions {
@@ -97,11 +98,9 @@ export async function emitTurnOpen(
     }
   }
 
-  const snapshot = await buildTurnOpenSnapshot(stageId)
   const content: TurnOpenContent = {
     reason: opts.reason,
     emittedAt: new Date().toISOString(),
-    snapshot,
     ...(opts.causedByEventId ? { causedByEventId: opts.causedByEventId } : {}),
     ...(opts.sceneChanged !== undefined
       ? { sceneChanged: opts.sceneChanged }

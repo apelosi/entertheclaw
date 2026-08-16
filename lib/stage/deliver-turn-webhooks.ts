@@ -8,6 +8,7 @@ import { agents, stageParticipants } from '@/lib/db/schema'
 import { and, eq, isNotNull } from 'drizzle-orm'
 import type { TurnOpenContent } from './emit-turn-open'
 import type { GrantContent } from './turn-state'
+import { buildTurnOpenSnapshot } from './build-turn-open-snapshot'
 
 const WEBHOOK_TIMEOUT_MS = 8_000
 
@@ -94,7 +95,15 @@ export function deliverTurnWebhooks(
   void (async () => {
     const targets = await loadWebhookTargets(stageId)
     if (targets.length === 0) return
-    const body = JSON.stringify(payload)
+    let outbound = payload
+    if (payload.type === 'turn_open') {
+      const snapshot = await buildTurnOpenSnapshot(stageId)
+      outbound = {
+        ...payload,
+        content: { ...(payload.content as TurnOpenContent), snapshot },
+      }
+    }
+    const body = JSON.stringify(outbound)
     await Promise.allSettled(targets.map((t) => postWebhook(t, body)))
   })()
 }

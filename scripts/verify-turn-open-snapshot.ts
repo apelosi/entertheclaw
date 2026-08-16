@@ -394,6 +394,11 @@ async function main() {
     const dialogueOpen = afterDialogue[0]
     const dialogueSnap = snapshotOf(dialogueOpen)
     check(
+      'stored turn_open has no snapshot blob (VV-20: persist slim; /context rebuilds)',
+      dialogueSnap?.snapshot === undefined,
+      dialogueSnap?.snapshot,
+    )
+    check(
       'turn_open.reason is dialogue',
       dialogueSnap?.reason === 'dialogue',
       dialogueSnap?.reason,
@@ -402,20 +407,6 @@ async function main() {
       'turn_open.causedByEventId matches dialogue eventId',
       dialogueSnap?.causedByEventId === dialogueEventId,
       { causedBy: dialogueSnap?.causedByEventId, dialogueEventId },
-    )
-    check(
-      'snapshot.recentDialogue includes the just-posted line',
-      (dialogueSnap?.snapshot.recentDialogue ?? []).some(
-        (d) => d.eventId === dialogueEventId,
-      ),
-      dialogueSnap?.snapshot.recentDialogue,
-    )
-    check(
-      'snapshot.characters includes both A and B (joined before this emit)',
-      (dialogueSnap?.snapshot.characters ?? []).length === 2 &&
-        (dialogueSnap?.snapshot.characters ?? []).some((c) => c.agentId === agentA.id) &&
-        (dialogueSnap?.snapshot.characters ?? []).some((c) => c.agentId === agentB.id),
-      dialogueSnap?.snapshot.characters,
     )
 
     // ── 3. Dedupe blocks back-to-back emits within 3s ──────────────────
@@ -587,9 +578,9 @@ async function main() {
       twistSnap?.reason,
     )
     check(
-      'snapshot.characters still includes both agents',
-      (twistSnap?.snapshot.characters ?? []).length === 2,
-      twistSnap?.snapshot.characters,
+      'stored twist turn_open has no snapshot blob',
+      twistSnap?.snapshot === undefined,
+      twistSnap?.snapshot,
     )
 
     // ── 9. Snapshot builder direct invariants ──────────────────────────

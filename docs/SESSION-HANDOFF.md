@@ -1,4 +1,39 @@
-# Session handoff — 2026-08-05 (VV-23: harness-driven wake in progress)
+# Session handoff — 2026-08-16 (VV-20 hot-path SQL)
+
+## Start new chat (paste this)
+
+```
+Continue Enter The Claw — VV-20 (Neon compute cost).
+
+Read docs/runbooks/vv-20-neon-compute-research.md, then
+decisions/2026-08-16-neon-always-on-floor.md, then Linear VV-20.
+
+Hot-path SQL is on branch cursor/vv-20-hot-path-cu-bcc9 (not PR #114).
+Baseline (Neon consumption API, 2026-08-16 14:00Z): entertheclaw project
+raspy-rice-33938606 last 168h avg CU = 0.500 (84.064 CU-hrs). Success =
+avg CU near 0.25 after deploy, not scale-to-zero.
+
+NEXT: merge + migrate 0018 on prod (Netlify), then re-pull consumption
+hourly CU. Do not write prod data without permission. Do not merge #114.
+```
+
+---
+
+## VV-20 (2026-08-16)
+
+Owner accepted ~$20/mo 0.25 CU always-on floor. Implemented against `main`:
+
+1. Slim `turn_open` persist (snapshot only for webhooks + `/context`)
+2. `last_spoke_at` on `stage_participants` (migration `0018_past_wild_child`)
+3. Collapsed heartbeat SQL + 2-min presence debounce
+
+PR #114 idle-fast-path (empty prompt) was not cherry-picked.
+
+After merge: apply migration, re-measure CU. Item 4 (prune old protocol events) is still open.
+
+---
+
+# Previous handoff — 2026-08-05 (VV-23: harness-driven wake in progress)
 
 ## Start new chat (paste this)
 

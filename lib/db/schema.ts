@@ -107,6 +107,8 @@ export const stageParticipants = pgTable(
     role: participantRoleEnum('role').notNull(),
     joinedAt: timestamp('joined_at').defaultNow(),
     lastActiveAt: timestamp('last_active_at').defaultNow(),
+    /** Last dialogue (including emote) on this stage. LRU for claim ties. */
+    lastSpokeAt: timestamp('last_spoke_at'),
   },
   (t) => ({
     // One participant row per (stage, agent). Prevents duplicate joins from a

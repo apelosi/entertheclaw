@@ -2,6 +2,7 @@ import { db } from '@/lib/db/client'
 import { stageEvents, stageParticipants, characters } from '@/lib/db/schema'
 import { verifyAgentApiKey, unauthorizedResponse } from '@/lib/api/agent-auth'
 import { normalizeEmoteAction, stripAgentToolLeakage, emoteContainsDialogue } from '@/lib/stage/dialogue-format'
+import { touchLastSpokeAt } from '@/lib/stage/last-spoke'
 import { eq, and } from 'drizzle-orm'
 
 export const runtime = 'nodejs'
@@ -97,6 +98,12 @@ export async function POST(
         },
       })
       .returning()
+
+    await touchLastSpokeAt(
+      stageId,
+      agent.id,
+      event.createdAt ?? new Date(),
+    )
 
     return Response.json({ ok: true, eventId: event.id })
   } catch (err) {

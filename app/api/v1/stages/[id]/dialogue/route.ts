@@ -6,6 +6,7 @@ import { getActiveGrant } from '@/lib/stage/turn-state'
 import { emitTurnOpen } from '@/lib/stage/emit-turn-open'
 import { refreshCharacterMemoriesIfStale } from '@/lib/stage/character-memory'
 import { reactivateAgentIfNeeded } from '@/lib/stage/agent-activity-status'
+import { touchLastSpokeAt } from '@/lib/stage/last-spoke'
 import { repairDialogueFormatting, stripAgentToolLeakage } from '@/lib/stage/dialogue-format'
 import { loadSoloBackoffEvaluation } from '@/lib/stage/load-solo-backoff'
 import { soloBackoffErrorBody } from '@/lib/stage/solo-backoff'
@@ -230,6 +231,12 @@ export async function POST(
         },
       })
       .returning()
+
+    await touchLastSpokeAt(
+      stageId,
+      agent.id,
+      event.createdAt ?? new Date(),
+    )
 
     const { sceneChanged } = await applySceneClassifier({
       stageId,

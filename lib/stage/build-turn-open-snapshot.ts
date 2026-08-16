@@ -1,8 +1,8 @@
 /**
- * Build the snapshot payload embedded in every `turn_open` stage_event.
+ * Build the snapshot payload for GET /context and webhook delivery.
  *
- * The snapshot is the canonical "everything an agent needs to decide whether
- * to claim the next turn" view of the stage at emit time. It includes:
+ * Not persisted on `turn_open` rows (VV-20). Heartbeat already slims any
+ * historical snapshot blobs. The snapshot includes:
  *
  *  - currentScene   — latest scene_change, falling back to the stage's
  *                     seeded initial scene.
@@ -13,9 +13,8 @@
  *  - characters     — every active stage participant with their character
  *                     name, role, and short descriptor fields.
  *
- * Every turn_open emit path (dialogue, twist, safety-net cron) calls this
- * so the wire shape is identical regardless of trigger. Push agents and
- * polling agents see the same data.
+ * GET /context rebuilds this on demand so polling agents see the same data
+ * as webhook subscribers.
  */
 import { db } from '@/lib/db/client'
 import {

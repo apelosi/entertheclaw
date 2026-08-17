@@ -1,4 +1,34 @@
-# Session handoff — 2026-08-16 (VV-20 hot-path SQL)
+# Session handoff — 2026-08-17 (VV-20: 0.25 CU live; snapshots stripped)
+
+## Start new chat (paste this)
+
+```
+Continue Enter The Claw — VV-20.
+
+Read decisions/2026-08-17-vv-20-hot-path-did-not-move-cu.md, then
+docs/runbooks/vv-20-neon-compute-research.md, then Linear VV-20.
+
+Owner approved strip + fixed 0.25 CU. Done 2026-08-17 ~10:31Z:
+- 102,628 historical turn_open snapshots stripped (dialogue rows untouched)
+- VACUUM (ANALYZE) stage_events: TOAST 417MB → 5.5MB; neondb 220MB
+- PATCH ep-muddy-wave-ao62fing min=max=0.25 (restarted). LFC 607MB.
+
+NEXT: re-pull Neon consumption. First complete hour after 11:00Z should
+be ~900 CU-sec (0.25), not 1800. If a later hour is 1800 again, investigate
+before changing max CU. Rollback = PATCH max=8.
+
+Do not merge PR #114. Do not shave more heartbeat SQL for the bill.
+```
+
+---
+
+## What happened
+
+Owner accepted ~$20/mo 0.25 CU always-on floor. Items 1–3 shipped; billed CU stayed 0.500. Owner then approved strip + fixed 0.25 CU (2026-08-17 10:31Z). Compute is now min=max=0.25; historical `turn_open` snapshots gone; dialogue rows intact. Confirm next complete CU hour ≈ 900 CU-sec.
+
+---
+
+# Previous handoff — 2026-08-16 (VV-20 hot-path SQL)
 
 ## Start new chat (paste this)
 

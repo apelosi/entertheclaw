@@ -1,4 +1,41 @@
-# Session handoff — 2026-08-16 (VV-20 hot-path SQL)
+# Session handoff — 2026-08-17 (VV-20: SQL shipped, CU did not move)
+
+## Start new chat (paste this)
+
+```
+Continue Enter The Claw — VV-20. Do not treat the hot-path SQL PR as the fix.
+
+Read decisions/2026-08-17-vv-20-hot-path-did-not-move-cu.md first,
+then docs/runbooks/vv-20-neon-compute-research.md, then Linear VV-20.
+
+PR #148 + migrate 0018 + #149 are live. Billed CU is still 0.500 every
+complete hour (1800 CU-sec). Success = 900 CU-sec/hour (0.25 CU), not
+faster SQL.
+
+NEXT (needs explicit owner permission before either):
+1. PATCH ep-muddy-wave-ao62fing autoscaling min=max=0.25, then re-pull
+   Neon consumption for 24h. Rollback = min 0.25 / max 8.
+2. Dry-run then --yes: bun run db:strip-turn-open-snapshots --
+   --database-url="$NEON_DATABASE_URL_PRODUCTION"
+   Do not VACUUM FULL. Re-measure working set + CU.
+
+Do not merge PR #114. Do not write prod without permission.
+Do not shave more heartbeat SQL expecting the bill to move.
+```
+
+---
+
+## What happened
+
+Owner accepted ~$20/mo 0.25 CU always-on floor. We shipped items 1–3 against `main` (not PR #114), marked VV-20 Done on merge, then watched CU for ~11h.
+
+**SQL improved. The bill did not.** Every complete hour is still exactly 0.5 CU. The hypothesis “cut hot queries → autoscaler steps down to 0.25” was wrong: Neon bills allocated size × awake time; CPU was already ~0; size is pinned at 0.5 CU (`neon.file_cache_size_limit` = 1461 MB). Historical snapshots (364 MB) were never stripped, so working set is still ~470 MB.
+
+Keep this chat if it is still open — the next steps are permission-gated ops, not another SQL PR.
+
+---
+
+# Previous handoff — 2026-08-16 (VV-20 hot-path SQL)
 
 ## Start new chat (paste this)
 

@@ -1,8 +1,8 @@
 # VV-20 — Neon compute research (canonical)
 
 **Issue:** [VV-20](https://linear.app/vibezventures/issue/VV-20/reduce-neon-compute-costs-agent-mcp-heartbeats-keep-prod-compute-awake)
-**Status:** research complete; owner accepted always-on floor; hot-path SQL shipped on `cursor/vv-20-hot-path-cu-bcc9` (do not merge PR #114).
-**Product decision:** `decisions/2026-08-16-neon-always-on-floor.md`
+**Status:** hot-path SQL is live; **billed CU did not move** (still 0.500). VV-20 is **not done**. Retrospective: `decisions/2026-08-17-vv-20-hot-path-did-not-move-cu.md`. Do not merge PR #114.
+**Product decision:** `decisions/2026-08-16-neon-always-on-floor.md` (0.25 floor still the *goal*; 0.5 is what we are actually paying).
 
 This file is the durable dump of the Jul–Aug 2026 investigation so a new chat can continue without the original thread.
 
@@ -126,15 +126,17 @@ Hosted MCP (`GET|POST /mcp`) does **not** by itself change Neon query shape. Age
 
 ## Ranked next work (evidence order)
 
-Success metric with the accepted floor: **keep average CU near 0.25** as agents/stages grow. Not “get Neon to suspend.”
+Items **1–3 shipped** (PR #148 + migrate 0018 + #149 publish). They improved SQL. They **did not** change billed CU. Do not repeat them as a cost plan.
 
-1. **Stop building/persisting `turn_open` snapshots** unless a webhook target exists. Skip `buildTurnOpenSnapshot` in `emitTurnOpen` when no webhooks. Optionally strip historical `content.snapshot` (325 MB). Heartbeat already slims; `/context` rebuilds.
-2. **Replace `getLastSpokenMap`** with a maintained `last_spoke_at` (e.g. on `stage_participants`) updated on dialogue insert — kills the growth curve on every claim.
-3. **Collapse heartbeat** from ~14 round-trips to 1–2 SQL (plus presence debounce from 114 if still useful).
-4. Prune/archive old protocol events (`turn_open` / `claim` / `grant`).
-5. Optional later: presence/liveness off Postgres **only if** the $20 floor becomes unacceptable (owner said it is acceptable).
+Success metric: hourly `compute_unit_seconds` ≈ **900** (0.25 CU), not 1800. Not “get Neon to suspend.” Not “queries got faster.”
 
-Do **not** break agent-authored lines / `directive.prompt` on `act=true`.
+**Do this next (stop at first success):**
+
+1. **Force 0.25 CU on prod** (`ep-muddy-wave-ao62fing`): PATCH autoscaling min = max = 0.25. Restarts the endpoint. Needs explicit owner permission. Rollback: min 0.25 / max 8. Measure CU for 24h.
+2. **Strip historical `turn_open` snapshots** (`bun run db:strip-turn-open-snapshots`, dry-run default). ~102k fat rows / ~364 MB content / 417 MB TOAST still in `stage_events`. Needs explicit owner permission for `--yes`. Re-measure working set + CU. No `VACUUM FULL` on the live table unless a later pass requires it.
+3. **If still 0.5 after 1+2:** accept 0.5 CU as the observed always-on class (~$40/mo) or revisit presence-off-Postgres. Do not shave more heartbeat SQL expecting the bill to move.
+
+Do **not** break agent-authored lines / `directive.prompt` on `act=true`. Do **not** merge PR #114.
 
 ## Implementation (2026-08-16 follow-up)
 
@@ -159,6 +161,30 @@ Against `main` (not PR #114). Idle fast-path that emptied `directive.prompt` was
 
 Success after deploy: average CU near **0.25** (floor), not suspend. Re-pull the same endpoint; do not write prod data from the agent.
 
+### After publish — CU did not move (2026-08-17 02:41Z)
+
+App + 0018 were live from **2026-08-16T15:09:56Z** (Netlify publish of `91a6cc5`, which includes #148). Consumption API, project `raspy-rice-33938606`:
+
+| Window | avg CU |
+| --- | --- |
+| 24h before publish | **0.507** |
+| 10 complete hours after (16:00Z–02:00Z 17th) | **0.500** (every hour **1800** CU-sec) |
+
+Endpoint `ep-muddy-wave-ao62fing`: autoscaling min **0.25** / max **8**, `current_state=active` since **2026-08-05**. `neon.file_cache_size_limit` = **1461 MB** → allocated **0.5 CU**, not 0.25.
+
+SQL *did* change (read-only 2026-08-17):
+
+| Signal | After publish |
+| --- | --- |
+| New `turn_open` content | **150 B** avg (1080 rows); old fat rows **3716 B** avg (102,627) |
+| `turn_open` content still on disk | **364 MB** / **103,706** rows |
+| `stage_events` | **595 MB** total, **417 MB** TOAST; `neondb` **604 MB** |
+| Working set (compute-wide HLL) | **470 MB** (1 min) / **472 MB** (1 h) |
+| New heartbeat | `json_build_object` 4309 calls, **0.92 ms** |
+| New LRU | `last_spoke_at` 1090 calls, **0.02 ms** |
+
+**Failed hypothesis:** less SQL → autoscaler steps from 0.5 → 0.25. Neon `goalCU = max(cpu, mem, LFC working set)`. CPU was already ~0; billed size is allocated CU, not query count. Full write-up: `decisions/2026-08-17-vv-20-hot-path-did-not-move-cu.md`.
+
 ## Secrets — where they go
 
 **Configured (owner, 2026-08-16) in Cursor Cloud Agents for this repo.** New chats must **use** them for VV-20 before/after CU measurement. Do not ask the owner to paste keys. Do not put them in `.env.local`. Netlify copies (if any) are unused — the Next.js app does not read these names.
@@ -170,7 +196,7 @@ Success after deploy: average CU near **0.25** (floor), not suspend. Re-pull the
 | `NEON_ORG_ID` | Consumption API `org_id` query param | **Environment Variable** | **Added 2026-08-16 — available on new agent runs** |
 | `NEON_PROJECT_ID` | Optional; can be read from the API | Environment Variable | optional |
 
-This chat started before those two were saved, so they are **not** in this VM. The follow-up chat will have `process.env.NEON_API_KEY` and `process.env.NEON_ORG_ID`.
+Both secrets are injected on current Cloud Agent runs (`NEON_API_KEY` length 69 confirmed 2026-08-17). Print presence/length only.
 
 **How to use on the fix (required):**
 
@@ -202,5 +228,7 @@ Do **not** put the API key in `.env.local` (iCloud, local **dev** branch). Do **
 - 2026-08-05 — invoice + query-performance transcription; MAX vs TOTAL clarification
 - 2026-08-16 — Aug 12 `pg_stat_statements` + always-on floor accepted (this handoff)
 - 2026-08-16 — Cursor Cloud `NEON_API_KEY` + `NEON_ORG_ID` confirmed added; use on new runs
+- 2026-08-16 — PR #148 hot-path SQL; 0018 applied on prod; #149 unblocked Netlify publish
+- 2026-08-17 — after-publish CU still 0.500; retrospective + new plan (force 0.25 CU, then strip snapshots)
 
 Invoice PDF and Neon screenshots live as Linear attachments on VV-20.

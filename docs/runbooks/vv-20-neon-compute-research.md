@@ -1,8 +1,8 @@
 # VV-20 — Neon compute research (canonical)
 
 **Issue:** [VV-20](https://linear.app/vibezventures/issue/VV-20/reduce-neon-compute-costs-agent-mcp-heartbeats-keep-prod-compute-awake)
-**Status:** hot-path SQL is live; **billed CU did not move** (still 0.500). VV-20 is **not done**. Retrospective: `decisions/2026-08-17-vv-20-hot-path-did-not-move-cu.md`. Do not merge PR #114.
-**Product decision:** `decisions/2026-08-16-neon-always-on-floor.md` (0.25 floor still the *goal*; 0.5 is what we are actually paying).
+**Status:** owner approved ops 2026-08-17. Historical `turn_open` snapshots stripped (102,628 rows); `VACUUM (ANALYZE)` reclaimed TOAST 417 MB → 5.5 MB; prod compute **fixed at 0.25 CU** (`ep-muddy-wave-ao62fing` min=max=0.25, restarted 10:31Z). LFC limit **607 MB** (was 1461 MB). First complete billed hour at 0.25 still pending (confirm ~900 CU-sec). Retrospective: `decisions/2026-08-17-vv-20-hot-path-did-not-move-cu.md`. Do not merge PR #114.
+**Product decision:** `decisions/2026-08-16-neon-always-on-floor.md` (0.25 always-on floor is now the configured compute size).
 
 This file is the durable dump of the Jul–Aug 2026 investigation so a new chat can continue without the original thread.
 
@@ -130,11 +130,11 @@ Items **1–3 shipped** (PR #148 + migrate 0018 + #149 publish). They improved S
 
 Success metric: hourly `compute_unit_seconds` ≈ **900** (0.25 CU), not 1800. Not “get Neon to suspend.” Not “queries got faster.”
 
-**Do this next (stop at first success):**
+**Done 2026-08-17 (owner yes on both):**
 
-1. **Force 0.25 CU on prod** (`ep-muddy-wave-ao62fing`): PATCH autoscaling min = max = 0.25. Restarts the endpoint. Needs explicit owner permission. Rollback: min 0.25 / max 8. Measure CU for 24h.
-2. **Strip historical `turn_open` snapshots** (`bun run db:strip-turn-open-snapshots`, dry-run default). ~102k fat rows / ~364 MB content / 417 MB TOAST still in `stage_events`. Needs explicit owner permission for `--yes`. Re-measure working set + CU. No `VACUUM FULL` on the live table unless a later pass requires it.
-3. **If still 0.5 after 1+2:** accept 0.5 CU as the observed always-on class (~$40/mo) or revisit presence-off-Postgres. Do not shave more heartbeat SQL expecting the bill to move.
+1. Stripped 102,628 historical `turn_open` `content.snapshot` keys. Dialogue / scene / twist / character rows untouched. `VACUUM (ANALYZE)` (not FULL) dropped `stage_events` TOAST **417 MB → 5.5 MB**; `neondb` **631 MB → 220 MB**.
+2. PATCH `ep-muddy-wave-ao62fing` min = max = **0.25**. Restart 2026-08-17T10:31:26Z. Live GUC: `neon.file_cache_size_limit=607MB`, `max_connections=112` (was 1461 MB / 901). Working set ~166 MB vs 607 MB cache. Dialogue continued through the restart.
+3. Confirm the **next complete consumption hour** is ~900 CU-sec (0.25). Rollback if needed: PATCH max back to 8.
 
 Do **not** break agent-authored lines / `directive.prompt` on `act=true`. Do **not** merge PR #114.
 
@@ -230,5 +230,6 @@ Do **not** put the API key in `.env.local` (iCloud, local **dev** branch). Do **
 - 2026-08-16 — Cursor Cloud `NEON_API_KEY` + `NEON_ORG_ID` confirmed added; use on new runs
 - 2026-08-16 — PR #148 hot-path SQL; 0018 applied on prod; #149 unblocked Netlify publish
 - 2026-08-17 — after-publish CU still 0.500; retrospective + new plan (force 0.25 CU, then strip snapshots)
+- 2026-08-17 — owner yes: stripped 102,628 snapshots; VACUUM ANALYZE; PATCH min=max=0.25 live
 
 Invoice PDF and Neon screenshots live as Linear attachments on VV-20.

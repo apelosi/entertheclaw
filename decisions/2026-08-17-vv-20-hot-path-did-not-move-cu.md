@@ -90,16 +90,28 @@ The $13/mo is **0.5 CU vs 0.25 CU while always awake**. Moving that number requi
 ## Trade-offs accepted
 
 - Do not run another “optimize hot SQL and hope CU drops” cycle.
-- Do not PATCH the production endpoint or UPDATE `stage_events` without explicit owner permission.
+- Prod snapshot strip + fixed 0.25 CU were applied 2026-08-17 after explicit owner yes.
 - Keep PR #114 unmerged.
-- Reopen VV-20 until average CU is near 0.25 **or** the owner accepts 0.5 CU as the floor.
+- Confirm the next complete consumption hour is ~900 CU-sec before marking VV-20 done.
 
-## Next plan (ordered, stop at first success)
+## Execution (2026-08-17, owner yes on 1 and 2)
 
-Success = Neon hourly `compute_unit_seconds` ≈ **900**/hour (0.25 CU), not 1800. Re-pull the same consumption API. Do not mark Done on merge.
+Order: **strip first**, then PATCH 0.25 — so the smaller working set is what the restarted 0.25 CU cache has to hold.
 
-1. **Ops (highest chance to move the bill):** PATCH `ep-muddy-wave-ao62fing` to **min CU = max CU = 0.25** (fixed 0.25). Restarts compute. Watch dialogue latency + CU for 24h. Rollback = restore min 0.25 / max 8.
-2. **Data:** `bun run db:strip-turn-open-snapshots -- --database-url=…` (dry-run default; `--yes` only after permission). Removes `content.snapshot` from historical `turn_open` (~102k rows / ~364 MB). Re-measure working set pages and CU-hrs. No `VACUUM FULL` unless a later pass needs it (locks the live table).
-3. **If still 0.5 after 1+2:** treat 0.5 CU as the observed always-on class for this dataset; update the $20 floor decision; stop spending engineering on CU-hr theater. Optional later: archive old `turn_claim`/`turn_grant`, stop selecting fat `content` on protocol reads, presence off Postgres only if the new floor is unacceptable.
+Quality: stripping `content.snapshot` on `turn_open` does **not** delete dialogue, scene, twist, character bible, or `characterMemory`. Heartbeat `directive.prompt` and `GET /context` rebuild from those live rows. 0 webhook subscribers. Stages kept posting dialogue through the compute restart.
+
+| After | Value |
+| --- | --- |
+| Fat `turn_open` remaining | **0** / 104,440 |
+| `turn_open` content bytes | 381 MB → **13 MB** |
+| `stage_events` TOAST after `VACUUM (ANALYZE)` | 417 MB → **5.5 MB** |
+| `neondb` size | 631 MB → **220 MB** |
+| Compute | min=max=**0.25**, restarted 10:31:26Z |
+| `neon.file_cache_size_limit` | 1461 MB → **607 MB** |
+| `max_connections` | 901 → **112** |
+| Working set (1 min, cold after restart) | **166 MB** vs 607 MB cache |
+| Dialogue after restart | continued (claim/grant/speak observed) |
+
+First complete billed hour at 0.25 is still pending. Rollback: PATCH max back to 8.
 
 Canonical runbook: `docs/runbooks/vv-20-neon-compute-research.md`.

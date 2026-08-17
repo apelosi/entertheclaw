@@ -5,6 +5,8 @@
  * unused webhook snapshots (~364 MB content / ~417 MB TOAST on prod as of
  * 2026-08-17). Removing the key rewrites those rows so the working set can
  * shrink. This does not delete events and does not run VACUUM FULL.
+ * After a prod `--yes`, a plain `VACUUM (ANALYZE) stage_events` reclaimed
+ * dead TOAST (417 MB → 5.5 MB on 2026-08-17).
  *
  * Default is dry-run. Requires `--database-url=` (never `.env.local`).
  *

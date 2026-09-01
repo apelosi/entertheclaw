@@ -98,10 +98,12 @@ export async function sendOwnerBroadcast(opts: {
   recipients: Recipient[]
   subject: string
   text: string
+  /** Defaults to noreply@vibez.ventures. Override for one-off staff sends. */
+  from?: string
   dryRun?: boolean
   delayMs?: number
 }): Promise<BroadcastResult> {
-  const { recipients, subject, text, dryRun = true, delayMs = 120 } = opts
+  const { recipients, subject, text, from = FROM_EMAIL, dryRun = true, delayMs = 120 } = opts
   const result: BroadcastResult = { planned: recipients.length, sent: 0, failed: [] }
   if (dryRun) return result
 
@@ -111,7 +113,7 @@ export async function sendOwnerBroadcast(opts: {
 
   for (const r of recipients) {
     try {
-      const { error } = await resend.emails.send({ from: FROM_EMAIL, to: r.email, subject, text })
+      const { error } = await resend.emails.send({ from, to: r.email, subject, text })
       if (error) throw new Error(typeof error === 'string' ? error : JSON.stringify(error))
       result.sent++
     } catch (err) {

@@ -19,12 +19,16 @@
  *   --subject "..."         required
  *   --body "..."            inline body, OR
  *   --body-file <path>      read the body from a file
+ *   --from <addr>           optional From (default noreply@vibez.ventures)
  *
  * Examples:
  *   # dry run: who would get the MCP-upgrade notice?
  *   bun run notify-owners --all-owners --subject "Upgrade" --body-file notice.txt
  *   # actually send to one owner:
  *   bun run notify-owners --agent dbfba74c-... --subject "Upgrade" --body-file notice.txt --send
+ *   # staff From for a one-off (default remains noreply):
+ *   bun run notify-owners --email someone@example.com --from entertheclaw@vibez.ventures \
+ *     --subject "Hello" --body-file notice.txt --send
  */
 import './load-env-local'
 import { readFileSync } from 'fs'
@@ -35,6 +39,7 @@ function parseArgs(argv: string[]) {
   let subject = ''
   let body: string | null = null
   let bodyFile: string | null = null
+  let from: string | null = null
   let send = false
 
   for (let i = 0; i < argv.length; i++) {
@@ -49,13 +54,14 @@ function parseArgs(argv: string[]) {
       case '--subject': subject = next(); break
       case '--body': body = next(); break
       case '--body-file': bodyFile = next(); break
+      case '--from': from = next(); break
       case '--send': send = true; break
       default:
         console.error(`Unknown argument: ${a}`)
         process.exit(1)
     }
   }
-  return { sel, subject, body, bodyFile, send }
+  return { sel, subject, body, bodyFile, from, send }
 }
 
 function maskEmail(e: string): string {
@@ -66,7 +72,7 @@ function maskEmail(e: string): string {
 }
 
 async function main() {
-  const { sel, subject, body, bodyFile, send } = parseArgs(process.argv.slice(2))
+  const { sel, subject, body, bodyFile, from, send } = parseArgs(process.argv.slice(2))
 
   const hasTarget =
     sel.allOwners || sel.allUsers ||
@@ -88,7 +94,8 @@ async function main() {
   const recipients = await resolveRecipients(sel)
   console.log(`Resolved ${recipients.length} recipient(s):`)
   for (const r of recipients) console.log(`  ${maskEmail(r.email)}${r.userId ? `  (user ${r.userId})` : ''}`)
-  console.log(`\nSubject: ${subject}`)
+  console.log(`\nFrom: ${from ?? 'noreply@vibez.ventures (default)'}`)
+  console.log(`Subject: ${subject}`)
   console.log(`Body: ${text.length} chars\n`)
 
   if (!send) {
@@ -97,7 +104,13 @@ async function main() {
   }
 
   console.log('Sending…')
-  const res = await sendOwnerBroadcast({ recipients, subject, text, dryRun: false })
+  const res = await sendOwnerBroadcast({
+    recipients,
+    subject,
+    text,
+    ...(from ? { from } : {}),
+    dryRun: false,
+  })
   console.log(`\nSent ${res.sent}/${res.planned}.`)
   if (res.failed.length) {
     console.log('Failures:')

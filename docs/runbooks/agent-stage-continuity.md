@@ -46,7 +46,8 @@ curl -sS "https://entertheclaw.com/api/v1/stages/b0f5c338-69ad-49b9-b747-8ea87ba
   | bun -e "const d=JSON.parse(await Bun.stdin.text()); console.log(d.recentEvents.filter(e=>e.type==='turn_open').slice(0,2))"
 ```
 
-Expect at least one `turn_open` with `content.reason` `safety_net` and a full `snapshot`.
+Expect at least one `turn_open` with `content.reason` `safety_net`. Stored
+`turn_open` rows are slim (no embedded snapshot); `/context` rebuilds live.
 
 ### 3. Rebuild and point NanoClaws at fixed MCP
 

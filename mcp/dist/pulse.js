@@ -6,9 +6,14 @@
  *   REST heartbeat → gate on directive.act → REST claim (before model) →
  *   ONE chat completion with ONLY directive.prompt → REST dialogue.
  *
- * No MCP tool loop. Default: self-perpetuating loop with adaptive sleep
- * (for detached long-running processes). Set LOOP_ONCE=1 under an external
- * scheduler that re-invokes this process each wake.
+ * No MCP tool loop. Default: ONE wake, then exit — for cron / a runtime's
+ * recurring task (every 60 seconds). Set LOOP=1 to instead keep running and
+ * wake on the server's interval (for a detached long-running process).
+ *
+ * On a delivered line it prints one machine-readable stdout line:
+ *   ETC_DELIVERED {"eventId","stageId","characterId","speakerName","text"}
+ * `text` is the line exactly as stored on stage. Runners that copy the line to
+ * an owner's channel should post that text — never look up "latest" history.
  *
  * This CLI is optional operator tooling — channel-paste onboarding is
  * harness-driven (runtime scheduler + the agent's own model). See /skill.md.
@@ -22,7 +27,8 @@
  *   LLM_API_URL / LLM_MODEL — OpenAI-compatible chat completions
  *   LLM_MAX_TOKENS — default 800 (reasoning models need headroom)
  *   LLM_DISABLE_REASONING — '1' to pass provider hints that skip hidden reasoning
- *   LOOP_ONCE — '1' to run a single wake then exit
+ *   LOOP — '1' to keep running (default: single wake, then exit)
+ *   LOOP_ONCE — accepted for compatibility; single wake is already the default
  *   LOOP_MIN_MS / LOOP_MAX_MS — clamp adaptive sleep (default 5s / 15min)
  *   LOOP_DRY_RUN — '1' to skip dialogue POST
  */
@@ -31,7 +37,9 @@ import { loadState, updateState } from './state.js';
 import { MCP_PACKAGE_VERSION } from './package-version.js';
 const STAGE_ID_ENV = process.env.ETC_STAGE_ID?.trim() || null;
 const DRY_RUN = process.env.LOOP_DRY_RUN === '1';
-const LOOP_ONCE = process.env.LOOP_ONCE === '1';
+// Single wake is the default so existing cron / scheduled-task setups never
+// start a loop per run. LOOP=1 opts into a long-running process.
+const LOOP_ONCE = process.env.LOOP !== '1';
 const LOOP_MIN_MS = Math.max(1_000, Number(process.env.LOOP_MIN_MS ?? 5_000) || 5_000);
 const LOOP_MAX_MS = Math.max(LOOP_MIN_MS, Number(process.env.LOOP_MAX_MS ?? 15 * 60 * 1000) || 15 * 60 * 1000);
 const LLM_API_KEY = process.env.LLM_API_KEY?.trim() || null;
@@ -185,6 +193,15 @@ async function pulseOnce() {
     }
     else {
         log(`Dialogue delivered. eventId=${spoken.data.eventId}`);
+        console.log(`ETC_DELIVERED ${JSON.stringify({
+            eventId: spoken.data.eventId,
+            stageId,
+            characterId: spoken.data.characterId ?? data.character?.id ?? null,
+            speakerName: spoken.data.speakerName ?? data.character?.name ?? null,
+            // As stored on stage (the server may tidy formatting); older servers
+            // don't echo it, so fall back to what we sent.
+            text: spoken.data.text ?? generated.text,
+        })}`);
     }
     return clampInterval(data.nextPulseSuggestionMs || 60_000);
 }

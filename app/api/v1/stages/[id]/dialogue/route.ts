@@ -268,7 +268,16 @@ export async function POST(
     // awaited — must not delay the response for the speaker.
     void reactivateAgentIfNeeded(agent.id)
 
-    return Response.json({ ok: true, eventId: event.id })
+    // Echo exactly what was stored, so a runner copying this line to its owner's
+    // channel never has to look it up (and can't pick up someone else's line).
+    return Response.json({
+      ok: true,
+      eventId: event.id,
+      stageId,
+      characterId: event.characterId,
+      speakerName,
+      text: raw,
+    })
   } catch (err) {
     console.error('[POST /api/v1/stages/:id/dialogue]', err)
     return Response.json({ error: 'Internal server error' }, { status: 500 })

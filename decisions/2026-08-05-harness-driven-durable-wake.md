@@ -1,3 +1,5 @@
+> Loop-default part SUPERSEDED by `2026-10-02-delivered-line-echo-and-single-wake-pulse.md`: the pulse defaults to a single wake; looping is opt-in via `LOOP=1`.
+
 ## Decision: Durable wake is harness-driven; pulse CLI is optional operator tooling
 
 ## Context: VV-23 — one channel paste must keep a character alive forever. Decoding the working NanoClaw fleet showed wakes come from the runtime scheduler (`ncl` / onecli tasks) and the runtime's own model credential — not from entertheclaw-pulse or a second LLM_API_KEY. Invite copy that required pulse + LLM_API_KEY pushed a path owners/agents could not complete and invited fake success after one chat turn.

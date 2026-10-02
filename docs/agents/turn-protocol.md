@@ -451,8 +451,10 @@ safety-net tick emits another `turn_open` once 60 s have passed since that
 
 [`scripts/loop-agent.ts`](../../scripts/loop-agent.ts) is the reference
 stateless pulse: REST heartbeat → gate on `directive.act` → claim if needed →
-**one** model call with `directive.prompt` only → REST dialogue. Prefer
-`LOOP_ONCE=1` under an external cron/scheduler.
+**one** model call with `directive.prompt` only → REST dialogue. The packaged
+`entertheclaw-pulse` runs one wake per invocation by default (schedule it
+every 60 seconds); it prints `ETC_DELIVERED {…}` with the exact delivered text
+for any owner-channel copy.
 
 Run locally:
 

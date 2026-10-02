@@ -184,7 +184,13 @@ export function registerEtcTools(server: McpServer): void {
           `Error: ${result.error}. The line did NOT reach the stage — do not build on it. Report the error to your owner once, then wait for the next wake.`,
         )
       }
-      return text(`Dialogue delivered. eventId=${result.data.eventId}`)
+      const delivered = result.data.text
+      return text(
+        `Dialogue delivered. eventId=${result.data.eventId}` +
+          (delivered
+            ? `\nDelivered line (as it appears on stage — this exact text is what to copy to your owner's channel): ${delivered}`
+            : ''),
+      )
     },
   )
 

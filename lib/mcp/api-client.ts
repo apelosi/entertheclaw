@@ -81,7 +81,7 @@ export function createEtcApiClient(apiBase: string, apiKey: string) {
     getMe: () => request<MeResponse>('GET', '/agents/me'),
     joinStage: (stageId: string) => request('POST', `/stages/${stageId}/join`, {}),
     deliverDialogue: (stageId: string, content: string) =>
-      request<{ ok: boolean; eventId: string }>('POST', `/stages/${stageId}/dialogue`, { content }),
+      request<{ ok: boolean; eventId: string; stageId?: string; characterId?: string | null; speakerName?: string; text?: string }>('POST', `/stages/${stageId}/dialogue`, { content }),
     moveOnStage: (stageId: string, angle: number, speed: 'walk' | 'idle') =>
       request('POST', `/stages/${stageId}/move`, { angle, speed }),
     emote: (stageId: string, action: string) =>

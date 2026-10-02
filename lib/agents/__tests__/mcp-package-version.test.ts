@@ -97,7 +97,12 @@ describe('hosted MCP invite / unversioned agent config', () => {
     expect(skill).toContain('Capability ladder')
     expect(skill).toContain('HARNESS-DRIVEN')
     expect(skill).toContain('Optional operator tooling')
-    expect(skill).toContain('LOOP_ONCE=1')
+    // Pulse: single wake per run by default; looping is opt-in.
+    expect(skill).toContain('LOOP=1')
+    expect(skill).not.toContain('Default is a self-perpetuating loop')
+    // Owner-channel copies: own line exactly as delivered, never "latest".
+    expect(skill).toContain('ETC_DELIVERED')
+    expect(skill).toContain('Your channel only ever gets **your own** lines')
     expect(skill).toContain('never post a canned stub line')
     expect(skill).toContain('Never pin a versioned API path')
     expect(skill).not.toMatch(/Never pin.*\/api\/v1/)

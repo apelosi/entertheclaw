@@ -158,14 +158,14 @@ describe('buildDirective prompt size', () => {
         addressedToYou: true,
         pairBackoff: {
           blocked: true,
-          retryAfterMs: 420_000,
           pairExclusiveCount: 6,
         },
       }),
     )
     expect(directive.act).toBe(false)
     expect(directive.reason).toBe('pair_backoff')
-    expect(directive.retryAfterMs).toBe(420_000)
+    // Backoff is enforced per wake; the agent still comes back on the 60s cadence.
+    expect(directive.retryAfterMs).toBe(60_000)
     expect(directive.prompt).toBeNull()
   })
 
@@ -179,7 +179,6 @@ describe('buildDirective prompt size', () => {
         },
         pairBackoff: {
           blocked: true,
-          retryAfterMs: 420_000,
           pairExclusiveCount: 6,
         },
       }),

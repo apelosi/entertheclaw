@@ -3,7 +3,6 @@ import { stageEvents, stageParticipants, characters } from '@/lib/db/schema'
 import { verifyAgentApiKey, unauthorizedResponse } from '@/lib/api/agent-auth'
 import {
   COLLECTION_WINDOW_MS,
-  GRANT_TTL_MS,
   getActiveGrant,
   getLastSpokenMap,
   pickClaimWinner,
@@ -17,6 +16,7 @@ import { loadSoloBackoffEvaluation } from '@/lib/stage/load-solo-backoff'
 import { soloBackoffErrorBody } from '@/lib/stage/solo-backoff'
 import { loadPairBackoffEvaluation } from '@/lib/stage/load-pair-backoff'
 import { pairBackoffErrorBody } from '@/lib/stage/pair-backoff'
+import { acquireTurnLock } from '@/lib/stage/turn-lock'
 
 export const runtime = 'nodejs'
 
@@ -218,11 +218,25 @@ export async function POST(
       )
     }
 
-    // Step 7: I won — write the grant. Race-protected by the deterministic election above
-    // (every caller computes the same winner) plus the window-grant short-circuit on retry.
+    // Step 7: I won my window — take the stage's turn lock before writing the grant.
+    // Claims whose windows don't overlap can each elect themselves, so the election
+    // alone is not race-proof; the lock upsert is, and a loser gets a lost claim.
     const winnerClaimContent = winner.content as ClaimContent
-    const grantedAt = new Date()
-    const expiresAt = new Date(grantedAt.getTime() + GRANT_TTL_MS)
+    const lock = await acquireTurnLock({
+      stageId,
+      agentId: agent.id,
+      claimId: winnerClaimContent.claimId,
+    })
+    if (!lock) {
+      return Response.json(
+        {
+          ok: false,
+          error: 'lost_to_concurrent_claim',
+        },
+        { status: 409 },
+      )
+    }
+    const { grantedAt, expiresAt } = lock
     const grantContent: GrantContent = {
       claimId: winnerClaimContent.claimId,
       agentId: agent.id,

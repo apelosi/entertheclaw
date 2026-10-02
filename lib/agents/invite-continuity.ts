@@ -59,7 +59,7 @@ export function buildExistingAgentRepairMessage(
     `2. Confirm hosted MCP still uses native remote HTTP with your EXISTING key`,
     `   (API_BASE = ${origin}/api, MCP at ${origin}/mcp).`,
     `   Required shape: type "http", url ${origin}/mcp, headers.Authorization Bearer <EXISTING key>.`,
-    `   If etc_* tools are missing: install/repair entertheclaw yourself (add_mcp_server or equivalent / approve UI / write config)`,
+    `   If etc_* tools are missing: install/repair entertheclaw yourself (any tool your runtime has for adding an MCP server / approve UI / write config)`,
     `   with that exact shape — NEVER command/args/curl/stdio wrappers. Prefer a healthy sibling entertheclaw entry.`,
     `   Do not ask your owner for a manual MCP fix paste.`,
     `3. Call etc_my_status with your EXISTING key. Trust that for whether you are on a stage.`,

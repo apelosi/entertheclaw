@@ -1,8 +1,5 @@
 import { verifyAgentApiKey, unauthorizedResponse } from '@/lib/api/agent-auth'
-import {
-  PULSE_HINT_ACTIVE_MS,
-  PULSE_HINT_IDLE_MS,
-} from '@/lib/stage/turn-state'
+import { WAKE_INTERVAL_MS } from '@/lib/stage/wake-interval'
 import { computeNudge } from '@/lib/stage/inactivity-nudge'
 import { buildDirective } from '@/lib/stage/build-directive'
 import { countConsecutiveSoloDialogue } from '@/lib/stage/solo-backoff'
@@ -137,10 +134,9 @@ export async function POST(
         return isAddressed(c.text, charName)
       })
 
-    const pulseHintMs = stageActivity === 'active' ? PULSE_HINT_ACTIVE_MS : PULSE_HINT_IDLE_MS
-    const nextPulseSuggestionMs = addressedToYou
-      ? Math.min(pulseHintMs, 60_000)
-      : pulseHintMs
+    // One cadence for every agent and stage state; pacing is enforced per wake.
+    const pulseHintMs = WAKE_INTERVAL_MS
+    const nextPulseSuggestionMs = WAKE_INTERVAL_MS
 
     let activeTwist: { text: string; userDisplayName: string | null; createdAt: string } | null = null
     if (latestTwistEvent?.content && typeof latestTwistEvent.content === 'object') {
@@ -202,7 +198,6 @@ export async function POST(
       consecutiveSoloDialogueCount,
       pairBackoff: {
         blocked: pairBackoff.blocked,
-        retryAfterMs: pairBackoff.retryAfterMs,
         pairExclusiveCount: pairBackoff.pairExclusiveCount,
       },
     })

@@ -65,7 +65,7 @@ export interface DirectiveInputs {
   nudge: { level: string } | null
   /** Whether unreadEvents contains a twist this wake. */
   unreadHasTwist: boolean
-  /** retryAfterMs to suggest when there is nothing to do (server pulse hint). */
+  /** retryAfterMs when there is nothing to do: the fixed wake interval. */
   idleRetryAfterMs: number
   /** Trailing solo dialogue count for this agent. Used only to align initiative
    *  act=false with the claim hard-reject schedule (409 solo_backoff). */
@@ -77,7 +77,7 @@ export interface DirectiveInputs {
    */
   pairBackoff?: Pick<
     PairBackoffEvaluation,
-    'blocked' | 'retryAfterMs' | 'pairExclusiveCount'
+    'blocked' | 'pairExclusiveCount'
   > | null
 }
 
@@ -98,8 +98,6 @@ interface Gate {
   act: boolean
   reason: string
   stake: number
-  /** Override idleRetryAfterMs when act=false for a specific backoff reason. */
-  retryAfterMs?: number
 }
 
 /** First sentence of backstory, or a short hook — full backstory lives in enrollment. */
@@ -145,12 +143,7 @@ function decideAct(input: DirectiveInputs): Gate {
   // until quiet elapses or a third speaker breaks the capture.
   const pair = input.pairBackoff
   if (pair?.blocked) {
-    return {
-      act: false,
-      reason: 'pair_backoff',
-      stake: 0,
-      retryAfterMs: pair.retryAfterMs > 0 ? pair.retryAfterMs : input.idleRetryAfterMs,
-    }
+    return { act: false, reason: 'pair_backoff', stake: 0 }
   }
   if (input.nudge) {
     return { act: true, reason: `nudge:${input.nudge.level}`, stake: 8 }
@@ -265,7 +258,7 @@ export function buildDirective(input: DirectiveInputs): Directive {
     return {
       act: false,
       reason: gate.reason,
-      retryAfterMs: gate.retryAfterMs ?? input.idleRetryAfterMs,
+      retryAfterMs: input.idleRetryAfterMs,
       stake: 0,
       prompt: null,
     }

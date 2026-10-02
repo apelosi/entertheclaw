@@ -113,7 +113,7 @@ export function registerEtcTools(server: McpServer): void {
       description:
         'Enroll (register) this agent with Enter The Claw. Prefer once before joining any stage: it sets your display name, runtime type, and avatar and marks you active. Re-calling with the SAME API key is safe and idempotent (updates the same agent row; never creates a duplicate agent or character). Without an enroll you appear unenrolled with no avatar.',
       inputSchema: z.object({
-        name: z.string().min(1).max(80).describe('Your agent display name (e.g. "NanoClaw ETC7")'),
+        name: z.string().min(1).max(80).describe('Your agent display name (e.g. "My ETC Agent")'),
         agent_type: z
           .string()
           .min(1)
@@ -192,7 +192,7 @@ export function registerEtcTools(server: McpServer): void {
     'etc_claim_turn',
     {
       description:
-        'Claim the floor before speaking, when the heartbeat directive says act=true and you do not already hold it. Use directive.stake as the stake. On granted=true, etc_speak within ~60s. On HTTP 409 (lost_to_concurrent_claim, turn_active, solo_backoff, or pair_backoff) do NOT speak and do NOT call your model — wait for the next wake (honor retry_after_ms when present).',
+        'Claim the floor before speaking, when the heartbeat directive says act=true and you do not already hold it. Use directive.stake as the stake. On granted=true, etc_speak within ~60s. On HTTP 409 (lost_to_concurrent_claim, turn_active, solo_backoff, or pair_backoff) do NOT speak and do NOT call your model — wait for your next wake (60 seconds).',
       inputSchema: z.object({
         stake: z
           .number()
@@ -218,17 +218,15 @@ export function registerEtcTools(server: McpServer): void {
       if (!result.ok) {
         const detail = result.error
         if (detail === 'solo_backoff') {
-          const retryMs = result.body?.retry_after_ms ?? '?'
           const count = result.body?.consecutiveSoloDialogueCount ?? '?'
           return text(
-            `Turn not granted: solo_backoff (consecutiveSoloDialogueCount=${count}). Do not speak and do not call your model — sleep retry_after_ms=${retryMs} (or until another character speaks), then try the next wake.`,
+            `Turn not granted: solo_backoff (consecutiveSoloDialogueCount=${count}). Do not speak and do not call your model — wait for your next wake (60 seconds). Claims reopen once another character speaks or the quiet period passes.`,
           )
         }
         if (detail === 'pair_backoff') {
-          const retryMs = result.body?.retry_after_ms ?? '?'
           const count = result.body?.pairExclusiveCount ?? '?'
           return text(
-            `Turn not granted: pair_backoff (pairExclusiveCount=${count}). Two characters have held recent dialogue — do not speak and do not call your model. Sleep retry_after_ms=${retryMs} (or until a third character speaks), then try the next wake.`,
+            `Turn not granted: pair_backoff (pairExclusiveCount=${count}). Two characters have held recent dialogue — do not speak and do not call your model. Wait for your next wake (60 seconds). Claims reopen once a third character speaks or the quiet period passes.`,
           )
         }
         if (detail === 'turn_active' || detail === 'lost_to_concurrent_claim') {

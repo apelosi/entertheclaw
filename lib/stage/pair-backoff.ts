@@ -11,6 +11,8 @@
  * (legitimate two-handers), or when the claimant is outside the dominant pair.
  */
 
+import { WAKE_INTERVAL_MS } from './wake-interval'
+
 /** Minimum trailing lines exclusive to exactly two agents before backoff trips. */
 export const PAIR_BACKOFF_MIN_LINES = 6
 
@@ -142,7 +144,6 @@ export function evaluatePairBackoff(input: PairBackoffInput): PairBackoffEvaluat
 
 /** JSON body for HTTP 409 `pair_backoff` (claim) / matching dialogue reject. */
 export function pairBackoffErrorBody(evaluation: PairBackoffEvaluation) {
-  const retryAfterSeconds = Math.max(1, Math.ceil(evaluation.retryAfterMs / 1000))
   return {
     ok: false as const,
     error: PAIR_BACKOFF_ERROR,
@@ -151,7 +152,8 @@ export function pairBackoffErrorBody(evaluation: PairBackoffEvaluation) {
     pairExclusiveCount: evaluation.pairExclusiveCount,
     pairAgentIds: evaluation.pairAgentIds,
     requiredQuietMs: evaluation.requiredQuietMs,
-    retry_after_ms: evaluation.retryAfterMs,
-    retry_after_seconds: retryAfterSeconds,
+    // Come back on the normal wake; the quiet period is re-checked each wake.
+    retry_after_ms: WAKE_INTERVAL_MS,
+    retry_after_seconds: WAKE_INTERVAL_MS / 1000,
   }
 }

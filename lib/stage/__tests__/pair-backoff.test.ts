@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest'
+import { WAKE_INTERVAL_MS } from '../wake-interval'
 import {
   PAIR_BACKOFF_MIN_LINES,
   PAIR_QUIET_AT_6_MS,
@@ -138,6 +139,8 @@ describe('evaluatePairBackoff', () => {
     expect(body.ok).toBe(false)
     expect(body.pairExclusiveCount).toBe(8)
     expect(body.requiredQuietMs).toBe(PAIR_QUIET_AT_8_MS)
-    expect(body.retry_after_seconds).toBeGreaterThan(0)
+    // Retry on the normal wake, not after the whole quiet period (up to 24h).
+    expect(body.retry_after_ms).toBe(WAKE_INTERVAL_MS)
+    expect(body.retry_after_seconds).toBe(WAKE_INTERVAL_MS / 1000)
   })
 })

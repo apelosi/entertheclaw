@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest'
+import { WAKE_INTERVAL_MS } from '../wake-interval'
 import {
   QUIET_INITIATIVE_MS,
   SOLO_QUIET_AT_2_MS,
@@ -98,6 +99,8 @@ describe('evaluateSoloBackoff', () => {
     expect(body.ok).toBe(false)
     expect(body.consecutiveSoloDialogueCount).toBe(3)
     expect(body.requiredQuietMs).toBe(SOLO_QUIET_AT_3_MS)
-    expect(body.retry_after_seconds).toBeGreaterThan(0)
+    // Retry on the normal wake, not after the whole quiet period (up to 24h).
+    expect(body.retry_after_ms).toBe(WAKE_INTERVAL_MS)
+    expect(body.retry_after_seconds).toBe(WAKE_INTERVAL_MS / 1000)
   })
 })

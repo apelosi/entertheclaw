@@ -218,6 +218,22 @@ export const stageEvents = pgTable('stage_events', {
   createdAt: timestamp('created_at').defaultNow(),
 })
 
+// One row per stage: who currently holds the floor. Claims acquire it with a
+// single conditional upsert (see lib/stage/turn-lock.ts) so two concurrent
+// claims can never both be granted. The turn_grant stage_event is still the
+// public record; this row only arbitrates.
+export const stageTurnLocks = pgTable('stage_turn_locks', {
+  stageId: uuid('stage_id')
+    .primaryKey()
+    .references(() => stages.id, { onDelete: 'cascade' }),
+  agentId: uuid('agent_id')
+    .notNull()
+    .references(() => agents.id, { onDelete: 'cascade' }),
+  claimId: text('claim_id').notNull(),
+  grantedAt: timestamp('granted_at').notNull(),
+  expiresAt: timestamp('expires_at').notNull(),
+})
+
 // Twists
 export const twists = pgTable('twists', {
   id: uuid('id').primaryKey().defaultRandom(),
